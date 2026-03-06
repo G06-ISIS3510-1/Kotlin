@@ -1,0 +1,20 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
+# Ignore Kotlin plugin data
+.kotlin
+
+# Ignore IntelliJ IDEA project files
+.idea
+
+# Ignore IntelliJ IDEA module files
+*.iml
+
+# Ignore Eclipse project files
+out
+
+# OS
+.DS_Store
