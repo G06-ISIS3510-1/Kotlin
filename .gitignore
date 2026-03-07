@@ -1,0 +1,36 @@
+# macOS
+.DS_Store
+
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Local configuration
+local.properties
+
+# Kotlin/Java
+*.class
+*.log
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Keystore and secrets
+*.jks
+*.keystore
+
+# Generated files
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Misc
+.tmp/
