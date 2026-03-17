@@ -1,0 +1,2070 @@
+{
+  "projectName": "Wheels - Ride-sharing Android App",
+  "totalFiles": 62,
+  "analysisDate": "2026-03-16",
+  "architecture": {
+    "description": "Clean Architecture with MVVM pattern",
+    "layers": [
+      "Presentation (UI)",
+      "Domain (Business Logic)",
+      "Data (Repository Pattern)"
+    ]
+  },
+  "files": [
+    {
+      "id": 1,
+      "path": "app/src/main/java/com/wheels/app/WheelsApplication.kt",
+      "package": "com.wheels.app",
+      "type": "Application Entry Point",
+      "classDefinitions": [
+        {
+          "name": "WheelsApplication",
+          "type": "class",
+          "extends": "Application",
+          "annotations": ["@HiltAndroidApp"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "android.app.Application",
+          "dagger.hilt.android.HiltAndroidApp"
+        ],
+        "internal": []
+      },
+      "dependents": [
+        "AndroidManifest.xml"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 2,
+      "path": "app/src/main/java/com/wheels/app/MainActivity.kt",
+      "package": "com.wheels.app",
+      "type": "Activity",
+      "classDefinitions": [
+        {
+          "name": "MainActivity",
+          "type": "class",
+          "extends": "ComponentActivity",
+          "annotations": ["@AndroidEntryPoint"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "android.os.Bundle",
+          "androidx.activity.ComponentActivity",
+          "androidx.activity.compose.setContent",
+          "dagger.hilt.android.AndroidEntryPoint"
+        ],
+        "internal": [
+          "com.wheels.app.navigation.WheelsNavGraph",
+          "com.wheels.app.ui.theme.WheelsTheme"
+        ]
+      },
+      "dependents": [
+        "AndroidManifest.xml"
+      ],
+      "dependencies": [
+        "navigation/WheelsNavGraph.kt",
+        "ui/theme/Theme.kt"
+      ]
+    },
+    {
+      "id": 3,
+      "path": "app/src/main/java/com/wheels/app/ui/theme/Type.kt",
+      "package": "com.wheels.app.ui.theme",
+      "type": "Theme/Style",
+      "classDefinitions": [
+        {
+          "name": "WheelsTypography",
+          "type": "object"
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.material3.Typography"
+        ],
+        "internal": []
+      },
+      "dependents": [
+        "ui/theme/Theme.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 4,
+      "path": "app/src/main/java/com/wheels/app/ui/theme/Theme.kt",
+      "package": "com.wheels.app.ui.theme",
+      "type": "Theme/Style",
+      "classDefinitions": [
+        {
+          "name": "WheelsTheme",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.isSystemInDarkTheme",
+          "androidx.compose.material3.MaterialTheme",
+          "androidx.compose.material3.darkColorScheme",
+          "androidx.compose.material3.lightColorScheme",
+          "androidx.compose.runtime.Composable"
+        ],
+        "internal": [
+          "com.wheels.app.ui.theme.Color (PrimaryBlue, etc.)",
+          "com.wheels.app.ui.theme.WheelsTypography",
+          "com.wheels.app.ui.theme.WheelsShapes"
+        ]
+      },
+      "dependents": [
+        "MainActivity.kt"
+      ],
+      "dependencies": [
+        "ui/theme/Type.kt",
+        "ui/theme/Shape.kt",
+        "ui/theme/Color.kt"
+      ]
+    },
+    {
+      "id": 5,
+      "path": "app/src/main/java/com/wheels/app/ui/theme/Shape.kt",
+      "package": "com.wheels.app.ui.theme",
+      "type": "Theme/Style",
+      "classDefinitions": [
+        {
+          "name": "WheelsShapes",
+          "type": "object"
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.shape.RoundedCornerShape",
+          "androidx.compose.material3.Shapes",
+          "androidx.compose.ui.unit.dp"
+        ],
+        "internal": []
+      },
+      "dependents": [
+        "ui/theme/Theme.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 6,
+      "path": "app/src/main/java/com/wheels/app/ui/theme/Color.kt",
+      "package": "com.wheels.app.ui.theme",
+      "type": "Theme/Style",
+      "classDefinitions": [
+        {
+          "name": "PrimaryBlue",
+          "type": "Color constant"
+        },
+        {
+          "name": "SecondaryBlue",
+          "type": "Color constant"
+        },
+        {
+          "name": "ElectricGreen",
+          "type": "Color constant"
+        },
+        {
+          "name": "WheelsBackground",
+          "type": "Color constant"
+        },
+        {
+          "name": "WheelsSurface",
+          "type": "Color constant"
+        },
+        {
+          "name": "TextPrimary",
+          "type": "Color constant"
+        },
+        {
+          "name": "TextSecondary",
+          "type": "Color constant"
+        },
+        {
+          "name": "Warning",
+          "type": "Color constant"
+        },
+        {
+          "name": "WheelsError",
+          "type": "Color constant"
+        },
+        {
+          "name": "Border",
+          "type": "Color constant"
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.ui.graphics.Color"
+        ],
+        "internal": []
+      },
+      "dependents": [
+        "ui/theme/Theme.kt",
+        "ui/components/WheelsBottomBar.kt",
+        "ui/screens/home/HomeScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 7,
+      "path": "app/src/main/java/com/wheels/app/navigation/Destinations.kt",
+      "package": "com.wheels.app.navigation",
+      "type": "Navigation Model",
+      "classDefinitions": [
+        {
+          "name": "Destinations",
+          "type": "sealed class",
+          "nested": ["Home", "Rides", "Payments", "Profile"]
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt",
+        "navigation/BottomNavItem.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 8,
+      "path": "app/src/main/java/com/wheels/app/navigation/BottomNavItem.kt",
+      "package": "com.wheels.app.navigation",
+      "type": "Navigation Model",
+      "classDefinitions": [
+        {
+          "name": "BottomNavItem",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.material.icons.Icons",
+          "androidx.compose.material.icons.outlined.Navigation",
+          "androidx.compose.material.icons.outlined.NotificationsNone",
+          "androidx.compose.material.icons.outlined.Place",
+          "androidx.compose.ui.graphics.vector.ImageVector"
+        ],
+        "internal": [
+          "com.wheels.app.navigation.Destinations"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt",
+        "ui/components/WheelsBottomBar.kt"
+      ],
+      "dependencies": [
+        "navigation/Destinations.kt"
+      ]
+    },
+    {
+      "id": 9,
+      "path": "app/src/main/java/com/wheels/app/navigation/WheelsNavGraph.kt",
+      "package": "com.wheels.app.navigation",
+      "type": "Navigation Graph",
+      "classDefinitions": [
+        {
+          "name": "WheelsNavGraph",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.material3.Scaffold",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.runtime.getValue",
+          "androidx.hilt.navigation.compose.hiltViewModel",
+          "androidx.navigation.NavDestination.Companion.hierarchy",
+          "androidx.navigation.NavGraph.Companion.findStartDestination",
+          "androidx.navigation.compose.NavHost",
+          "androidx.navigation.compose.composable",
+          "androidx.navigation.compose.currentBackStackEntryAsState",
+          "androidx.navigation.compose.rememberNavController"
+        ],
+        "internal": [
+          "com.wheels.app.navigation.Destinations",
+          "com.wheels.app.navigation.BottomNavItem (wheelsBottomNavItems)",
+          "com.wheels.app.ui.components.WheelsBottomBar",
+          "com.wheels.app.ui.screens.home.HomeScreen",
+          "com.wheels.app.ui.screens.home.HomeViewModel",
+          "com.wheels.app.ui.screens.rides.RidesScreen",
+          "com.wheels.app.ui.screens.rides.RidesViewModel",
+          "com.wheels.app.ui.screens.payments.PaymentsScreen",
+          "com.wheels.app.ui.screens.payments.PaymentsViewModel",
+          "com.wheels.app.ui.screens.profile.ProfileScreen",
+          "com.wheels.app.ui.screens.profile.ProfileViewModel"
+        ]
+      },
+      "dependents": [
+        "MainActivity.kt"
+      ],
+      "dependencies": [
+        "navigation/Destinations.kt",
+        "navigation/BottomNavItem.kt",
+        "ui/components/WheelsBottomBar.kt",
+        "ui/screens/home/HomeScreen.kt",
+        "ui/screens/home/HomeViewModel.kt",
+        "ui/screens/rides/RidesScreen.kt",
+        "ui/screens/rides/RidesViewModel.kt",
+        "ui/screens/payments/PaymentsScreen.kt",
+        "ui/screens/payments/PaymentsViewModel.kt",
+        "ui/screens/profile/ProfileScreen.kt",
+        "ui/screens/profile/ProfileViewModel.kt"
+      ]
+    },
+    {
+      "id": 10,
+      "path": "app/src/main/java/com/wheels/app/di/AppModule.kt",
+      "package": "com.wheels.app.di",
+      "type": "Dependency Injection",
+      "classDefinitions": [
+        {
+          "name": "AppModule",
+          "type": "object",
+          "annotations": ["@Module", "@InstallIn(SingletonComponent::class)"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "dagger.Module",
+          "dagger.Provides",
+          "dagger.hilt.InstallIn",
+          "dagger.hilt.components.SingletonComponent",
+          "kotlinx.coroutines.CoroutineDispatcher",
+          "kotlinx.coroutines.Dispatchers",
+          "javax.inject.Singleton"
+        ],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 11,
+      "path": "app/src/main/java/com/wheels/app/di/NetworkModule.kt",
+      "package": "com.wheels.app.di",
+      "type": "Dependency Injection",
+      "classDefinitions": [
+        {
+          "name": "NetworkModule",
+          "type": "object",
+          "annotations": ["@Module", "@InstallIn(SingletonComponent::class)"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "dagger.Module",
+          "dagger.Provides",
+          "dagger.hilt.InstallIn",
+          "dagger.hilt.components.SingletonComponent",
+          "okhttp3.OkHttpClient",
+          "retrofit2.Retrofit",
+          "retrofit2.converter.gson.GsonConverterFactory",
+          "javax.inject.Singleton"
+        ],
+        "internal": [
+          "com.wheels.app.common.Constants",
+          "com.wheels.app.data.remote.api.AuthApi",
+          "com.wheels.app.data.remote.api.PaymentApi",
+          "com.wheels.app.data.remote.api.RideApi"
+        ]
+      },
+      "dependents": [],
+      "dependencies": [
+        "common/Constants.kt",
+        "data/remote/api/AuthApi.kt",
+        "data/remote/api/PaymentApi.kt",
+        "data/remote/api/RideApi.kt"
+      ]
+    },
+    {
+      "id": 12,
+      "path": "app/src/main/java/com/wheels/app/di/RepositoryModule.kt",
+      "package": "com.wheels.app.di",
+      "type": "Dependency Injection",
+      "classDefinitions": [
+        {
+          "name": "RepositoryModule",
+          "type": "abstract class",
+          "annotations": ["@Module", "@InstallIn(SingletonComponent::class)"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "dagger.Binds",
+          "dagger.Module",
+          "dagger.hilt.InstallIn",
+          "dagger.hilt.components.SingletonComponent",
+          "javax.inject.Singleton"
+        ],
+        "internal": [
+          "com.wheels.app.data.repository.AuthRepositoryImpl",
+          "com.wheels.app.data.repository.PaymentRepositoryImpl",
+          "com.wheels.app.data.repository.RideRepositoryImpl",
+          "com.wheels.app.domain.repository.AuthRepository",
+          "com.wheels.app.domain.repository.PaymentRepository",
+          "com.wheels.app.domain.repository.RideRepository"
+        ]
+      },
+      "dependents": [],
+      "dependencies": [
+        "data/repository/AuthRepositoryImpl.kt",
+        "data/repository/PaymentRepositoryImpl.kt",
+        "data/repository/RideRepositoryImpl.kt",
+        "domain/repository/AuthRepository.kt",
+        "domain/repository/PaymentRepository.kt",
+        "domain/repository/RideRepository.kt"
+      ]
+    },
+    {
+      "id": 13,
+      "path": "app/src/main/java/com/wheels/app/domain/model/User.kt",
+      "package": "com.wheels.app.domain.model",
+      "type": "Domain Model",
+      "classDefinitions": [
+        {
+          "name": "User",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "domain/usecase/GetUserProfileUseCase.kt",
+        "domain/repository/AuthRepository.kt",
+        "data/repository/AuthRepositoryImpl.kt",
+        "data/remote/mapper/UserMapper.kt",
+        "ui/screens/profile/ProfileViewModel.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 14,
+      "path": "app/src/main/java/com/wheels/app/domain/model/Ride.kt",
+      "package": "com.wheels.app.domain.model",
+      "type": "Domain Model",
+      "classDefinitions": [
+        {
+          "name": "Ride",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [
+          "java.time.Instant"
+        ],
+        "internal": []
+      },
+      "dependents": [
+        "domain/usecase/GetAvailableRidesUseCase.kt",
+        "domain/repository/RideRepository.kt",
+        "data/repository/RideRepositoryImpl.kt",
+        "data/remote/mapper/RideMapper.kt",
+        "ui/screens/rides/RidesViewModel.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 15,
+      "path": "app/src/main/java/com/wheels/app/domain/model/Booking.kt",
+      "package": "com.wheels.app.domain.model",
+      "type": "Domain Model",
+      "classDefinitions": [
+        {
+          "name": "Booking",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "domain/usecase/BookRideUseCase.kt",
+        "domain/repository/RideRepository.kt",
+        "data/repository/RideRepositoryImpl.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 16,
+      "path": "app/src/main/java/com/wheels/app/domain/model/Payment.kt",
+      "package": "com.wheels.app.domain.model",
+      "type": "Domain Model",
+      "classDefinitions": [
+        {
+          "name": "Payment",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "domain/repository/PaymentRepository.kt",
+        "data/repository/PaymentRepositoryImpl.kt",
+        "data/remote/mapper/PaymentMapper.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 17,
+      "path": "app/src/main/java/com/wheels/app/domain/model/Reputation.kt",
+      "package": "com.wheels.app.domain.model",
+      "type": "Domain Model",
+      "classDefinitions": [
+        {
+          "name": "Reputation",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 18,
+      "path": "app/src/main/java/com/wheels/app/domain/repository/RideRepository.kt",
+      "package": "com.wheels.app.domain.repository",
+      "type": "Domain Repository Interface",
+      "classDefinitions": [
+        {
+          "name": "RideRepository",
+          "type": "interface"
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.Booking",
+          "com.wheels.app.domain.model.Ride"
+        ]
+      },
+      "dependents": [
+        "di/RepositoryModule.kt",
+        "domain/usecase/GetAvailableRidesUseCase.kt",
+        "domain/usecase/BookRideUseCase.kt",
+        "data/repository/RideRepositoryImpl.kt"
+      ],
+      "dependencies": [
+        "domain/model/Ride.kt",
+        "domain/model/Booking.kt"
+      ]
+    },
+    {
+      "id": 19,
+      "path": "app/src/main/java/com/wheels/app/domain/repository/AuthRepository.kt",
+      "package": "com.wheels.app.domain.repository",
+      "type": "Domain Repository Interface",
+      "classDefinitions": [
+        {
+          "name": "AuthRepository",
+          "type": "interface"
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.User"
+        ]
+      },
+      "dependents": [
+        "di/RepositoryModule.kt",
+        "domain/usecase/GetUserProfileUseCase.kt",
+        "data/repository/AuthRepositoryImpl.kt"
+      ],
+      "dependencies": [
+        "domain/model/User.kt"
+      ]
+    },
+    {
+      "id": 20,
+      "path": "app/src/main/java/com/wheels/app/domain/repository/PaymentRepository.kt",
+      "package": "com.wheels.app.domain.repository",
+      "type": "Domain Repository Interface",
+      "classDefinitions": [
+        {
+          "name": "PaymentRepository",
+          "type": "interface"
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.Payment"
+        ]
+      },
+      "dependents": [
+        "di/RepositoryModule.kt",
+        "data/repository/PaymentRepositoryImpl.kt"
+      ],
+      "dependencies": [
+        "domain/model/Payment.kt"
+      ]
+    },
+    {
+      "id": 21,
+      "path": "app/src/main/java/com/wheels/app/domain/usecase/GetUserProfileUseCase.kt",
+      "package": "com.wheels.app.domain.usecase",
+      "type": "Use Case",
+      "classDefinitions": [
+        {
+          "name": "GetUserProfileUseCase",
+          "type": "class"
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.User",
+          "com.wheels.app.domain.repository.AuthRepository"
+        ]
+      },
+      "dependents": [
+        "ui/screens/profile/ProfileViewModel.kt",
+        "ui/screens/payments/PaymentsViewModel.kt"
+      ],
+      "dependencies": [
+        "domain/model/User.kt",
+        "domain/repository/AuthRepository.kt"
+      ]
+    },
+    {
+      "id": 22,
+      "path": "app/src/main/java/com/wheels/app/domain/usecase/GetAvailableRidesUseCase.kt",
+      "package": "com.wheels.app.domain.usecase",
+      "type": "Use Case",
+      "classDefinitions": [
+        {
+          "name": "GetAvailableRidesUseCase",
+          "type": "class"
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.Ride",
+          "com.wheels.app.domain.repository.RideRepository"
+        ]
+      },
+      "dependents": [
+        "ui/screens/rides/RidesViewModel.kt"
+      ],
+      "dependencies": [
+        "domain/model/Ride.kt",
+        "domain/repository/RideRepository.kt"
+      ]
+    },
+    {
+      "id": 23,
+      "path": "app/src/main/java/com/wheels/app/domain/usecase/BookRideUseCase.kt",
+      "package": "com.wheels.app.domain.usecase",
+      "type": "Use Case",
+      "classDefinitions": [
+        {
+          "name": "BookRideUseCase",
+          "type": "class"
+        }
+      ],
+      "imports": {
+        "external": [
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.Booking",
+          "com.wheels.app.domain.repository.RideRepository"
+        ]
+      },
+      "dependents": [],
+      "dependencies": [
+        "domain/model/Booking.kt",
+        "domain/repository/RideRepository.kt"
+      ]
+    },
+    {
+      "id": 24,
+      "path": "app/src/main/java/com/wheels/app/data/repository/AuthRepositoryImpl.kt",
+      "package": "com.wheels.app.data.repository",
+      "type": "Repository Implementation",
+      "classDefinitions": [
+        {
+          "name": "AuthRepositoryImpl",
+          "type": "class",
+          "implements": ["AuthRepository"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow",
+          "kotlinx.coroutines.flow.flowOf",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.User",
+          "com.wheels.app.domain.repository.AuthRepository"
+        ]
+      },
+      "dependents": [
+        "di/RepositoryModule.kt"
+      ],
+      "dependencies": [
+        "domain/model/User.kt",
+        "domain/repository/AuthRepository.kt"
+      ]
+    },
+    {
+      "id": 25,
+      "path": "app/src/main/java/com/wheels/app/data/repository/RideRepositoryImpl.kt",
+      "package": "com.wheels.app.data.repository",
+      "type": "Repository Implementation",
+      "classDefinitions": [
+        {
+          "name": "RideRepositoryImpl",
+          "type": "class",
+          "implements": ["RideRepository"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow",
+          "kotlinx.coroutines.flow.flowOf",
+          "java.time.Instant",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.Booking",
+          "com.wheels.app.domain.model.Ride",
+          "com.wheels.app.domain.repository.RideRepository"
+        ]
+      },
+      "dependents": [
+        "di/RepositoryModule.kt"
+      ],
+      "dependencies": [
+        "domain/model/Ride.kt",
+        "domain/model/Booking.kt",
+        "domain/repository/RideRepository.kt"
+      ]
+    },
+    {
+      "id": 26,
+      "path": "app/src/main/java/com/wheels/app/data/repository/PaymentRepositoryImpl.kt",
+      "package": "com.wheels.app.data.repository",
+      "type": "Repository Implementation",
+      "classDefinitions": [
+        {
+          "name": "PaymentRepositoryImpl",
+          "type": "class",
+          "implements": ["PaymentRepository"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "kotlinx.coroutines.flow.Flow",
+          "kotlinx.coroutines.flow.flowOf",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.model.Payment",
+          "com.wheels.app.domain.repository.PaymentRepository"
+        ]
+      },
+      "dependents": [
+        "di/RepositoryModule.kt"
+      ],
+      "dependencies": [
+        "domain/model/Payment.kt",
+        "domain/repository/PaymentRepository.kt"
+      ]
+    },
+    {
+      "id": 27,
+      "path": "app/src/main/java/com/wheels/app/data/remote/api/AuthApi.kt",
+      "package": "com.wheels.app.data.remote.api",
+      "type": "Remote API",
+      "classDefinitions": [
+        {
+          "name": "AuthApi",
+          "type": "interface"
+        }
+      ],
+      "imports": {
+        "external": [
+          "retrofit2.http.GET"
+        ],
+        "internal": [
+          "com.wheels.app.data.remote.dto.UserDto"
+        ]
+      },
+      "dependents": [
+        "di/NetworkModule.kt"
+      ],
+      "dependencies": [
+        "data/remote/dto/UserDto.kt"
+      ]
+    },
+    {
+      "id": 28,
+      "path": "app/src/main/java/com/wheels/app/data/remote/api/RideApi.kt",
+      "package": "com.wheels.app.data.remote.api",
+      "type": "Remote API",
+      "classDefinitions": [
+        {
+          "name": "RideApi",
+          "type": "interface"
+        }
+      ],
+      "imports": {
+        "external": [
+          "retrofit2.http.GET"
+        ],
+        "internal": [
+          "com.wheels.app.data.remote.dto.RideDto"
+        ]
+      },
+      "dependents": [
+        "di/NetworkModule.kt"
+      ],
+      "dependencies": [
+        "data/remote/dto/RideDto.kt"
+      ]
+    },
+    {
+      "id": 29,
+      "path": "app/src/main/java/com/wheels/app/data/remote/api/PaymentApi.kt",
+      "package": "com.wheels.app.data.remote.api",
+      "type": "Remote API",
+      "classDefinitions": [
+        {
+          "name": "PaymentApi",
+          "type": "interface"
+        }
+      ],
+      "imports": {
+        "external": [
+          "retrofit2.http.GET"
+        ],
+        "internal": [
+          "com.wheels.app.data.remote.dto.PaymentDto"
+        ]
+      },
+      "dependents": [
+        "di/NetworkModule.kt"
+      ],
+      "dependencies": [
+        "data/remote/dto/PaymentDto.kt"
+      ]
+    },
+    {
+      "id": 30,
+      "path": "app/src/main/java/com/wheels/app/data/remote/dto/UserDto.kt",
+      "package": "com.wheels.app.data.remote.dto",
+      "type": "Data Transfer Object",
+      "classDefinitions": [
+        {
+          "name": "UserDto",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "data/remote/api/AuthApi.kt",
+        "data/remote/mapper/UserMapper.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 31,
+      "path": "app/src/main/java/com/wheels/app/data/remote/dto/RideDto.kt",
+      "package": "com.wheels.app.data.remote.dto",
+      "type": "Data Transfer Object",
+      "classDefinitions": [
+        {
+          "name": "RideDto",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "data/remote/api/RideApi.kt",
+        "data/remote/mapper/RideMapper.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 32,
+      "path": "app/src/main/java/com/wheels/app/data/remote/dto/PaymentDto.kt",
+      "package": "com.wheels.app.data.remote.dto",
+      "type": "Data Transfer Object",
+      "classDefinitions": [
+        {
+          "name": "PaymentDto",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "data/remote/api/PaymentApi.kt",
+        "data/remote/mapper/PaymentMapper.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 33,
+      "path": "app/src/main/java/com/wheels/app/data/remote/mapper/UserMapper.kt",
+      "package": "com.wheels.app.data.remote.mapper",
+      "type": "Mapper",
+      "classDefinitions": [
+        {
+          "name": "UserMappere function (extension)",
+          "type": "function"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": [
+          "com.wheels.app.data.remote.dto.UserDto",
+          "com.wheels.app.domain.model.User"
+        ]
+      },
+      "dependents": [],
+      "dependencies": [
+        "data/remote/dto/UserDto.kt",
+        "domain/model/User.kt"
+      ]
+    },
+    {
+      "id": 34,
+      "path": "app/src/main/java/com/wheels/app/data/remote/mapper/RideMapper.kt",
+      "package": "com.wheels.app.data.remote.mapper",
+      "type": "Mapper",
+      "classDefinitions": [
+        {
+          "name": "RideMapper function (extension)",
+          "type": "function"
+        }
+      ],
+      "imports": {
+        "external": [
+          "java.time.Instant"
+        ],
+        "internal": [
+          "com.wheels.app.data.remote.dto.RideDto",
+          "com.wheels.app.domain.model.Ride"
+        ]
+      },
+      "dependents": [],
+      "dependencies": [
+        "data/remote/dto/RideDto.kt",
+        "domain/model/Ride.kt"
+      ]
+    },
+    {
+      "id": 35,
+      "path": "app/src/main/java/com/wheels/app/data/remote/mapper/PaymentMapper.kt",
+      "package": "com.wheels.app.data.remote.mapper",
+      "type": "Mapper",
+      "classDefinitions": [
+        {
+          "name": "PaymentMapper function (extension)",
+          "type": "function"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": [
+          "com.wheels.app.data.remote.dto.PaymentDto",
+          "com.wheels.app.domain.model.Payment"
+        ]
+      },
+      "dependents": [],
+      "dependencies": [
+        "data/remote/dto/PaymentDto.kt",
+        "domain/model/Payment.kt"
+      ]
+    },
+    {
+      "id": 36,
+      "path": "app/src/main/java/com/wheels/app/data/local/mapper/LocalMappers.kt",
+      "package": "com.wheels.app.data.local.mapper",
+      "type": "Mapper",
+      "classDefinitions": [
+        {
+          "name": "LocalMappers",
+          "type": "object"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 37,
+      "path": "app/src/main/java/com/wheels/app/data/local/database/WheelsDatabase.kt",
+      "package": "com.wheels.app.data.local.database",
+      "type": "Database",
+      "classDefinitions": [
+        {
+          "name": "WheelsDatabase",
+          "type": "class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 38,
+      "path": "app/src/main/java/com/wheels/app/data/local/dao/BookingDao.kt",
+      "package": "com.wheels.app.data.local.dao",
+      "type": "Data Access Object",
+      "classDefinitions": [
+        {
+          "name": "BookingDao",
+          "type": "interface"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 39,
+      "path": "app/src/main/java/com/wheels/app/data/local/entity/BookingEntity.kt",
+      "package": "com.wheels.app.data.local.entity",
+      "type": "Database Entity",
+      "classDefinitions": [
+        {
+          "name": "BookingEntity",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 40,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/home/HomeViewModel.kt",
+      "package": "com.wheels.app.ui.screens.home",
+      "type": "ViewModel",
+      "classDefinitions": [
+        {
+          "name": "HomeViewModel",
+          "type": "class",
+          "extends": "ViewModel",
+          "annotations": ["@HiltViewModel"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.lifecycle.ViewModel",
+          "dagger.hilt.android.lifecycle.HiltViewModel",
+          "kotlinx.coroutines.flow.MutableStateFlow",
+          "kotlinx.coroutines.flow.StateFlow",
+          "kotlinx.coroutines.flow.asStateFlow",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.ui.screens.home.HomeUiState",
+          "com.wheels.app.ui.screens.home.HomeEvent"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "ui/screens/home/HomeUiState.kt",
+        "ui/screens/home/HomeEvent.kt"
+      ]
+    },
+    {
+      "id": 41,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/home/HomeUiState.kt",
+      "package": "com.wheels.app.ui.screens.home",
+      "type": "UI State",
+      "classDefinitions": [
+        {
+          "name": "HomeUiState",
+          "type": "data class"
+        },
+        {
+          "name": "HomeQuickStat",
+          "type": "data class"
+        },
+        {
+          "name": "ActiveRideUiModel",
+          "type": "data class"
+        },
+        {
+          "name": "HomeUpdateUiModel",
+          "type": "data class"
+        },
+        {
+          "name": "UpdateTone",
+          "type": "enum"
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.ui.graphics.Color"
+        ],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/home/HomeViewModel.kt",
+        "ui/screens/home/HomeScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 42,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/home/HomeEvent.kt",
+      "package": "com.wheels.app.ui.screens.home",
+      "type": "UI Event",
+      "classDefinitions": [
+        {
+          "name": "HomeEvent",
+          "type": "sealed interface",
+          "nested": ["Refresh"]
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/home/HomeViewModel.kt",
+        "ui/screens/home/HomeScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 43,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/home/HomeScreen.kt",
+      "package": "com.wheels.app.ui.screens.home",
+      "type": "Composable Screen",
+      "classDefinitions": [
+        {
+          "name": "HomeScreen",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        },
+        {
+          "name": "HeaderSection",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        },
+        {
+          "name": "MapSection",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        },
+        {
+          "name": "CurrentRideSection",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        },
+        {
+          "name": "UpdateCard",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        },
+        {
+          "name": "QuickPayButton",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.BorderStroke",
+          "androidx.compose.foundation.Canvas",
+          "androidx.compose.foundation.background",
+          "androidx.compose.foundation.border",
+          "androidx.compose.foundation.layout.*",
+          "androidx.compose.foundation.lazy.LazyColumn",
+          "androidx.compose.foundation.lazy.items",
+          "androidx.compose.foundation.shape.CircleShape",
+          "androidx.compose.foundation.shape.RoundedCornerShape",
+          "androidx.compose.material.icons.Icons",
+          "androidx.compose.material.icons.filled.*",
+          "androidx.compose.material.icons.outlined.*",
+          "androidx.compose.material3.Button",
+          "androidx.compose.material3.Card",
+          "androidx.compose.material3.CardDefaults",
+          "androidx.compose.material3.HorizontalDivider",
+          "androidx.compose.material3.Icon",
+          "androidx.compose.material3.IconButton",
+          "androidx.compose.material3.MaterialTheme",
+          "androidx.compose.material3.Surface",
+          "androidx.compose.material3.Text",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.runtime.collectAsState",
+          "androidx.compose.runtime.getValue",
+          "androidx.compose.ui.Alignment",
+          "androidx.compose.ui.Modifier",
+          "androidx.compose.ui.draw.clip",
+          "androidx.compose.ui.draw.shadow",
+          "androidx.compose.ui.geometry.Offset",
+          "androidx.compose.ui.graphics.Brush",
+          "androidx.compose.ui.graphics.Color",
+          "androidx.compose.ui.graphics.PathEffect",
+          "androidx.compose.ui.graphics.StrokeCap",
+          "androidx.compose.ui.text.font.FontWeight",
+          "androidx.compose.ui.unit.dp"
+        ],
+        "internal": [
+          "com.wheels.app.ui.screens.home.HomeViewModel",
+          "com.wheels.app.ui.screens.home.HomeUiState",
+          "com.wheels.app.ui.theme.Border",
+          "com.wheels.app.ui.theme.ElectricGreen",
+          "com.wheels.app.ui.theme.PrimaryBlue",
+          "com.wheels.app.ui.theme.SecondaryBlue",
+          "com.wheels.app.ui.theme.TextSecondary",
+          "com.wheels.app.ui.theme.WheelsBackground",
+          "com.wheels.app.ui.theme.WheelsSurface"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "ui/screens/home/HomeViewModel.kt",
+        "ui/screens/home/HomeUiState.kt",
+        "ui/theme/Color.kt"
+      ]
+    },
+    {
+      "id": 44,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/rides/RidesViewModel.kt",
+      "package": "com.wheels.app.ui.screens.rides",
+      "type": "ViewModel",
+      "classDefinitions": [
+        {
+          "name": "RidesViewModel",
+          "type": "class",
+          "extends": "ViewModel",
+          "annotations": ["@HiltViewModel"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.lifecycle.ViewModel",
+          "dagger.hilt.android.lifecycle.HiltViewModel",
+          "kotlinx.coroutines.flow.MutableStateFlow",
+          "kotlinx.coroutines.flow.StateFlow",
+          "kotlinx.coroutines.flow.asStateFlow",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.usecase.GetAvailableRidesUseCase",
+          "com.wheels.app.ui.screens.rides.RidesUiState",
+          "com.wheels.app.ui.screens.rides.RidesEvent"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "domain/usecase/GetAvailableRidesUseCase.kt",
+        "ui/screens/rides/RidesUiState.kt",
+        "ui/screens/rides/RidesEvent.kt"
+      ]
+    },
+    {
+      "id": 45,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/rides/RidesUiState.kt",
+      "package": "com.wheels.app.ui.screens.rides",
+      "type": "UI State",
+      "classDefinitions": [
+        {
+          "name": "RidesUiState",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/rides/RidesViewModel.kt",
+        "ui/screens/rides/RidesScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 46,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/rides/RidesEvent.kt",
+      "package": "com.wheels.app.ui.screens.rides",
+      "type": "UI Event",
+      "classDefinitions": [
+        {
+          "name": "RidesEvent",
+          "type": "sealed interface",
+          "nested": ["LoadRides"]
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/rides/RidesViewModel.kt",
+        "ui/screens/rides/RidesScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 47,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/rides/RidesScreen.kt",
+      "package": "com.wheels.app.ui.screens.rides",
+      "type": "Composable Screen",
+      "classDefinitions": [
+        {
+          "name": "RidesScreen",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.layout.Arrangement",
+          "androidx.compose.foundation.layout.Column",
+          "androidx.compose.foundation.layout.PaddingValues",
+          "androidx.compose.foundation.layout.fillMaxSize",
+          "androidx.compose.foundation.layout.padding",
+          "androidx.compose.material3.MaterialTheme",
+          "androidx.compose.material3.Text",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.runtime.collectAsState",
+          "androidx.compose.runtime.getValue",
+          "androidx.compose.ui.Alignment",
+          "androidx.compose.ui.Modifier"
+        ],
+        "internal": [
+          "com.wheels.app.ui.screens.rides.RidesViewModel",
+          "com.wheels.app.ui.screens.rides.RidesUiState"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "ui/screens/rides/RidesViewModel.kt",
+        "ui/screens/rides/RidesUiState.kt"
+      ]
+    },
+    {
+      "id": 48,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/profile/ProfileViewModel.kt",
+      "package": "com.wheels.app.ui.screens.profile",
+      "type": "ViewModel",
+      "classDefinitions": [
+        {
+          "name": "ProfileViewModel",
+          "type": "class",
+          "extends": "ViewModel",
+          "annotations": ["@HiltViewModel"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.lifecycle.ViewModel",
+          "dagger.hilt.android.lifecycle.HiltViewModel",
+          "kotlinx.coroutines.flow.MutableStateFlow",
+          "kotlinx.coroutines.flow.StateFlow",
+          "kotlinx.coroutines.flow.asStateFlow",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.usecase.GetUserProfileUseCase",
+          "com.wheels.app.ui.screens.profile.ProfileUiState",
+          "com.wheels.app.ui.screens.profile.ProfileEvent"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "domain/usecase/GetUserProfileUseCase.kt",
+        "ui/screens/profile/ProfileUiState.kt",
+        "ui/screens/profile/ProfileEvent.kt"
+      ]
+    },
+    {
+      "id": 49,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/profile/ProfileUiState.kt",
+      "package": "com.wheels.app.ui.screens.profile",
+      "type": "UI State",
+      "classDefinitions": [
+        {
+          "name": "ProfileUiState",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/profile/ProfileViewModel.kt",
+        "ui/screens/profile/ProfileScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 50,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/profile/ProfileEvent.kt",
+      "package": "com.wheels.app.ui.screens.profile",
+      "type": "UI Event",
+      "classDefinitions": [
+        {
+          "name": "ProfileEvent",
+          "type": "sealed interface",
+          "nested": ["LoadProfile"]
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/profile/ProfileViewModel.kt",
+        "ui/screens/profile/ProfileScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 51,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/profile/ProfileScreen.kt",
+      "package": "com.wheels.app.ui.screens.profile",
+      "type": "Composable Screen",
+      "classDefinitions": [
+        {
+          "name": "ProfileScreen",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.layout.Arrangement",
+          "androidx.compose.foundation.layout.Column",
+          "androidx.compose.foundation.layout.PaddingValues",
+          "androidx.compose.foundation.layout.fillMaxSize",
+          "androidx.compose.foundation.layout.padding",
+          "androidx.compose.material3.MaterialTheme",
+          "androidx.compose.material3.Text",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.runtime.collectAsState",
+          "androidx.compose.runtime.getValue",
+          "androidx.compose.ui.Alignment",
+          "androidx.compose.ui.Modifier"
+        ],
+        "internal": [
+          "com.wheels.app.ui.screens.profile.ProfileViewModel",
+          "com.wheels.app.ui.screens.profile.ProfileUiState"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "ui/screens/profile/ProfileViewModel.kt",
+        "ui/screens/profile/ProfileUiState.kt"
+      ]
+    },
+    {
+      "id": 52,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/payments/PaymentsViewModel.kt",
+      "package": "com.wheels.app.ui.screens.payments",
+      "type": "ViewModel",
+      "classDefinitions": [
+        {
+          "name": "PaymentsViewModel",
+          "type": "class",
+          "extends": "ViewModel",
+          "annotations": ["@HiltViewModel"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.lifecycle.ViewModel",
+          "dagger.hilt.android.lifecycle.HiltViewModel",
+          "kotlinx.coroutines.flow.MutableStateFlow",
+          "kotlinx.coroutines.flow.StateFlow",
+          "kotlinx.coroutines.flow.asStateFlow",
+          "javax.inject.Inject"
+        ],
+        "internal": [
+          "com.wheels.app.domain.usecase.GetUserProfileUseCase",
+          "com.wheels.app.ui.screens.payments.PaymentsUiState",
+          "com.wheels.app.ui.screens.payments.PaymentsEvent"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "domain/usecase/GetUserProfileUseCase.kt",
+        "ui/screens/payments/PaymentsUiState.kt",
+        "ui/screens/payments/PaymentsEvent.kt"
+      ]
+    },
+    {
+      "id": 53,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/payments/PaymentsUiState.kt",
+      "package": "com.wheels.app.ui.screens.payments",
+      "type": "UI State",
+      "classDefinitions": [
+        {
+          "name": "PaymentsUiState",
+          "type": "data class"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/payments/PaymentsViewModel.kt",
+        "ui/screens/payments/PaymentsScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 54,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/payments/PaymentsEvent.kt",
+      "package": "com.wheels.app.ui.screens.payments",
+      "type": "UI Event",
+      "classDefinitions": [
+        {
+          "name": "PaymentsEvent",
+          "type": "sealed interface",
+          "nested": ["LoadPayments"]
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "ui/screens/payments/PaymentsViewModel.kt",
+        "ui/screens/payments/PaymentsScreen.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 55,
+      "path": "app/src/main/java/com/wheels/app/ui/screens/payments/PaymentsScreen.kt",
+      "package": "com.wheels.app.ui.screens.payments",
+      "type": "Composable Screen",
+      "classDefinitions": [
+        {
+          "name": "PaymentsScreen",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.layout.Arrangement",
+          "androidx.compose.foundation.layout.Column",
+          "androidx.compose.foundation.layout.PaddingValues",
+          "androidx.compose.foundation.layout.fillMaxSize",
+          "androidx.compose.foundation.layout.padding",
+          "androidx.compose.material3.MaterialTheme",
+          "androidx.compose.material3.Text",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.runtime.collectAsState",
+          "androidx.compose.runtime.getValue",
+          "androidx.compose.ui.Alignment",
+          "androidx.compose.ui.Modifier"
+        ],
+        "internal": [
+          "com.wheels.app.ui.screens.payments.PaymentsViewModel",
+          "com.wheels.app.ui.screens.payments.PaymentsUiState"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "ui/screens/payments/PaymentsViewModel.kt",
+        "ui/screens/payments/PaymentsUiState.kt"
+      ]
+    },
+    {
+      "id": 56,
+      "path": "app/src/main/java/com/wheels/app/ui/components/WheelsTopBar.kt",
+      "package": "com.wheels.app.ui.components",
+      "type": "Composable Component",
+      "classDefinitions": [
+        {
+          "name": "WheelsTopBar",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.material3.CenterAlignedTopAppBar",
+          "androidx.compose.material3.ExperimentalMaterial3Api",
+          "androidx.compose.material3.Text",
+          "androidx.compose.runtime.Composable"
+        ],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 57,
+      "path": "app/src/main/java/com/wheels/app/ui/components/WheelsBottomBar.kt",
+      "package": "com.wheels.app.ui.components",
+      "type": "Composable Component",
+      "classDefinitions": [
+        {
+          "name": "WheelsBottomBar",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.BorderStroke",
+          "androidx.compose.foundation.background",
+          "androidx.compose.foundation.clickable",
+          "androidx.compose.foundation.layout.*",
+          "androidx.compose.foundation.shape.CircleShape",
+          "androidx.compose.foundation.shape.RoundedCornerShape",
+          "androidx.compose.material3.Badge",
+          "androidx.compose.material3.BadgedBox",
+          "androidx.compose.material3.Icon",
+          "androidx.compose.material3.Surface",
+          "androidx.compose.material3.Text",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.ui.Alignment",
+          "androidx.compose.ui.Modifier",
+          "androidx.compose.ui.draw.clip",
+          "androidx.compose.ui.graphics.Brush",
+          "androidx.compose.ui.text.font.FontWeight",
+          "androidx.compose.ui.unit.dp"
+        ],
+        "internal": [
+          "com.wheels.app.navigation.BottomNavItem",
+          "com.wheels.app.ui.theme.Border",
+          "com.wheels.app.ui.theme.PrimaryBlue",
+          "com.wheels.app.ui.theme.TextSecondary",
+          "com.wheels.app.ui.theme.WheelsSurface"
+        ]
+      },
+      "dependents": [
+        "navigation/WheelsNavGraph.kt"
+      ],
+      "dependencies": [
+        "navigation/BottomNavItem.kt",
+        "ui/theme/Color.kt"
+      ]
+    },
+    {
+      "id": 58,
+      "path": "app/src/main/java/com/wheels/app/ui/components/PrimaryButton.kt",
+      "package": "com.wheels.app.ui.components",
+      "type": "Composable Component",
+      "classDefinitions": [
+        {
+          "name": "PrimaryButton",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.material3.Button",
+          "androidx.compose.material3.Text",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.ui.Modifier"
+        ],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 59,
+      "path": "app/src/main/java/com/wheels/app/ui/components/WheelsCard.kt",
+      "package": "com.wheels.app.ui.components",
+      "type": "Composable Component",
+      "classDefinitions": [
+        {
+          "name": "WheelsCard",
+          "type": "composable function",
+          "annotations": ["@Composable"]
+        }
+      ],
+      "imports": {
+        "external": [
+          "androidx.compose.foundation.layout.PaddingValues",
+          "androidx.compose.foundation.layout.fillMaxWidth",
+          "androidx.compose.material3.Card",
+          "androidx.compose.material3.CardDefaults",
+          "androidx.compose.runtime.Composable",
+          "androidx.compose.ui.Modifier",
+          "androidx.compose.ui.unit.dp"
+        ],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 60,
+      "path": "app/src/main/java/com/wheels/app/common/UiText.kt",
+      "package": "com.wheels.app.common",
+      "type": "Utility",
+      "classDefinitions": [
+        {
+          "name": "UiText",
+          "type": "sealed class",
+          "nested": ["DynamicString"]
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    },
+    {
+      "id": 61,
+      "path": "app/src/main/java/com/wheels/app/common/Constants.kt",
+      "package": "com.wheels.app.common",
+      "type": "Utility",
+      "classDefinitions": [
+        {
+          "name": "Constants",
+          "type": "object"
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [
+        "di/NetworkModule.kt"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": 62,
+      "path": "app/src/main/java/com/wheels/app/common/Resource.kt",
+      "package": "com.wheels.app.common",
+      "type": "Utility",
+      "classDefinitions": [
+        {
+          "name": "Resource",
+          "type": "sealed class",
+          "nested": ["Success", "Error", "Loading"]
+        }
+      ],
+      "imports": {
+        "external": [],
+        "internal": []
+      },
+      "dependents": [],
+      "dependencies": []
+    }
+  ],
+  "dependencyGraph": {
+    "layers": [
+      {
+        "name": "Application Entry Point",
+        "files": [
+          "WheelsApplication.kt",
+          "MainActivity.kt"
+        ]
+      },
+      {
+        "name": "Navigation",
+        "files": [
+          "navigation/WheelsNavGraph.kt",
+          "navigation/Destinations.kt",
+          "navigation/BottomNavItem.kt"
+        ],
+        "dependencies": [
+          "All Screen ViewModels",
+          "All Screen Composables",
+          "UI Components"
+        ]
+      },
+      {
+        "name": "Presentation Layer (UI)",
+        "subsections": {
+          "ViewModels": [
+            "HomeViewModel.kt",
+            "RidesViewModel.kt",
+            "ProfileViewModel.kt",
+            "PaymentsViewModel.kt"
+          ],
+          "Screens": [
+            "HomeScreen.kt",
+            "RidesScreen.kt",
+            "ProfileScreen.kt",
+            "PaymentsScreen.kt"
+          ],
+          "UI States": [
+            "HomeUiState.kt",
+            "RidesUiState.kt",
+            "ProfileUiState.kt",
+            "PaymentsUiState.kt"
+          ],
+          "Events": [
+            "HomeEvent.kt",
+            "RidesEvent.kt",
+            "ProfileEvent.kt",
+            "PaymentsEvent.kt"
+          ],
+          "Components": [
+            "WheelsTopBar.kt",
+            "WheelsBottomBar.kt",
+            "WheelsCard.kt",
+            "PrimaryButton.kt"
+          ],
+          "Theme": [
+            "Type.kt",
+            "Theme.kt",
+            "Shape.kt",
+            "Color.kt"
+          ]
+        },
+        "dependencies": [
+          "Use Cases (Domain)",
+          "Theme Components"
+        ]
+      },
+      {
+        "name": "Domain Layer",
+        "subsections": {
+          "Models": [
+            "User.kt",
+            "Ride.kt",
+            "Booking.kt",
+            "Payment.kt",
+            "Reputation.kt"
+          ],
+          "Repository Interfaces": [
+            "AuthRepository.kt",
+            "RideRepository.kt",
+            "PaymentRepository.kt"
+          ],
+          "Use Cases": [
+            "GetUserProfileUseCase.kt",
+            "GetAvailableRidesUseCase.kt",
+            "BookRideUseCase.kt"
+          ]
+        },
+        "dependencies": [
+          "Repository Implementations (Data)"
+        ]
+      },
+      {
+        "name": "Data Layer",
+        "subsections": {
+          "Repositories": [
+            "AuthRepositoryImpl.kt",
+            "RideRepositoryImpl.kt",
+            "PaymentRepositoryImpl.kt"
+          ],
+          "Remote": {
+            "APIs": [
+              "AuthApi.kt",
+              "RideApi.kt",
+              "PaymentApi.kt"
+            ],
+            "DTOs": [
+              "UserDto.kt",
+              "RideDto.kt",
+              "PaymentDto.kt"
+            ],
+            "Mappers": [
+              "UserMapper.kt",
+              "RideMapper.kt",
+              "PaymentMapper.kt"
+            ]
+          },
+          "Local": {
+            "Database": "WheelsDatabase.kt",
+            "DAOs": "BookingDao.kt",
+            "Entities": "BookingEntity.kt",
+            "Mappers": "LocalMappers.kt"
+          }
+        },
+        "dependencies": [
+          "Domain Models",
+          "Network (Retrofit)",
+          "Local Storage (Room)"
+        ]
+      },
+      {
+        "name": "Dependency Injection",
+        "files": [
+          "AppModule.kt",
+          "NetworkModule.kt",
+          "RepositoryModule.kt"
+        ]
+      },
+      {
+        "name": "Common/Utilities",
+        "files": [
+          "UiText.kt",
+          "Constants.kt",
+          "Resource.kt"
+        ]
+      }
+    ]
+  },
+  "criticalDependencies": [
+    {
+      "from": "HomeViewModel.kt",
+      "to": "HomeUiState.kt, HomeEvent.kt",
+      "type": "Direct",
+      "importance": "Critical"
+    },
+    {
+      "from": "RidesViewModel.kt",
+      "to": "GetAvailableRidesUseCase.kt",
+      "type": "Direct",
+      "importance": "Critical"
+    },
+    {
+      "from": "ProfileViewModel.kt",
+      "to": "GetUserProfileUseCase.kt",
+      "type": "Direct",
+      "importance": "Critical"
+    },
+    {
+      "from": "PaymentsViewModel.kt",
+      "to": "GetUserProfileUseCase.kt",
+      "type": "Direct",
+      "importance": "Critical"
+    },
+    {
+      "from": "GetUserProfileUseCase.kt",
+      "to": "AuthRepository.kt",
+      "type": "Direct",
+      "importance": "Critical"
+    },
+    {
+      "from": "GetAvailableRidesUseCase.kt",
+      "to": "RideRepository.kt",
+      "type": "Direct",
+      "importance": "Critical"
+    },
+    {
+      "from": "AuthRepository.kt",
+      "to": "AuthRepositoryImpl.kt",
+      "type": "Binding",
+      "importance": "Critical"
+    },
+    {
+      "from": "RideRepository.kt",
+      "to": "RideRepositoryImpl.kt",
+      "type": "Binding",
+      "importance": "Critical"
+    },
+    {
+      "from": "PaymentRepository.kt",
+      "to": "PaymentRepositoryImpl.kt",
+      "type": "Binding",
+      "importance": "Critical"
+    },
+    {
+      "from": "WheelsNavGraph.kt",
+      "to": "All Screen ViewModels & Screens",
+      "type": "Direct",
+      "importance": "Critical"
+    },
+    {
+      "from": "MainActivity.kt",
+      "to": "WheelsNavGraph.kt, WheelsTheme.kt",
+      "type": "Direct",
+      "importance": "Critical"
+    }
+  ],
+  "refactoringConsiderations": [
+    {
+      "area": "Presentation Layer",
+      "observation": "ViewModels are well-separated from state and events",
+      "suggestion": "Consider extracting common ViewModel patterns into BaseViewModel"
+    },
+    {
+      "area": "Domain Layer",
+      "observation": "Use cases are properly implemented following Clean Architecture",
+      "suggestion": "Add error handling and loading states to use cases"
+    },
+    {
+      "area": "Data Layer",
+      "observation": "Repository implementations are mock-based",
+      "suggestion": "Connect to real APIs and implement local caching"
+    },
+    {
+      "area": "Local Database",
+      "observation": "WheelsDatabase, BookingDao, BookingEntity exist but are not connected",
+      "suggestion": "Implement Room database annotations and connect DAOs to repositories"
+    },
+    {
+      "area": "External Dependencies",
+      "observation": "Using Hilt for DI, Retrofit for networking, Compose for UI",
+      "suggestion": "Ensure all modules are properly configured and integrated"
+    }
+  ]
+}
