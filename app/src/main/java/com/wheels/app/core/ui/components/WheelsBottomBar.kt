@@ -1,7 +1,6 @@
 package com.wheels.app.core.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -21,10 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.wheels.app.core.navigation.BottomNavItem
+import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
@@ -114,15 +116,42 @@ private fun ProfileBubble(selected: Boolean) {
     Surface(
         modifier = Modifier.size(56.dp),
         shape = CircleShape,
-        color = if (selected) PrimaryBlue else androidx.compose.ui.graphics.Color.Transparent
+        color = if (selected) PrimaryBlue else Color.Transparent,
+        border = if (selected) null else BorderStroke(1.dp, Border)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            // Profile icon would go here
+            Icon(
+                imageVector = Icons.Outlined.PersonOutline,
+                contentDescription = "Profile",
+                tint = if (selected) Color.White else TextSecondary
+            )
         }
     }
 }
 
 @Composable
 private fun BadgedIcon(item: BottomNavItem, selected: Boolean) {
-    // Icon implementation would go here
+    val iconTint = if (selected) Color.White else TextSecondary
+
+    if ((item.badgeCount ?: 0) > 0) {
+        BadgedBox(
+            badge = {
+                Badge {
+                    Text(text = item.badgeCount.toString())
+                }
+            }
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.label,
+                tint = iconTint
+            )
+        }
+    } else {
+        Icon(
+            imageVector = item.icon,
+            contentDescription = item.label,
+            tint = iconTint
+        )
+    }
 }
