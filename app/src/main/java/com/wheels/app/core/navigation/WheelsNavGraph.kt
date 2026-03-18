@@ -14,6 +14,7 @@ import com.wheels.app.core.ui.components.WheelsBottomBar
 import com.wheels.app.features.home.presentation.ui.HomeScreen
 import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
 import com.wheels.app.features.payments.presentation.ui.PaymentsScreen
+import com.wheels.app.features.payments.presentation.ui.QuickPaymentScreen
 import com.wheels.app.features.payments.presentation.viewmodel.PaymentsViewModel
 import com.wheels.app.features.profile.presentation.ui.ProfileScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
@@ -29,22 +30,25 @@ fun WheelsNavGraph() {
         ?.hierarchy
         ?.mapNotNull { it.route }
         ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
+    val isQuickPaymentScreen = currentDestination?.route == Destinations.QuickPayment.route
 
     Scaffold(
         bottomBar = {
-            WheelsBottomBar(
-                items = wheelsBottomNavItems,
-                selectedRoute = selectedRoute,
-                onItemSelected = { item ->
-                    navController.navigate(item.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+            if (!isQuickPaymentScreen) {
+                WheelsBottomBar(
+                    items = wheelsBottomNavItems,
+                    selectedRoute = selectedRoute,
+                    onItemSelected = { item ->
+                        navController.navigate(item.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
-                }
-            )
+                )
+            }
         }
     ) { innerPadding ->
         NavHost(
@@ -53,7 +57,7 @@ fun WheelsNavGraph() {
         ) {
             composable(Destinations.Home.route) {
                 val viewModel: HomeViewModel = hiltViewModel()
-                HomeScreen(innerPadding = innerPadding, viewModel = viewModel)
+                HomeScreen(innerPadding = innerPadding, viewModel = viewModel, navController = navController)
             }
             composable(Destinations.Rides.route) {
                 val viewModel: RidesViewModel = hiltViewModel()
@@ -62,6 +66,10 @@ fun WheelsNavGraph() {
             composable(Destinations.Payments.route) {
                 val viewModel: PaymentsViewModel = hiltViewModel()
                 PaymentsScreen(innerPadding = innerPadding, viewModel = viewModel)
+            }
+            composable(Destinations.QuickPayment.route) {
+                val viewModel: PaymentsViewModel = hiltViewModel()
+                QuickPaymentScreen(innerPadding = innerPadding, navController = navController, viewModel = viewModel)
             }
             composable(Destinations.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()

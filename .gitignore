@@ -13,9 +13,11 @@ local.properties
 *.class
 *.log
 
-# Android Studio / IntelliJ
+# Android Studio / IntelliJ / VS Code
 .idea/
 *.iml
+.vscode/
+MOCKUP-PASSENGER/
 
 # Keystore and secrets
 *.jks

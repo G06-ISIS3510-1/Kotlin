@@ -55,6 +55,8 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
 import com.wheels.app.core.ui.theme.PrimaryBlue
@@ -72,7 +74,8 @@ import com.wheels.app.features.home.presentation.viewmodel.UpdateTone
 @Composable
 fun HomeScreen(
     innerPadding: PaddingValues,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    navController: NavController
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -107,7 +110,10 @@ fun HomeScreen(
         }
 
         QuickPayButton(
-            modifier = Modifier.padding(end = 20.dp, bottom = 88.dp)
+            navController = navController,
+            modifier = Modifier
+                .padding(end = 20.dp, bottom = 140.dp)
+                .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
         )
     }
 }
@@ -625,12 +631,18 @@ private fun UpdateCard(update: HomeUpdateUiModel, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun QuickPayButton(modifier: Modifier = Modifier) {
+private fun QuickPayButton(navController: NavController, modifier: Modifier = Modifier) {
     Button(
-        onClick = {},
+        onClick = {
+            navController.navigate(Destinations.QuickPayment.route)
+        },
         modifier = modifier,
         shape = RoundedCornerShape(999.dp),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = ElectricGreen,
+            contentColor = WheelsSurface
+        )
     ) {
         Icon(imageVector = Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(8.dp))

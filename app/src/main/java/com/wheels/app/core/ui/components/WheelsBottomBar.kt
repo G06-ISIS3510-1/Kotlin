@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Divider
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -25,8 +27,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.wheels.app.core.navigation.BottomNavItem
-import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
@@ -42,22 +44,29 @@ fun WheelsBottomBar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = WheelsSurface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        border = BorderStroke(1.dp, Border)
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            items.forEach { item ->
-                BottomBarItem(
-                    item = item,
-                    selected = item.route == selectedRoute,
-                    onClick = { onItemSelected(item) }
-                )
+        Column {
+            Divider(
+                modifier = Modifier.fillMaxWidth(),
+                color = Border,
+                thickness = 1.dp
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEach { item ->
+                    BottomBarItem(
+                        item = item,
+                        selected = item.route == selectedRoute,
+                        onClick = { onItemSelected(item) }
+                    )
+                }
             }
         }
     }
@@ -73,9 +82,9 @@ private fun BottomBarItem(
         modifier = Modifier
             .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.Center
     ) {
         when {
             item.usesAvatar -> ProfileBubble(selected = selected)
@@ -86,7 +95,8 @@ private fun BottomBarItem(
         Text(
             text = item.label,
             color = if (selected) PrimaryBlue else TextSecondary,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 11.sp
         )
     }
 }
@@ -94,7 +104,7 @@ private fun BottomBarItem(
 @Composable
 private fun SelectedIconBubble(item: BottomNavItem) {
     Surface(
-        modifier = Modifier.size(56.dp),
+        modifier = Modifier.size(32.dp),
         shape = CircleShape,
         color = PrimaryBlue
     ) {
@@ -106,7 +116,7 @@ private fun SelectedIconBubble(item: BottomNavItem) {
 
 @Composable
 private fun InactiveIconBubble(item: BottomNavItem) {
-    Box(modifier = Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
         BadgedIcon(item = item, selected = false)
     }
 }
@@ -114,7 +124,7 @@ private fun InactiveIconBubble(item: BottomNavItem) {
 @Composable
 private fun ProfileBubble(selected: Boolean) {
     Surface(
-        modifier = Modifier.size(56.dp),
+        modifier = Modifier.size(32.dp),
         shape = CircleShape,
         color = if (selected) PrimaryBlue else Color.Transparent,
         border = if (selected) null else BorderStroke(1.dp, Border)
