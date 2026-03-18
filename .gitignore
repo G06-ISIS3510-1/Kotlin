@@ -17,6 +17,7 @@ local.properties
 .idea/
 *.iml
 .vscode/
+MOCKUP-PASSENGER/
 
 # Keystore and secrets
 *.jks
