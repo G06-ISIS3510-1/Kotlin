@@ -5,5 +5,6 @@ sealed class Destinations(val route: String) {
     data object Rides : Destinations("rides")
     data object Payments : Destinations("payments")
     data object QuickPayment : Destinations("quick_payment")
+    data object GroupChat : Destinations("group_chat")
     data object Profile : Destinations("profile")
 }
