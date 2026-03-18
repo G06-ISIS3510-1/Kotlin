@@ -107,7 +107,9 @@ fun HomeScreen(
         }
 
         QuickPayButton(
-            modifier = Modifier.padding(end = 20.dp, bottom = 88.dp)
+            modifier = Modifier
+                .padding(end = 20.dp, bottom = 140.dp)
+                .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
         )
     }
 }
@@ -630,7 +632,11 @@ private fun QuickPayButton(modifier: Modifier = Modifier) {
         onClick = {},
         modifier = modifier,
         shape = RoundedCornerShape(999.dp),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = ElectricGreen,
+            contentColor = WheelsSurface
+        )
     ) {
         Icon(imageVector = Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(8.dp))
