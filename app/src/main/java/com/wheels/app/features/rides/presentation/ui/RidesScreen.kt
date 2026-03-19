@@ -132,6 +132,14 @@ fun RidesScreen(
                 onRequest = {
                     navController.navigate(Destinations.RideRequest.createRoute(ride.id))
                 },
+                onOpenReviews = {
+                    navController.navigate(
+                        Destinations.ReviewsRatings.createRoute(
+                            driverName = ride.driver,
+                            origin = Destinations.Rides.route
+                        )
+                    )
+                },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
             )
         }
@@ -438,6 +446,7 @@ private fun SmartSuggestionCard(onClick: () -> Unit) {
 private fun RideCard(
     ride: RideCardUiModel,
     onRequest: () -> Unit,
+    onOpenReviews: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -471,7 +480,8 @@ private fun RideCard(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Color(0xFF5B89C8), PrimaryBlue))),
+                        .background(Brush.linearGradient(listOf(Color(0xFF5B89C8), PrimaryBlue)))
+                        .clickable(onClick = onOpenReviews),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -487,10 +497,14 @@ private fun RideCard(
                     Text(
                         text = ride.driver,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = PrimaryBlue
+                        color = PrimaryBlue,
+                        modifier = Modifier.clickable(onClick = onOpenReviews)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable(onClick = onOpenReviews)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,

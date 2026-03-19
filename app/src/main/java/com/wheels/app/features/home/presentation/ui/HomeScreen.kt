@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,7 +96,15 @@ fun HomeScreen(
             item {
                 CurrentRideSection(
                     activeRide = state.activeRide,
-                    onOpenChat = { navController.navigate(Destinations.GroupChat.route) }
+                    onOpenChat = { navController.navigate(Destinations.GroupChat.route) },
+                    onOpenReviews = {
+                        navController.navigate(
+                            Destinations.ReviewsRatings.createRoute(
+                                driverName = state.activeRide.driver,
+                                origin = Destinations.Home.route
+                            )
+                        )
+                    }
                 )
             }
             item {
@@ -379,7 +388,8 @@ private fun DriverMarker(modifier: Modifier = Modifier) {
 @Composable
 private fun CurrentRideSection(
     activeRide: ActiveRideUiModel,
-    onOpenChat: () -> Unit
+    onOpenChat: () -> Unit,
+    onOpenReviews: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -420,7 +430,8 @@ private fun CurrentRideSection(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Color(0xFF5B89C8), PrimaryBlue))),
+                        .background(Brush.linearGradient(listOf(Color(0xFF5B89C8), PrimaryBlue)))
+                        .clickable(onClick = onOpenReviews),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -436,9 +447,13 @@ private fun CurrentRideSection(
                     Text(
                         text = activeRide.driver,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = PrimaryBlue
+                        color = PrimaryBlue,
+                        modifier = Modifier.clickable(onClick = onOpenReviews)
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable(onClick = onOpenReviews)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = "Rating",
