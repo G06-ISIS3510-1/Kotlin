@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,7 +34,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -218,6 +218,7 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = WheelsSurface.copy(alpha = 0.82f)
         )
+        Spacer(modifier = Modifier.height(18.dp))
     }
 }
 
@@ -226,7 +227,8 @@ private fun RatingSummaryCard(driverName: String) {
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
-            .padding(top = 10.dp)
+            .padding(top = 8.dp)
+            .offset(y = (-25).dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = WheelsSurface),
@@ -273,15 +275,20 @@ private fun RatingSummaryCard(driverName: String) {
                                 modifier = Modifier.width(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            LinearProgressIndicator(
-                                progress = { progress },
+                            Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(6.dp)
-                                    .clip(RoundedCornerShape(999.dp)),
-                                color = Color(0xFFFFA726),
-                                trackColor = Color(0xFFE8F0F9)
-                            )
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(Color(0xFFE8F0F9))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(progress.coerceIn(0f, 1f))
+                                        .height(6.dp)
+                                        .background(Color(0xFFFFA726))
+                                )
+                            }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "$votes",
