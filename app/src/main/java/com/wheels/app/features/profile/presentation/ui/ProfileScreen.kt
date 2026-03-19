@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Notifications
@@ -38,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -104,6 +106,11 @@ fun ProfileScreen(
                         .fillMaxWidth()
                         .padding(top = 126.dp)
                         .padding(horizontal = 16.dp)
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.12f)
+                        )
                         .clip(RoundedCornerShape(24.dp))
                         .background(Color.White)
                         .padding(24.dp)
@@ -240,6 +247,11 @@ fun ProfileScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
+                        )
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color.White)
                         .padding(20.dp)
@@ -283,13 +295,18 @@ fun ProfileScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
+                        )
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color.White)
                         .padding(20.dp)
                 ) {
                     Column {
                         MenuItemRow(
-                            icon = Icons.Outlined.Star,
+                            icon = Icons.Outlined.StarBorder,
                             title = "Trust & Fairness",
                             subtitle = "View your reliability metrics",
                             showDivider = true
@@ -325,6 +342,11 @@ fun ProfileScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .shadow(
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
+                        )
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color.White)
                         .padding(20.dp)
@@ -359,6 +381,11 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .shadow(
+                        elevation = 4.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
+                    )
                     .border(2.dp, Color(0xFFe5e9f2), RoundedCornerShape(20.dp))
                     .background(Color.White, RoundedCornerShape(20.dp))
                     .clickable { /* Handle logout */ }
