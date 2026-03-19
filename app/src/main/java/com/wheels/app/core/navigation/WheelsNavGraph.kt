@@ -13,6 +13,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wheels.app.core.ui.components.WheelsBottomBar
+import com.wheels.app.features.chat.presentation.ui.GroupChatScreen
+import com.wheels.app.features.chat.presentation.viewmodel.GroupChatViewModel
 import com.wheels.app.features.home.presentation.ui.HomeScreen
 import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
 import com.wheels.app.features.payments.presentation.ui.PaymentsScreen
@@ -38,6 +40,7 @@ fun WheelsNavGraph() {
         ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
     val routesWithoutBottomBar = setOf(
         Destinations.QuickPayment.route,
+        Destinations.GroupChat.route,
         Destinations.RideRequest.route,
         Destinations.BookingConfirmation.route
     )
@@ -81,6 +84,14 @@ fun WheelsNavGraph() {
             composable(Destinations.QuickPayment.route) {
                 val viewModel: PaymentsViewModel = hiltViewModel()
                 QuickPaymentScreen(innerPadding = innerPadding, navController = navController, viewModel = viewModel)
+            }
+            composable(Destinations.GroupChat.route) {
+                val viewModel: GroupChatViewModel = hiltViewModel()
+                GroupChatScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
             }
             composable(
                 route = Destinations.RideRequest.route,

@@ -11,5 +11,6 @@ sealed class Destinations(val route: String) {
     data object BookingConfirmation : Destinations("booking_confirmation/{rideId}/{seats}") {
         fun createRoute(rideId: String, seats: Int): String = "booking_confirmation/$rideId/$seats"
     }
+    data object GroupChat : Destinations("group_chat")
     data object Profile : Destinations("profile")
 }

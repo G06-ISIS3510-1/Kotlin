@@ -92,7 +92,12 @@ fun HomeScreen(
         ) {
             item { HeaderSection(state) }
             item { MapSection(state.activeRide) }
-            item { CurrentRideSection(state.activeRide) }
+            item {
+                CurrentRideSection(
+                    activeRide = state.activeRide,
+                    onOpenChat = { navController.navigate(Destinations.GroupChat.route) }
+                )
+            }
             item {
                 Text(
                     text = "Updates",
@@ -372,7 +377,10 @@ private fun DriverMarker(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CurrentRideSection(activeRide: ActiveRideUiModel) {
+private fun CurrentRideSection(
+    activeRide: ActiveRideUiModel,
+    onOpenChat: () -> Unit
+) {
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 4.dp)
@@ -445,7 +453,11 @@ private fun CurrentRideSection(activeRide: ActiveRideUiModel) {
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CircleActionButton(icon = Icons.Outlined.ChatBubbleOutline, contentDescription = "Chat")
+                    CircleActionButton(
+                        icon = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = "Chat",
+                        onClick = onOpenChat
+                    )
                     CircleActionButton(icon = Icons.Default.Phone, contentDescription = "Call")
                 }
             }
@@ -515,9 +527,13 @@ private fun CurrentRideSection(activeRide: ActiveRideUiModel) {
 }
 
 @Composable
-private fun CircleActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String) {
+private fun CircleActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit = {}
+) {
     Surface(shape = CircleShape, color = Color(0xFFE8F0F9)) {
-        IconButton(onClick = {}) {
+        IconButton(onClick = onClick) {
             Icon(imageVector = icon, contentDescription = contentDescription, tint = Color(0xFF5B89C8))
         }
     }
