@@ -17,7 +17,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.CardGiftcard
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -147,11 +157,11 @@ fun ProfileScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(4.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF00d9a3))
+                                    Icon(
+                                        imageVector = Icons.Outlined.Shield,
+                                        contentDescription = "Verified",
+                                        tint = Color(0xFF00d9a3),
+                                        modifier = Modifier.size(16.dp)
                                     )
                                     Text(
                                         text = "Verified Student",
@@ -233,7 +243,7 @@ fun ProfileScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         // Email
                         ContactInfoRow(
-                            icon = "📧",
+                            icon = Icons.Outlined.Email,
                             label = "Email",
                             value = state.email
                         )
@@ -246,7 +256,7 @@ fun ProfileScreen(
 
                         // Phone
                         ContactInfoRow(
-                            icon = "📞",
+                            icon = Icons.Outlined.Phone,
                             label = "Phone",
                             value = state.phone
                         )
@@ -275,19 +285,19 @@ fun ProfileScreen(
                 ) {
                     Column {
                         MenuItemRow(
-                            icon = "⭐",
+                            icon = Icons.Outlined.Star,
                             title = "Trust & Fairness",
                             subtitle = "View your reliability metrics",
                             showDivider = true
                         )
                         MenuItemRow(
-                            icon = "💳",
+                            icon = Icons.Outlined.CreditCard,
                             title = "Payment Methods",
                             subtitle = "Manage your payment options",
                             showDivider = true
                         )
                         MenuItemRow(
-                            icon = "🏆",
+                            icon = Icons.Outlined.CardGiftcard,
                             title = "Rewards & Points",
                             subtitle = "Redeem your 142 points",
                             showDivider = false
@@ -317,19 +327,19 @@ fun ProfileScreen(
                 ) {
                     Column {
                         MenuItemRow(
-                            icon = "🔔",
+                            icon = Icons.Outlined.Notifications,
                             title = "Notifications",
                             subtitle = "Manage notification preferences",
                             showDivider = true
                         )
                         MenuItemRow(
-                            icon = "🔐",
+                            icon = Icons.Outlined.Shield,
                             title = "Privacy & Security",
                             subtitle = "Control your privacy settings",
                             showDivider = true
                         )
                         MenuItemRow(
-                            icon = "❓",
+                            icon = Icons.Outlined.Info,
                             title = "Help & Support",
                             subtitle = "Get help and contact support",
                             showDivider = false
@@ -355,10 +365,11 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "🚪",
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(end = 8.dp)
+                    Icon(
+                        imageVector = Icons.Outlined.Logout,
+                        contentDescription = "Logout",
+                        tint = Color(0xFFff5252),
+                        modifier = Modifier.padding(end = 8.dp).size(20.dp)
                     )
                     Text(
                         text = "Log Out",
@@ -379,7 +390,7 @@ fun ProfileScreen(
 
 @Composable
 fun ContactInfoRow(
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     value: String
 ) {
@@ -395,7 +406,12 @@ fun ContactInfoRow(
                 .background(Color(0xFFe8f0f9)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = icon, fontSize = 18.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = Color(0xFF5b89c8),
+                modifier = Modifier.size(20.dp)
+            )
         }
 
         Column(
@@ -416,17 +432,18 @@ fun ContactInfoRow(
             )
         }
 
-        Text(
-            text = "→",
-            fontSize = 16.sp,
-            color = Color(0xFF64748b)
+        Icon(
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = "Navigate",
+            tint = Color(0xFF64748b),
+            modifier = Modifier.size(20.dp)
         )
     }
 }
 
 @Composable
 fun MenuItemRow(
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
     showDivider: Boolean = false
@@ -447,7 +464,12 @@ fun MenuItemRow(
                     .background(Color(0xFFe8f0f9)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = icon, fontSize = 18.sp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = Color(0xFF5b89c8),
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             Column(
@@ -468,10 +490,11 @@ fun MenuItemRow(
                 )
             }
 
-            Text(
-                text = "→",
-                fontSize = 16.sp,
-                color = Color(0xFF64748b)
+            Icon(
+                imageVector = Icons.Outlined.ChevronRight,
+                contentDescription = "Navigate",
+                tint = Color(0xFF64748b),
+                modifier = Modifier.size(20.dp)
             )
         }
 
