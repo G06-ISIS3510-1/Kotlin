@@ -1,10 +1,25 @@
 package com.wheels.app.features.profile.presentation.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,6 +27,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 
 @Composable
@@ -21,15 +42,441 @@ fun ProfileScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Color(0xFFF7F9FC))
     ) {
-        Text(text = "Perfil", style = MaterialTheme.typography.headlineMedium)
-        Text(text = state.name)
-        Text(text = "Reputación: ${state.reputationScore}")
+        // Header
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF1a3a5c),
+                                Color(0xFF2d5280)
+                            )
+                        ),
+                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                    )
+                    .padding(horizontal = 24.dp, vertical = 48.dp)
+            ) {
+                Column {
+                    Text(
+                        text = "Profile",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Text(
+                        text = "Manage your account and preferences",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+
+        // Profile Card
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 20.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.White)
+                    .padding(24.dp)
+            ) {
+                Column {
+                    // Avatar and Name Section
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                            // Get initials from name
+                            val initials = state.name.split(" ")
+                                .take(2)
+                                .map { it.firstOrNull()?.uppercaseChar() }
+                                .joinToString("")
+
+                            Box(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                Color(0xFF5b89c8),
+                                                Color(0xFF1a3a5c)
+                                            )
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = initials,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                            ) {
+                                Text(
+                                    text = state.name,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1a3a5c),
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(4.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF00d9a3))
+                                    )
+                                    Text(
+                                        text = "Verified Student",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF00d9a3),
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+
+                                Text(
+                                    text = "Member since Jan 2025",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748b)
+                                )
+                            }
+                        }
+
+                    // Stats Grid
+                    val stats = listOf(
+                        Triple("16", "Rides", Color(0xFF1a3a5c)),
+                        Triple("${state.reputationScore}%", "Score", Color(0xFF00d9a3)),
+                        Triple("5.0", "Rating", Color(0xFFffa726)),
+                        Triple("142", "Points", Color(0xFF5b89c8))
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        stats.forEach { (value, label, color) ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color(0xFFF7F9FC))
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = value,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = color
+                                    )
+                                    Text(
+                                        text = label,
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF64748b)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Contact Information Section
+        item {
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Text(
+                    text = "Contact Information",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF64748b),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .padding(20.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        // Email
+                        ContactInfoRow(
+                            icon = "📧",
+                            label = "Email",
+                            value = state.email
+                        )
+
+                        Divider(
+                            color = Color(0xFFe5e9f2),
+                            thickness = 1.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Phone
+                        ContactInfoRow(
+                            icon = "📞",
+                            label = "Phone",
+                            value = state.phone
+                        )
+                    }
+                }
+            }
+        }
+
+        // Account Settings Section
+        item {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)) {
+                Text(
+                    text = "Account",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF64748b),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        MenuItemRow(
+                            icon = "⭐",
+                            title = "Trust & Fairness",
+                            subtitle = "View your reliability metrics",
+                            showDivider = true
+                        )
+                        MenuItemRow(
+                            icon = "💳",
+                            title = "Payment Methods",
+                            subtitle = "Manage your payment options",
+                            showDivider = true
+                        )
+                        MenuItemRow(
+                            icon = "🏆",
+                            title = "Rewards & Points",
+                            subtitle = "Redeem your 142 points",
+                            showDivider = false
+                        )
+                    }
+                }
+            }
+        }
+
+        // Settings Section
+        item {
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Text(
+                    text = "Settings",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF64748b),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        MenuItemRow(
+                            icon = "🔔",
+                            title = "Notifications",
+                            subtitle = "Manage notification preferences",
+                            showDivider = true
+                        )
+                        MenuItemRow(
+                            icon = "🔐",
+                            title = "Privacy & Security",
+                            subtitle = "Control your privacy settings",
+                            showDivider = true
+                        )
+                        MenuItemRow(
+                            icon = "❓",
+                            title = "Help & Support",
+                            subtitle = "Get help and contact support",
+                            showDivider = false
+                        )
+                    }
+                }
+            }
+        }
+
+        // Logout Button
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .border(2.dp, Color(0xFFe5e9f2), RoundedCornerShape(20.dp))
+                    .background(Color.White, RoundedCornerShape(20.dp))
+                    .clickable { /* Handle logout */ }
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "🚪",
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "Log Out",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFff5252)
+                    )
+                }
+            }
+        }
+
+        // Bottom spacer
+        item {
+            Box(modifier = Modifier.height(80.dp))
+        }
+    }
+}
+
+@Composable
+fun ContactInfoRow(
+    icon: String,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFe8f0f9)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = icon, fontSize = 18.sp)
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                color = Color(0xFF64748b)
+            )
+            Text(
+                text = value,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF1a3a5c)
+            )
+        }
+
+        Text(
+            text = "→",
+            fontSize = 16.sp,
+            color = Color(0xFF64748b)
+        )
+    }
+}
+
+@Composable
+fun MenuItemRow(
+    icon: String,
+    title: String,
+    subtitle: String,
+    showDivider: Boolean = false
+) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { /* Handle navigation */ }
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFe8f0f9)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = icon, fontSize = 18.sp)
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1a3a5c)
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = Color(0xFF64748b)
+                )
+            }
+
+            Text(
+                text = "→",
+                fontSize = 16.sp,
+                color = Color(0xFF64748b)
+            )
+        }
+
+        if (showDivider) {
+            Divider(
+                color = Color(0xFFe5e9f2),
+                thickness = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
