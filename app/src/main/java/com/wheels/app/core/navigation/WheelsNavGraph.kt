@@ -6,10 +6,12 @@ import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.wheels.app.core.ui.components.WheelsBottomBar
 import com.wheels.app.features.home.presentation.ui.HomeScreen
 import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
@@ -18,8 +20,12 @@ import com.wheels.app.features.payments.presentation.ui.QuickPaymentScreen
 import com.wheels.app.features.payments.presentation.viewmodel.PaymentsViewModel
 import com.wheels.app.features.profile.presentation.ui.ProfileScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
+import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
+import com.wheels.app.features.rides.presentation.ui.RideRequestScreen
 import com.wheels.app.features.rides.presentation.ui.RidesScreen
+import com.wheels.app.features.rides.presentation.viewmodel.RideRequestViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
+import com.wheels.app.features.rides.presentation.viewmodel.mockRideRequestData
 
 @Composable
 fun WheelsNavGraph() {
@@ -30,11 +36,16 @@ fun WheelsNavGraph() {
         ?.hierarchy
         ?.mapNotNull { it.route }
         ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
-    val isQuickPaymentScreen = currentDestination?.route == Destinations.QuickPayment.route
+    val routesWithoutBottomBar = setOf(
+        Destinations.QuickPayment.route,
+        Destinations.RideRequest.route,
+        Destinations.BookingConfirmation.route
+    )
+    val shouldShowBottomBar = currentDestination?.route !in routesWithoutBottomBar
 
     Scaffold(
         bottomBar = {
-            if (!isQuickPaymentScreen) {
+            if (shouldShowBottomBar) {
                 WheelsBottomBar(
                     items = wheelsBottomNavItems,
                     selectedRoute = selectedRoute,
@@ -61,7 +72,7 @@ fun WheelsNavGraph() {
             }
             composable(Destinations.Rides.route) {
                 val viewModel: RidesViewModel = hiltViewModel()
-                RidesScreen(innerPadding = innerPadding, viewModel = viewModel)
+                RidesScreen(innerPadding = innerPadding, viewModel = viewModel, navController = navController)
             }
             composable(Destinations.Payments.route) {
                 val viewModel: PaymentsViewModel = hiltViewModel()
@@ -70,6 +81,33 @@ fun WheelsNavGraph() {
             composable(Destinations.QuickPayment.route) {
                 val viewModel: PaymentsViewModel = hiltViewModel()
                 QuickPaymentScreen(innerPadding = innerPadding, navController = navController, viewModel = viewModel)
+            }
+            composable(
+                route = Destinations.RideRequest.route,
+                arguments = listOf(navArgument("rideId") { type = NavType.StringType })
+            ) {
+                val viewModel: RideRequestViewModel = hiltViewModel()
+                RideRequestScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
+            composable(
+                route = Destinations.BookingConfirmation.route,
+                arguments = listOf(
+                    navArgument("rideId") { type = NavType.StringType },
+                    navArgument("seats") { type = NavType.IntType }
+                )
+            ) { backStackEntry ->
+                val rideId = backStackEntry.arguments?.getString("rideId").orEmpty()
+                val seats = backStackEntry.arguments?.getInt("seats") ?: 1
+                BookingConfirmationScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    ride = mockRideRequestData[rideId],
+                    selectedSeats = seats
+                )
             }
             composable(Destinations.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
