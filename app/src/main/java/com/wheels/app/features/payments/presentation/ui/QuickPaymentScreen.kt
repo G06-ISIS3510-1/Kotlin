@@ -22,13 +22,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
@@ -92,21 +92,21 @@ fun QuickPaymentScreen(
         PaymentMethod(
             id = "card",
             name = "Credit/Debit Card",
-            icon = Icons.Default.CreditCard,
+            icon = Icons.Outlined.CreditCard,
             saved = true,
             details = "•••• 4532"
         ),
         PaymentMethod(
             id = "wallet",
             name = "Digital Wallet",
-            icon = Icons.Default.Wallet,
+            icon = Icons.Outlined.AccountBalanceWallet,
             saved = true,
             details = "Balance: $${formatCopAmount("15000")}"
         ),
         PaymentMethod(
             id = "qr",
             name = "QR Code Payment",
-            icon = Icons.Default.QrCode2,
+            icon = Icons.Outlined.QrCode2,
             saved = false,
             details = "Scan QR to pay"
         )
@@ -186,7 +186,7 @@ private fun HeaderSection(navController: NavController) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ChevronLeft,
+                    imageVector = Icons.Outlined.ChevronLeft,
                     contentDescription = "Back",
                     tint = WheelsSurface,
                     modifier = Modifier
@@ -255,7 +255,7 @@ private fun AmountCard(fare: String, modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = Icons.Outlined.Check,
                     contentDescription = null,
                     tint = ElectricGreen,
                     modifier = Modifier
@@ -480,7 +480,7 @@ private fun PaymentMethodCard(
             ) {
                 if (isSelected) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = Icons.Outlined.Check,
                         contentDescription = null,
                         tint = WheelsSurface,
                         modifier = Modifier
@@ -510,7 +510,7 @@ private fun SecurityNoticeSection(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.Top
         ) {
             Icon(
-                imageVector = Icons.Default.Shield,
+                imageVector = Icons.Outlined.Shield,
                 contentDescription = null,
                 tint = SecondaryBlue,
                 modifier = Modifier
@@ -611,7 +611,7 @@ private fun PaymentButton(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
-                        imageVector = Icons.Default.ChevronRight,
+                        imageVector = Icons.Outlined.ChevronRight,
                         contentDescription = null,
                         tint = WheelsSurface,
                         modifier = Modifier

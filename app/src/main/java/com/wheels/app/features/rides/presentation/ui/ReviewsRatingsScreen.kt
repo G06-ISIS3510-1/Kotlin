@@ -21,15 +21,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -161,14 +160,25 @@ fun ReviewsRatingsScreen(
         }
 
         item {
-            Button(
-                onClick = {},
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clickable { },
+                shape = RoundedCornerShape(16.dp),
+                color = WheelsSurface,
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE5E9F2))
             ) {
-                Text(text = "Load more reviews")
+                Box(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Load more reviews",
+                        color = PrimaryBlue,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                }
             }
         }
     }
@@ -193,7 +203,7 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.ChevronLeft,
+                imageVector = Icons.Outlined.ChevronLeft,
                 contentDescription = "Back",
                 tint = WheelsSurface,
                 modifier = Modifier
@@ -248,7 +258,7 @@ private fun RatingSummaryCard(driverName: String) {
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         repeat(5) {
                             Icon(
-                                imageVector = Icons.Default.Star,
+                                imageVector = Icons.Outlined.Star,
                                 contentDescription = null,
                                 tint = Color(0xFFFFA726),
                                 modifier = Modifier.size(18.dp)
@@ -315,7 +325,7 @@ private fun RatingSummaryCard(driverName: String) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Shield,
+                        imageVector = Icons.Outlined.Shield,
                         contentDescription = null,
                         tint = ElectricGreen,
                         modifier = Modifier.size(22.dp)
@@ -334,7 +344,7 @@ private fun RatingSummaryCard(driverName: String) {
                         )
                     }
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
+                        imageVector = Icons.Outlined.CheckCircle,
                         contentDescription = null,
                         tint = ElectricGreen,
                         modifier = Modifier.size(18.dp)
@@ -346,13 +356,13 @@ private fun RatingSummaryCard(driverName: String) {
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MetricBox(
-                    icon = Icons.Default.AccessTime,
+                    icon = Icons.Outlined.AccessTime,
                     label = "Punctuality",
                     value = "${driverStats.punctualityScore}%",
                     modifier = Modifier.weight(1f)
                 )
                 MetricBox(
-                    icon = Icons.Default.CheckCircle,
+                    icon = Icons.Outlined.CheckCircle,
                     label = "Payment",
                     value = "${driverStats.paymentReliability}%",
                     modifier = Modifier.weight(1f)
@@ -388,7 +398,7 @@ private fun MetricBox(
                     color = PrimaryBlue
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Icon(imageVector = Icons.Default.TrendingUp, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(14.dp))
+                Icon(imageVector = Icons.Outlined.TrendingUp, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(14.dp))
             }
         }
     }
@@ -412,11 +422,11 @@ private fun FiltersRow() {
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(imageVector = Icons.Default.FilterList, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
+                Icon(imageVector = Icons.Outlined.FilterList, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(text = "All reviews", color = PrimaryBlue, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.width(6.dp))
-                Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
+                Icon(imageVector = Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
             }
         }
 
@@ -432,7 +442,7 @@ private fun FiltersRow() {
             ) {
                 Text(text = "Most recent", color = PrimaryBlue, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.width(6.dp))
-                Icon(imageVector = Icons.Default.KeyboardArrowDown, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
+                Icon(imageVector = Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -477,7 +487,7 @@ private fun ReviewCard(review: ReviewItem) {
                         if (review.verified) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = Icons.Outlined.CheckCircle,
                                 contentDescription = null,
                                 tint = ElectricGreen,
                                 modifier = Modifier.size(14.dp)
@@ -495,7 +505,7 @@ private fun ReviewCard(review: ReviewItem) {
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     repeat(review.rating) {
                         Icon(
-                            imageVector = Icons.Default.Star,
+                            imageVector = Icons.Outlined.Star,
                             contentDescription = null,
                             tint = Color(0xFFFFA726),
                             modifier = Modifier.size(14.dp)
@@ -536,7 +546,7 @@ private fun ReviewCard(review: ReviewItem) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
+                        imageVector = Icons.Outlined.CheckCircle,
                         contentDescription = null,
                         tint = ElectricGreen,
                         modifier = Modifier.size(14.dp)
