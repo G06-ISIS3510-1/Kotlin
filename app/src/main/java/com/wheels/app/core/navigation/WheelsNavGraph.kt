@@ -25,6 +25,7 @@ import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 import com.wheels.app.features.rides.presentation.ui.ActiveRideManagementScreen
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
 import com.wheels.app.features.rides.presentation.ui.RideRequestScreen
+import com.wheels.app.features.rides.presentation.ui.ReviewsRatingsScreen
 import com.wheels.app.features.rides.presentation.ui.RidesScreen
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
@@ -35,10 +36,14 @@ fun WheelsNavGraph() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val selectedRoute = currentDestination
-        ?.hierarchy
-        ?.mapNotNull { it.route }
-        ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
+    val selectedRoute = if (currentDestination?.route == Destinations.ReviewsRatings.route) {
+        navBackStackEntry?.arguments?.getString("origin")
+    } else {
+        currentDestination
+            ?.hierarchy
+            ?.mapNotNull { it.route }
+            ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
+    }
     val routesWithoutBottomBar = setOf(
         Destinations.QuickPayment.route,
         Destinations.GroupChat.route,
@@ -138,6 +143,19 @@ fun WheelsNavGraph() {
             composable(Destinations.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
                 ProfileScreen(innerPadding = innerPadding, viewModel = viewModel)
+            }
+            composable(
+                route = Destinations.ReviewsRatings.route,
+                arguments = listOf(
+                    navArgument("origin") { type = NavType.StringType },
+                    navArgument("driverName") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                ReviewsRatingsScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    driverName = backStackEntry.arguments?.getString("driverName").orEmpty()
+                )
             }
         }
     }
