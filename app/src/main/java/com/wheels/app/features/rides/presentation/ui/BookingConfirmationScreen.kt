@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -153,7 +154,8 @@ private fun PendingStatusCard() {
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
-            .padding(top =  -20.dp, bottom = 8.dp)
+            .padding(bottom = 8.dp)
+            .offset(y = (-20).dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = WheelsSurface),

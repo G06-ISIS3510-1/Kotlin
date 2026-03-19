@@ -129,7 +129,6 @@ fun RidesScreen(
         items(state.filteredRides, key = { it.id }) { ride ->
             RideCard(
                 ride = ride,
-                onViewDetails = {},
                 onRequest = {
                     navController.navigate(Destinations.RideRequest.createRoute(ride.id))
                 },
@@ -438,7 +437,6 @@ private fun SmartSuggestionCard(onClick: () -> Unit) {
 @Composable
 private fun RideCard(
     ride: RideCardUiModel,
-    onViewDetails: () -> Unit,
     onRequest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -616,21 +614,13 @@ private fun RideCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActionButton(
-                    text = "View Details",
-                    emphasized = false,
-                    onClick = onViewDetails,
-                    modifier = Modifier.weight(1f)
-                )
-                ActionButton(
-                    text = "Request",
-                    emphasized = true,
-                    trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    onClick = onRequest,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            ActionButton(
+                text = "Request",
+                emphasized = true,
+                trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                onClick = onRequest,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
