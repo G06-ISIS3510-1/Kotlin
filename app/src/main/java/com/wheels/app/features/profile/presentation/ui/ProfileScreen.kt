@@ -45,61 +45,64 @@ fun ProfileScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .padding(innerPadding)
             .background(Color(0xFFF7F9FC))
     ) {
-        // Header
+        // Header + Profile Card (overlapped)
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFF1a3a5c),
-                                Color(0xFF2d5280)
-                            )
-                        ),
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                    )
-                    .padding(horizontal = 24.dp, vertical = 48.dp)
+                    .padding(bottom = 20.dp)
             ) {
-                Column {
-                    Text(
-                        text = "Profile",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Text(
-                        text = "Manage your account and preferences",
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF1a3a5c),
+                                    Color(0xFF2d5280)
+                                )
+                            ),
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        )
+                        .padding(start = 24.dp, end = 24.dp, top = 44.dp, bottom = 5.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = "Profile",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Text(
+                            text = "Manage your account and preferences",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
                 }
-            }
-        }
-
-        // Profile Card
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 20.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.White)
-                    .padding(24.dp)
-            ) {
-                Column {
-                    // Avatar and Name Section
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 126.dp)
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.White)
+                        .padding(24.dp)
+                ) {
+                    Column {
+                        // Avatar and Name Section
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
                             // Get initials from name
                             val initials = state.name.split(" ")
                                 .take(2)
@@ -167,39 +170,40 @@ fun ProfileScreen(
                             }
                         }
 
-                    // Stats Grid
-                    val stats = listOf(
-                        Triple("16", "Rides", Color(0xFF1a3a5c)),
-                        Triple("${state.reputationScore}%", "Score", Color(0xFF00d9a3)),
-                        Triple("5.0", "Rating", Color(0xFFffa726)),
-                        Triple("142", "Points", Color(0xFF5b89c8))
-                    )
+                        // Stats Grid
+                        val stats = listOf(
+                            Triple("16", "Rides", Color(0xFF1a3a5c)),
+                            Triple("${state.reputationScore}%", "Score", Color(0xFF00d9a3)),
+                            Triple("5.0", "Rating", Color(0xFFffa726)),
+                            Triple("142", "Points", Color(0xFF5b89c8))
+                        )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        stats.forEach { (value, label, color) ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0xFFF7F9FC))
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = value,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = color
-                                    )
-                                    Text(
-                                        text = label,
-                                        fontSize = 10.sp,
-                                        color = Color(0xFF64748b)
-                                    )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            stats.forEach { (value, label, color) ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color(0xFFF7F9FC))
+                                        .padding(12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = value,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = color
+                                        )
+                                        Text(
+                                            text = label,
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF64748b)
+                                        )
+                                    }
                                 }
                             }
                         }
