@@ -52,12 +52,16 @@ fun ProfileScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    LazyColumn(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(innerPadding)
             .background(Color(0xFFF7F9FC))
     ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
         // Header + Profile Card (overlapped)
         item {
             Box(
@@ -384,6 +388,7 @@ fun ProfileScreen(
         // Bottom spacer
         item {
             Box(modifier = Modifier.height(80.dp))
+        }
         }
     }
 }
