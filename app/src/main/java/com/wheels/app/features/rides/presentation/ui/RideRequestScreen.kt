@@ -128,7 +128,16 @@ fun RideRequestScreen(
             }
             item { MapPreviewCard(ride = ride) }
             item { RouteDetailsCard(ride = ride) }
-            item { DriverInfoCard(ride = ride) }
+            item {
+                DriverInfoCard(
+                    ride = ride,
+                    onOpenReviews = {
+                        navController.navigate(
+                            Destinations.ReviewsRatings.createRoute(ride.driver.name)
+                        )
+                    }
+                )
+            }
             item {
                 SeatSelectionCard(
                     ride = ride,
@@ -342,14 +351,22 @@ private fun RouteDetailsCard(ride: RideRequestUiModel) {
 }
 
 @Composable
-private fun DriverInfoCard(ride: RideRequestUiModel) {
-    InfoCard(title = "Your Driver", trailingLabel = "View reviews") {
+private fun DriverInfoCard(
+    ride: RideRequestUiModel,
+    onOpenReviews: () -> Unit
+) {
+    InfoCard(
+        title = "Your Driver",
+        trailingLabel = "View reviews",
+        onTrailingClick = onOpenReviews
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(Color(0xFF5B89C8), PrimaryBlue))),
+                    .background(Brush.linearGradient(listOf(Color(0xFF5B89C8), PrimaryBlue)))
+                    .clickable(onClick = onOpenReviews),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -363,10 +380,14 @@ private fun DriverInfoCard(ride: RideRequestUiModel) {
                 Text(
                     text = ride.driver.name,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = PrimaryBlue
+                    color = PrimaryBlue,
+                    modifier = Modifier.clickable(onClick = onOpenReviews)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable(onClick = onOpenReviews)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Star,
                         contentDescription = null,
@@ -426,6 +447,7 @@ private fun DriverInfoCard(ride: RideRequestUiModel) {
                 primary = "${ride.driver.reliabilityScore}%",
                 secondary = "Reliable",
                 tint = ElectricGreen,
+                onClick = onOpenReviews,
                 modifier = Modifier.weight(1f)
             )
             TrustMetric(
@@ -775,6 +797,7 @@ private fun ConfirmationDialog(
 private fun InfoCard(
     title: String,
     trailingLabel: String? = null,
+    onTrailingClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -800,7 +823,12 @@ private fun InfoCard(
                     Text(
                         text = trailingLabel,
                         color = SecondaryBlue,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        modifier = if (onTrailingClick != null) {
+                            Modifier.clickable(onClick = onTrailingClick)
+                        } else {
+                            Modifier
+                        }
                     )
                 }
             }
@@ -860,10 +888,15 @@ private fun TrustMetric(
     primary: String,
     secondary: String,
     tint: Color,
+    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier,
+        modifier = if (onClick != null) {
+            modifier.clickable(onClick = onClick)
+        } else {
+            modifier
+        },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))

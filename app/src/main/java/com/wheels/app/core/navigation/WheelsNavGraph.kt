@@ -24,6 +24,7 @@ import com.wheels.app.features.profile.presentation.ui.ProfileScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
 import com.wheels.app.features.rides.presentation.ui.RideRequestScreen
+import com.wheels.app.features.rides.presentation.ui.ReviewsRatingsScreen
 import com.wheels.app.features.rides.presentation.ui.RidesScreen
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
@@ -123,6 +124,16 @@ fun WheelsNavGraph() {
             composable(Destinations.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
                 ProfileScreen(innerPadding = innerPadding, viewModel = viewModel)
+            }
+            composable(
+                route = Destinations.ReviewsRatings.route,
+                arguments = listOf(navArgument("driverName") { type = NavType.StringType })
+            ) { backStackEntry ->
+                ReviewsRatingsScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    driverName = backStackEntry.arguments?.getString("driverName").orEmpty()
+                )
             }
         }
     }
