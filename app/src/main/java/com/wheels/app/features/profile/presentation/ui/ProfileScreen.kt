@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,7 +46,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
+import com.wheels.app.features.profile.presentation.viewmodel.ProfileEvent
 
 @Composable
 fun ProfileScreen(
@@ -188,6 +191,29 @@ fun ProfileScreen(
                                     fontSize = 12.sp,
                                     color = Color(0xFF64748b)
                                 )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    RoleSwitchButton(
+                                        label = "Passenger",
+                                        selected = state.activeRole == UserRole.PASSENGER,
+                                        onClick = {
+                                            viewModel.onEvent(ProfileEvent.RoleChanged(UserRole.PASSENGER))
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    RoleSwitchButton(
+                                        label = "Driver",
+                                        selected = state.activeRole == UserRole.DRIVER,
+                                        onClick = {
+                                            viewModel.onEvent(ProfileEvent.RoleChanged(UserRole.DRIVER))
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
 
@@ -417,6 +443,35 @@ fun ProfileScreen(
             Box(modifier = Modifier.height(80.dp))
         }
         }
+    }
+}
+
+@Composable
+private fun RoleSwitchButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (selected) Color(0xFF1a3a5c) else Color(0xFFF7F9FC))
+            .border(
+                width = 1.5.dp,
+                color = if (selected) Color(0xFF1a3a5c) else Color(0xFFE2E8F0),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (selected) Color.White else Color(0xFF64748b)
+        )
     }
 }
 

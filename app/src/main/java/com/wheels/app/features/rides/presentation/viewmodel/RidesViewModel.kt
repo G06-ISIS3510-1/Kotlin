@@ -1,6 +1,8 @@
 package com.wheels.app.features.rides.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.wheels.app.core.session.RoleManager
+import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.rides.domain.usecase.GetAvailableRidesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,7 +13,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RidesViewModel @Inject constructor(
-    private val getAvailableRidesUseCase: GetAvailableRidesUseCase
+    private val getAvailableRidesUseCase: GetAvailableRidesUseCase,
+    roleManager: RoleManager
 ) : ViewModel() {
 
     private val mockRides = listOf(
@@ -75,6 +78,7 @@ class RidesViewModel @Inject constructor(
         )
     )
     val uiState: StateFlow<RidesUiState> = _uiState.asStateFlow()
+    val activeRole: StateFlow<UserRole> = roleManager.activeRole
 
     fun onEvent(event: RidesEvent) {
         when (event) {
@@ -88,6 +92,23 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.MinRatingSelected -> updateFilters(selectedMinRating = event.rating)
             RidesEvent.ApplySuggestedDestination -> updateFilters(searchQuery = "Centro")
             RidesEvent.ClearRatingFilter -> updateFilters(selectedMinRating = null)
+            is RidesEvent.DriverOriginChanged -> updateDriverForm(origin = event.value)
+            is RidesEvent.DriverDestinationChanged -> updateDriverForm(destination = event.value)
+            is RidesEvent.DriverDateChanged -> updateDriverForm(date = event.value)
+            is RidesEvent.DriverTimeChanged -> updateDriverForm(time = event.value)
+            RidesEvent.DriverIncreaseSeats -> {
+                updateDriverForm(totalSeats = (_uiState.value.totalSeats + 1).coerceAtMost(6))
+            }
+            RidesEvent.DriverDecreaseSeats -> {
+                updateDriverForm(totalSeats = (_uiState.value.totalSeats - 1).coerceAtLeast(1))
+            }
+            is RidesEvent.DriverPriceChanged -> updateDriverForm(pricePerSeat = event.value)
+            is RidesEvent.DriverCarModelChanged -> updateDriverForm(carModel = event.value)
+            is RidesEvent.DriverLicensePlateChanged -> {
+                updateDriverForm(licensePlate = event.value.uppercase())
+            }
+            is RidesEvent.DriverDescriptionChanged -> updateDriverForm(description = event.value)
+            RidesEvent.PublishRide -> Unit
         }
     }
 
@@ -120,17 +141,54 @@ class RidesViewModel @Inject constructor(
             )
         }
     }
+
+    private fun updateDriverForm(
+        origin: String = _uiState.value.origin,
+        destination: String = _uiState.value.destination,
+        date: String = _uiState.value.date,
+        time: String = _uiState.value.time,
+        totalSeats: Int = _uiState.value.totalSeats,
+        pricePerSeat: String = _uiState.value.pricePerSeat,
+        carModel: String = _uiState.value.carModel,
+        licensePlate: String = _uiState.value.licensePlate,
+        description: String = _uiState.value.description
+    ) {
+        _uiState.update {
+            it.copy(
+                origin = origin,
+                destination = destination,
+                date = date,
+                time = time,
+                totalSeats = totalSeats,
+                pricePerSeat = pricePerSeat,
+                carModel = carModel,
+                licensePlate = licensePlate,
+                description = description
+            )
+        }
+    }
 }
 
 sealed interface RidesEvent {
     data object LoadRides : RidesEvent
     data object ApplySuggestedDestination : RidesEvent
     data object ClearRatingFilter : RidesEvent
+    data object DriverIncreaseSeats : RidesEvent
+    data object DriverDecreaseSeats : RidesEvent
+    data object PublishRide : RidesEvent
     data class SearchChanged(val value: String) : RidesEvent
     data class FiltersExpandedChanged(val expanded: Boolean) : RidesEvent
     data class AreaSelected(val area: String) : RidesEvent
     data class MaxPriceChanged(val value: Float) : RidesEvent
     data class MinRatingSelected(val rating: Double) : RidesEvent
+    data class DriverOriginChanged(val value: String) : RidesEvent
+    data class DriverDestinationChanged(val value: String) : RidesEvent
+    data class DriverDateChanged(val value: String) : RidesEvent
+    data class DriverTimeChanged(val value: String) : RidesEvent
+    data class DriverPriceChanged(val value: String) : RidesEvent
+    data class DriverCarModelChanged(val value: String) : RidesEvent
+    data class DriverLicensePlateChanged(val value: String) : RidesEvent
+    data class DriverDescriptionChanged(val value: String) : RidesEvent
 }
 
 data class RidesUiState(
@@ -143,8 +201,29 @@ data class RidesUiState(
     val availableAreas: List<String> = listOf("All Areas", "Chapinero", "Usaquen", "Suba", "Kennedy"),
     val availableRatings: List<Double> = listOf(4.0, 4.5, 4.7, 4.9),
     val allRides: List<RideCardUiModel> = emptyList(),
-    val filteredRides: List<RideCardUiModel> = emptyList()
-)
+    val filteredRides: List<RideCardUiModel> = emptyList(),
+    val origin: String = "",
+    val destination: String = "",
+    val date: String = "",
+    val time: String = "",
+    val totalSeats: Int = 3,
+    val pricePerSeat: String = "",
+    val carModel: String = "",
+    val licensePlate: String = "",
+    val description: String = ""
+) {
+    val estimatedEarnings: Int
+        get() = (pricePerSeat.toIntOrNull() ?: 0) * totalSeats
+
+    val canPublishRide: Boolean
+        get() = origin.isNotBlank() &&
+            destination.isNotBlank() &&
+            date.isNotBlank() &&
+            time.isNotBlank() &&
+            pricePerSeat.isNotBlank() &&
+            carModel.isNotBlank() &&
+            licensePlate.isNotBlank()
+}
 
 data class RideCardUiModel(
     val id: String,
