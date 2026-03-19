@@ -21,9 +21,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Shield
@@ -189,15 +189,17 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
                 .clip(RoundedCornerShape(999.dp))
                 .clickable(onClick = onBack)
                 .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                imageVector = Icons.Default.ChevronLeft,
                 contentDescription = "Back",
                 tint = WheelsSurface,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier
+                    .width(20.dp)
+                    .height(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Back",
                 color = WheelsSurface.copy(alpha = 0.84f),

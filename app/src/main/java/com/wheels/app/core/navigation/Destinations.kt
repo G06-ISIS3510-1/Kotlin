@@ -14,8 +14,10 @@ sealed class Destinations(val route: String) {
         fun createRoute(rideId: String, seats: Int): String = "booking_confirmation/$rideId/$seats"
     }
     data object GroupChat : Destinations("group_chat")
-    data object ReviewsRatings : Destinations("reviews_ratings/{driverName}") {
-        fun createRoute(driverName: String): String = "reviews_ratings/${Uri.encode(driverName)}"
+    data object ReviewsRatings : Destinations("reviews_ratings/{origin}/{driverName}") {
+        fun createRoute(driverName: String, origin: String): String {
+            return "reviews_ratings/${Uri.encode(origin)}/${Uri.encode(driverName)}"
+        }
     }
     data object Profile : Destinations("profile")
 }

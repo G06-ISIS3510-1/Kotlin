@@ -99,7 +99,10 @@ fun HomeScreen(
                     onOpenChat = { navController.navigate(Destinations.GroupChat.route) },
                     onOpenReviews = {
                         navController.navigate(
-                            Destinations.ReviewsRatings.createRoute(state.activeRide.driver)
+                            Destinations.ReviewsRatings.createRoute(
+                                driverName = state.activeRide.driver,
+                                origin = Destinations.Home.route
+                            )
                         )
                     }
                 )

@@ -35,10 +35,14 @@ fun WheelsNavGraph() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val selectedRoute = currentDestination
-        ?.hierarchy
-        ?.mapNotNull { it.route }
-        ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
+    val selectedRoute = if (currentDestination?.route == Destinations.ReviewsRatings.route) {
+        navBackStackEntry?.arguments?.getString("origin")
+    } else {
+        currentDestination
+            ?.hierarchy
+            ?.mapNotNull { it.route }
+            ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
+    }
     val routesWithoutBottomBar = setOf(
         Destinations.QuickPayment.route,
         Destinations.GroupChat.route,
@@ -127,7 +131,10 @@ fun WheelsNavGraph() {
             }
             composable(
                 route = Destinations.ReviewsRatings.route,
-                arguments = listOf(navArgument("driverName") { type = NavType.StringType })
+                arguments = listOf(
+                    navArgument("origin") { type = NavType.StringType },
+                    navArgument("driverName") { type = NavType.StringType }
+                )
             ) { backStackEntry ->
                 ReviewsRatingsScreen(
                     innerPadding = innerPadding,

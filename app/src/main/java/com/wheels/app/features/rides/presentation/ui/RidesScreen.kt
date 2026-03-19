@@ -134,7 +134,10 @@ fun RidesScreen(
                 },
                 onOpenReviews = {
                     navController.navigate(
-                        Destinations.ReviewsRatings.createRoute(ride.driver)
+                        Destinations.ReviewsRatings.createRoute(
+                            driverName = ride.driver,
+                            origin = Destinations.Rides.route
+                        )
                     )
                 },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
