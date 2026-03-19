@@ -71,10 +71,47 @@ class RidesViewModel @Inject constructor(
         )
     )
 
+    private val mockDriverRides = listOf(
+        DriverRideUiModel(
+            id = "driver-1",
+            origin = "Campus Uniandes - Main Gate",
+            destination = "Centro Comercial Andino",
+            date = "2026-03-19",
+            time = "14:30",
+            totalSeats = 3,
+            pricePerSeat = 3500,
+            carModel = "Toyota Corolla 2020",
+            licensePlate = "ABC-123"
+        ),
+        DriverRideUiModel(
+            id = "driver-2",
+            origin = "Campus Uniandes - ML Building",
+            destination = "Usaquen",
+            date = "2026-03-19",
+            time = "17:15",
+            totalSeats = 2,
+            pricePerSeat = 4000,
+            carModel = "Mazda 3 2021",
+            licensePlate = "XYZ-456"
+        ),
+        DriverRideUiModel(
+            id = "driver-3",
+            origin = "Campus Uniandes - Entrance Gate",
+            destination = "Suba Centro",
+            date = "2026-03-20",
+            time = "07:45",
+            totalSeats = 4,
+            pricePerSeat = 4500,
+            carModel = "Chevrolet Spark 2019",
+            licensePlate = "DEF-789"
+        )
+    ).sortedBy { "${it.date} ${it.time}" }
+
     private val _uiState = MutableStateFlow(
         RidesUiState(
             allRides = mockRides,
-            filteredRides = mockRides
+            filteredRides = mockRides,
+            driverRides = mockDriverRides
         )
     )
     val uiState: StateFlow<RidesUiState> = _uiState.asStateFlow()
@@ -108,7 +145,10 @@ class RidesViewModel @Inject constructor(
                 updateDriverForm(licensePlate = event.value.uppercase())
             }
             is RidesEvent.DriverDescriptionChanged -> updateDriverForm(description = event.value)
-            RidesEvent.PublishRide -> Unit
+            is RidesEvent.DriverTabChanged -> {
+                _uiState.update { it.copy(driverSelectedTab = event.tab) }
+            }
+            RidesEvent.PublishRide -> publishRide()
         }
     }
 
@@ -167,6 +207,39 @@ class RidesViewModel @Inject constructor(
             )
         }
     }
+
+    private fun publishRide() {
+        val currentState = _uiState.value
+        if (!currentState.canPublishRide) return
+
+        val newRide = DriverRideUiModel(
+            id = "driver-${currentState.driverRides.size + 1}",
+            origin = currentState.origin,
+            destination = currentState.destination,
+            date = currentState.date,
+            time = currentState.time,
+            totalSeats = currentState.totalSeats,
+            pricePerSeat = currentState.pricePerSeat.toIntOrNull() ?: 0,
+            carModel = currentState.carModel,
+            licensePlate = currentState.licensePlate
+        )
+
+        _uiState.update {
+            it.copy(
+                driverSelectedTab = DriverRidesTab.MY_RIDES,
+                driverRides = (it.driverRides + newRide).sortedBy { ride -> "${ride.date} ${ride.time}" },
+                origin = "",
+                destination = "",
+                date = "",
+                time = "",
+                totalSeats = 3,
+                pricePerSeat = "",
+                carModel = "",
+                licensePlate = "",
+                description = ""
+            )
+        }
+    }
 }
 
 sealed interface RidesEvent {
@@ -189,6 +262,7 @@ sealed interface RidesEvent {
     data class DriverCarModelChanged(val value: String) : RidesEvent
     data class DriverLicensePlateChanged(val value: String) : RidesEvent
     data class DriverDescriptionChanged(val value: String) : RidesEvent
+    data class DriverTabChanged(val tab: DriverRidesTab) : RidesEvent
 }
 
 data class RidesUiState(
@@ -210,7 +284,9 @@ data class RidesUiState(
     val pricePerSeat: String = "",
     val carModel: String = "",
     val licensePlate: String = "",
-    val description: String = ""
+    val description: String = "",
+    val driverSelectedTab: DriverRidesTab = DriverRidesTab.CREATE_RIDE,
+    val driverRides: List<DriverRideUiModel> = emptyList()
 ) {
     val estimatedEarnings: Int
         get() = (pricePerSeat.toIntOrNull() ?: 0) * totalSeats
@@ -223,6 +299,29 @@ data class RidesUiState(
             pricePerSeat.isNotBlank() &&
             carModel.isNotBlank() &&
             licensePlate.isNotBlank()
+}
+
+enum class DriverRidesTab {
+    CREATE_RIDE,
+    MY_RIDES
+}
+
+data class DriverRideUiModel(
+    val id: String,
+    val origin: String,
+    val destination: String,
+    val date: String,
+    val time: String,
+    val totalSeats: Int,
+    val pricePerSeat: Int,
+    val carModel: String,
+    val licensePlate: String
+) {
+    val formattedSchedule: String
+        get() = "$date • $time"
+
+    val totalEarnings: Int
+        get() = totalSeats * pricePerSeat
 }
 
 data class RideCardUiModel(
