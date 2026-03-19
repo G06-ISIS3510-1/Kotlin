@@ -11,6 +11,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.wheels.app.core.ui.components.WheelsBottomBar
+import com.wheels.app.features.chat.presentation.ui.GroupChatScreen
+import com.wheels.app.features.chat.presentation.viewmodel.GroupChatViewModel
 import com.wheels.app.features.home.presentation.ui.HomeScreen
 import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
 import com.wheels.app.features.payments.presentation.ui.PaymentsScreen
@@ -30,11 +32,15 @@ fun WheelsNavGraph() {
         ?.hierarchy
         ?.mapNotNull { it.route }
         ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
-    val isQuickPaymentScreen = currentDestination?.route == Destinations.QuickPayment.route
+    val routeWithoutBottomBar = setOf(
+        Destinations.QuickPayment.route,
+        Destinations.GroupChat.route
+    )
+    val shouldShowBottomBar = currentDestination?.route !in routeWithoutBottomBar
 
     Scaffold(
         bottomBar = {
-            if (!isQuickPaymentScreen) {
+            if (shouldShowBottomBar) {
                 WheelsBottomBar(
                     items = wheelsBottomNavItems,
                     selectedRoute = selectedRoute,
@@ -70,6 +76,14 @@ fun WheelsNavGraph() {
             composable(Destinations.QuickPayment.route) {
                 val viewModel: PaymentsViewModel = hiltViewModel()
                 QuickPaymentScreen(innerPadding = innerPadding, navController = navController, viewModel = viewModel)
+            }
+            composable(Destinations.GroupChat.route) {
+                val viewModel: GroupChatViewModel = hiltViewModel()
+                GroupChatScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
             }
             composable(Destinations.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
