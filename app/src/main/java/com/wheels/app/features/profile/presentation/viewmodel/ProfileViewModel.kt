@@ -30,5 +30,7 @@ sealed interface ProfileEvent {
 data class ProfileUiState(
     val isLoading: Boolean = false,
     val name: String = "Estudiante Uniandes",
+    val email: String = "m.gonzalez@uniandes.edu.co",
+    val phone: String = "+57 300 123 4567",
     val reputationScore: Double = 0.0
 )
