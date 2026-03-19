@@ -77,6 +77,7 @@ import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
 import com.wheels.app.features.rides.presentation.viewmodel.RideCardUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideUiModel
+import com.wheels.app.features.rides.presentation.viewmodel.DriverRideStatus
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRidesTab
 import com.wheels.app.features.rides.presentation.viewmodel.RidesEvent
 import com.wheels.app.features.rides.presentation.viewmodel.RidesUiState
@@ -108,6 +109,9 @@ fun RidesScreen(
             onLicensePlateChanged = { viewModel.onEvent(RidesEvent.DriverLicensePlateChanged(it)) },
             onDescriptionChanged = { viewModel.onEvent(RidesEvent.DriverDescriptionChanged(it)) },
             onDriverTabSelected = { viewModel.onEvent(RidesEvent.DriverTabChanged(it)) },
+            onMyRideSelected = { rideId ->
+                navController.navigate(Destinations.ActiveRideManagement.createRoute(rideId))
+            },
             onPublishRide = {
                 viewModel.onEvent(RidesEvent.PublishRide)
             }
@@ -197,6 +201,7 @@ private fun DriverCreateRideScreen(
     onLicensePlateChanged: (String) -> Unit,
     onDescriptionChanged: (String) -> Unit,
     onDriverTabSelected: (DriverRidesTab) -> Unit,
+    onMyRideSelected: (String) -> Unit,
     onPublishRide: () -> Unit
 ) {
     val context = LocalContext.current
@@ -281,7 +286,7 @@ private fun DriverCreateRideScreen(
                                 readOnly = true,
                                 onClick = {
                                     val calendar = Calendar.getInstance()
-                                    DatePickerDialog(
+                                    val datePickerDialog = DatePickerDialog(
                                         context,
                                         { _, year, month, dayOfMonth ->
                                             onDateChanged(
@@ -296,7 +301,9 @@ private fun DriverCreateRideScreen(
                                         calendar.get(Calendar.YEAR),
                                         calendar.get(Calendar.MONTH),
                                         calendar.get(Calendar.DAY_OF_MONTH)
-                                    ).show()
+                                    )
+                                    datePickerDialog.datePicker.minDate = calendar.timeInMillis
+                                    datePickerDialog.show()
                                 }
                             )
                             FormTextField(
@@ -499,6 +506,9 @@ private fun DriverCreateRideScreen(
                 items(state.driverRides, key = { it.id }) { ride ->
                     DriverRideCard(
                         ride = ride,
+                        onClick = {
+                            onMyRideSelected(ride.id)
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                     )
                 }
@@ -622,10 +632,13 @@ private fun MyRidesSummary(
 @Composable
 private fun DriverRideCard(
     ride: DriverRideUiModel,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = WheelsSurface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -643,6 +656,8 @@ private fun DriverRideCard(
                         color = PrimaryBlue
                     )
                     Spacer(modifier = Modifier.height(4.dp))
+                    DriverRideStatusChip(status = ride.status)
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "${ride.carModel} • ${ride.licensePlate}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -730,6 +745,27 @@ private fun DriverRideCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DriverRideStatusChip(status: DriverRideStatus) {
+    val (label, backgroundColor, textColor) = when (status) {
+        DriverRideStatus.PENDING -> Triple("Pending", Color(0xFFFEF3C7), Color(0xFFF59E0B))
+        DriverRideStatus.ACTIVE -> Triple("Active", Color(0xFFD1FAE5), ElectricGreen)
+        DriverRideStatus.COMPLETED -> Triple("Completed", Color(0xFFE2E8F0), PrimaryBlue)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = backgroundColor
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+            color = textColor
+        )
     }
 }
 
@@ -1090,7 +1126,7 @@ private fun SearchAndFiltersSection(
                 state = state,
                 onAreaSelected = onAreaSelected,
                 onPriceChanged = onPriceChanged,
-                onRatingSelected = onRatingSelected,
+                onRatingSelected = (onRatingSelected),
                 onClearRating = onClearRating
             )
         }

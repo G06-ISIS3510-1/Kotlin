@@ -78,10 +78,13 @@ class RidesViewModel @Inject constructor(
             destination = "Centro Comercial Andino",
             date = "2026-03-19",
             time = "14:30",
+            estimatedArrival = "15:00",
             totalSeats = 3,
             pricePerSeat = 3500,
             carModel = "Toyota Corolla 2020",
-            licensePlate = "ABC-123"
+            licensePlate = "ABC-123",
+            status = DriverRideStatus.ACTIVE,
+            passengers = defaultPassengers
         ),
         DriverRideUiModel(
             id = "driver-2",
@@ -89,10 +92,13 @@ class RidesViewModel @Inject constructor(
             destination = "Usaquen",
             date = "2026-03-19",
             time = "17:15",
+            estimatedArrival = "17:50",
             totalSeats = 2,
             pricePerSeat = 4000,
             carModel = "Mazda 3 2021",
-            licensePlate = "XYZ-456"
+            licensePlate = "XYZ-456",
+            status = DriverRideStatus.PENDING,
+            passengers = defaultPassengers.take(2).map { it.copy(paymentStatus = PaymentStatusState.PENDING) }
         ),
         DriverRideUiModel(
             id = "driver-3",
@@ -100,10 +106,17 @@ class RidesViewModel @Inject constructor(
             destination = "Suba Centro",
             date = "2026-03-20",
             time = "07:45",
+            estimatedArrival = "08:25",
             totalSeats = 4,
             pricePerSeat = 4500,
             carModel = "Chevrolet Spark 2019",
-            licensePlate = "DEF-789"
+            licensePlate = "DEF-789",
+            status = DriverRideStatus.COMPLETED,
+            passengers = defaultPassengers.mapIndexed { index, passenger ->
+                passenger.copy(
+                    paymentStatus = if (index == 2) PaymentStatusState.PENDING else PaymentStatusState.PAID
+                )
+            }
         )
     ).sortedBy { "${it.date} ${it.time}" }
 
@@ -149,6 +162,8 @@ class RidesViewModel @Inject constructor(
                 _uiState.update { it.copy(driverSelectedTab = event.tab) }
             }
             RidesEvent.PublishRide -> publishRide()
+            is RidesEvent.CompleteDriverRide -> completeDriverRide(event.rideId)
+            is RidesEvent.StartDriverRide -> startDriverRide(event.rideId)
         }
     }
 
@@ -218,10 +233,13 @@ class RidesViewModel @Inject constructor(
             destination = currentState.destination,
             date = currentState.date,
             time = currentState.time,
+            estimatedArrival = estimateArrival(currentState.time),
             totalSeats = currentState.totalSeats,
             pricePerSeat = currentState.pricePerSeat.toIntOrNull() ?: 0,
             carModel = currentState.carModel,
-            licensePlate = currentState.licensePlate
+            licensePlate = currentState.licensePlate,
+            status = DriverRideStatus.PENDING,
+            passengers = defaultPassengers.take(currentState.totalSeats.coerceAtMost(defaultPassengers.size))
         )
 
         _uiState.update {
@@ -239,6 +257,86 @@ class RidesViewModel @Inject constructor(
                 description = ""
             )
         }
+    }
+
+    private fun completeDriverRide(rideId: String) {
+        _uiState.update { state ->
+            state.copy(
+                driverRides = state.driverRides.map { ride ->
+                    if (ride.id == rideId) {
+                        ride.copy(
+                            status = DriverRideStatus.COMPLETED,
+                            passengers = ride.passengers.mapIndexed { index, passenger ->
+                                passenger.copy(
+                                    paymentStatus = if (index == ride.passengers.lastIndex) {
+                                        PaymentStatusState.PENDING
+                                    } else {
+                                        PaymentStatusState.PAID
+                                    }
+                                )
+                            }
+                        )
+                    } else {
+                        ride
+                    }
+                }
+            )
+        }
+    }
+
+    private fun startDriverRide(rideId: String) {
+        _uiState.update { state ->
+            state.copy(
+                driverRides = state.driverRides.map { ride ->
+                    if (ride.id == rideId) {
+                        ride.copy(status = DriverRideStatus.ACTIVE)
+                    } else {
+                        ride
+                    }
+                }
+            )
+        }
+    }
+
+    private fun estimateArrival(time: String): String {
+        val parts = time.split(":")
+        if (parts.size != 2) return time
+
+        val hour = parts[0].toIntOrNull() ?: return time
+        val minute = parts[1].toIntOrNull() ?: return time
+        val totalMinutes = hour * 60 + minute + 30
+        val arrivalHour = (totalMinutes / 60) % 24
+        val arrivalMinute = totalMinutes % 60
+        return String.format("%02d:%02d", arrivalHour, arrivalMinute)
+    }
+
+    private companion object {
+        val defaultPassengers = listOf(
+            DriverPassengerUiModel(
+                id = "passenger-1",
+                name = "Ana Garcia",
+                rating = 4.9,
+                seat = 1,
+                status = "confirmed",
+                paymentStatus = PaymentStatusState.PENDING
+            ),
+            DriverPassengerUiModel(
+                id = "passenger-2",
+                name = "Pedro Lopez",
+                rating = 4.7,
+                seat = 2,
+                status = "confirmed",
+                paymentStatus = PaymentStatusState.PENDING
+            ),
+            DriverPassengerUiModel(
+                id = "passenger-3",
+                name = "Maria Diaz",
+                rating = 5.0,
+                seat = 3,
+                status = "confirmed",
+                paymentStatus = PaymentStatusState.PENDING
+            )
+        )
     }
 }
 
@@ -263,6 +361,8 @@ sealed interface RidesEvent {
     data class DriverLicensePlateChanged(val value: String) : RidesEvent
     data class DriverDescriptionChanged(val value: String) : RidesEvent
     data class DriverTabChanged(val tab: DriverRidesTab) : RidesEvent
+    data class CompleteDriverRide(val rideId: String) : RidesEvent
+    data class StartDriverRide(val rideId: String) : RidesEvent
 }
 
 data class RidesUiState(
@@ -312,17 +412,40 @@ data class DriverRideUiModel(
     val destination: String,
     val date: String,
     val time: String,
+    val estimatedArrival: String,
     val totalSeats: Int,
     val pricePerSeat: Int,
     val carModel: String,
-    val licensePlate: String
+    val licensePlate: String,
+    val status: DriverRideStatus,
+    val passengers: List<DriverPassengerUiModel>
 ) {
     val formattedSchedule: String
         get() = "$date • $time"
 
     val totalEarnings: Int
-        get() = totalSeats * pricePerSeat
+        get() = passengers.size * pricePerSeat
 }
+
+enum class DriverRideStatus {
+    PENDING,
+    ACTIVE,
+    COMPLETED
+}
+
+enum class PaymentStatusState {
+    PAID,
+    PENDING
+}
+
+data class DriverPassengerUiModel(
+    val id: String,
+    val name: String,
+    val rating: Double,
+    val seat: Int,
+    val status: String,
+    val paymentStatus: PaymentStatusState
+)
 
 data class RideCardUiModel(
     val id: String,
