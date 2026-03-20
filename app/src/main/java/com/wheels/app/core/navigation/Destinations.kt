@@ -10,6 +10,9 @@ sealed class Destinations(val route: String) {
     data object RideRequest : Destinations("ride_request/{rideId}") {
         fun createRoute(rideId: String): String = "ride_request/$rideId"
     }
+    data object ActiveRideManagement : Destinations("active_ride_management/{rideId}") {
+        fun createRoute(rideId: String): String = "active_ride_management/$rideId"
+    }
     data object BookingConfirmation : Destinations("booking_confirmation/{rideId}/{seats}") {
         fun createRoute(rideId: String, seats: Int): String = "booking_confirmation/$rideId/$seats"
     }

@@ -22,6 +22,7 @@ import com.wheels.app.features.payments.presentation.ui.QuickPaymentScreen
 import com.wheels.app.features.payments.presentation.viewmodel.PaymentsViewModel
 import com.wheels.app.features.profile.presentation.ui.ProfileScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
+import com.wheels.app.features.rides.presentation.ui.ActiveRideManagementScreen
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
 import com.wheels.app.features.rides.presentation.ui.RideRequestScreen
 import com.wheels.app.features.rides.presentation.ui.ReviewsRatingsScreen
@@ -47,6 +48,7 @@ fun WheelsNavGraph() {
         Destinations.QuickPayment.route,
         Destinations.GroupChat.route,
         Destinations.RideRequest.route,
+        Destinations.ActiveRideManagement.route,
         Destinations.BookingConfirmation.route
     )
     val shouldShowBottomBar = currentDestination?.route !in routesWithoutBottomBar
@@ -107,6 +109,19 @@ fun WheelsNavGraph() {
                     innerPadding = innerPadding,
                     navController = navController,
                     viewModel = viewModel
+                )
+            }
+            composable(
+                route = Destinations.ActiveRideManagement.route,
+                arguments = listOf(navArgument("rideId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val parentEntry = navController.getBackStackEntry(Destinations.Rides.route)
+                val viewModel: RidesViewModel = hiltViewModel(parentEntry)
+                ActiveRideManagementScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel,
+                    rideId = backStackEntry.arguments?.getString("rideId").orEmpty()
                 )
             }
             composable(
