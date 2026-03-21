@@ -32,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,7 +55,7 @@ fun TrustFairnessScreen(
     viewModel: ProfileViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
-    val colors = trustFairnessColors()
+    val colors = trustFairnessColors(forceDark = state.trustFairnessDarkMode)
 
     val reliabilityScore = state.trustScore ?: 98
     val totalRides = state.ridesCount.coerceAtLeast(1)
@@ -763,8 +762,8 @@ private data class TrustFairnessColors(
 )
 
 @Composable
-private fun trustFairnessColors(): TrustFairnessColors {
-    val isDark = isSystemInDarkTheme()
+private fun trustFairnessColors(forceDark: Boolean): TrustFairnessColors {
+    val isDark = if (forceDark) true else false
     return if (isDark) {
         TrustFairnessColors(
             pageBackground = Color(0xFF10141B),
