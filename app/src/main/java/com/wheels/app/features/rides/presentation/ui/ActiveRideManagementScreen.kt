@@ -49,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.wheels.app.core.navigation.Destinations
+import com.wheels.app.core.trust.domain.model.TrustScoreNotice
+import com.wheels.app.core.trust.domain.model.TrustScoreNoticeType
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
 import com.wheels.app.core.ui.theme.PrimaryBlue
@@ -73,6 +75,9 @@ fun ActiveRideManagementScreen(
     val state by viewModel.uiState.collectAsState()
     val ride = state.driverRides.firstOrNull { it.id == rideId }
     var showEndConfirmation by remember { mutableStateOf(false) }
+    var showCancelConfirmation by remember { mutableStateOf(false) }
+    val isActionInProgress = state.actionInProgressRideId == rideId
+    val trustNotice = state.trustNotice
 
     if (ride == null) {
         Box(
@@ -105,6 +110,18 @@ fun ActiveRideManagementScreen(
             navController = navController,
             ride = ride
         )
+        if (trustNotice != null) {
+            TrustNoticeDialog(
+                notice = trustNotice,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterTrustNotice
+                    viewModel.onEvent(RidesEvent.DismissTrustNotice)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
         return
     }
 
@@ -153,24 +170,45 @@ fun ActiveRideManagementScreen(
                 if (ride.status == DriverRideStatus.PENDING) {
                     Button(
                         onClick = { viewModel.onEvent(RidesEvent.StartDriverRide(ride.id)) },
+                        enabled = !isActionInProgress,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         contentPadding = PaddingValues(vertical = 16.dp)
                     ) {
                         Text(
-                            text = "Start Ride",
+                            text = if (isActionInProgress) "Updating..." else "Start Ride",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
+                    }
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isActionInProgress) { showCancelConfirmation = true },
+                        shape = RoundedCornerShape(16.dp),
+                        color = WheelsSurface,
+                        border = androidx.compose.foundation.BorderStroke(2.dp, Border)
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(vertical = 14.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (isActionInProgress) "Updating..." else "Cancel Ride",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = PrimaryBlue
+                            )
+                        }
                     }
                 } else {
                     Button(
                         onClick = { showEndConfirmation = true },
+                        enabled = !isActionInProgress,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         contentPadding = PaddingValues(vertical = 16.dp)
                     ) {
                         Text(
-                            text = "End Ride",
+                            text = if (isActionInProgress) "Updating..." else "End Ride",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
                     }
@@ -204,6 +242,29 @@ fun ActiveRideManagementScreen(
                     showEndConfirmation = false
                 },
                 onDismiss = { showEndConfirmation = false }
+            )
+        }
+
+        if (showCancelConfirmation) {
+            CancelRideConfirmationDialog(
+                onConfirm = {
+                    viewModel.onEvent(RidesEvent.CancelDriverRide(ride.id))
+                    showCancelConfirmation = false
+                },
+                onDismiss = { showCancelConfirmation = false }
+            )
+        }
+
+        if (trustNotice != null) {
+            TrustNoticeDialog(
+                notice = trustNotice,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterTrustNotice
+                    viewModel.onEvent(RidesEvent.DismissTrustNotice)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
             )
         }
     }
@@ -705,6 +766,150 @@ private fun EndRideConfirmationDialog(
                             color = PrimaryBlue
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CancelRideConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = "Cancel Ride?",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = PrimaryBlue
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "This cancelation may reduce your reliability score depending on how close it is to departure.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp)
+                ) {
+                    Text(
+                        text = "Confirm Cancellation",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onDismiss),
+                    shape = RoundedCornerShape(16.dp),
+                    color = WheelsSurface,
+                    border = androidx.compose.foundation.BorderStroke(2.dp, Border)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Go Back",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = PrimaryBlue
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrustNoticeDialog(
+    notice: TrustScoreNotice,
+    onDismiss: () -> Unit
+) {
+    val accentColor = if (notice.type == TrustScoreNoticeType.ERROR) {
+        Color(0xFFDC2626)
+    } else {
+        ElectricGreen
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = notice.title,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = PrimaryBlue
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = notice.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+                if (notice.newScore != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = WheelsBackground
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Current trust score",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                            Text(
+                                text = "${notice.newScore}%",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = accentColor
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp)
+                ) {
+                    Text(
+                        text = "Continue",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                    )
                 }
             }
         }

@@ -1,21 +1,36 @@
 package com.wheels.app.features.rides.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
+import com.wheels.app.core.trust.domain.model.TrustScoreNotice
+import com.wheels.app.core.trust.domain.model.TrustScoreNoticeType
+import com.wheels.app.core.trust.domain.repository.DriverRideTrustActionParams
+import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
+import com.wheels.app.features.auth.domain.repository.AuthRepository
 import com.wheels.app.features.rides.domain.usecase.GetAvailableRidesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class RidesViewModel @Inject constructor(
     private val getAvailableRidesUseCase: GetAvailableRidesUseCase,
+    private val authRepository: AuthRepository,
+    private val driverTrustRepository: DriverTrustRepository,
     roleManager: RoleManager
 ) : ViewModel() {
+
+    private var currentDriverId: String? = null
+    private var observedTrustUserId: String? = null
 
     private val mockRides = listOf(
         RideCardUiModel(
@@ -130,6 +145,10 @@ class RidesViewModel @Inject constructor(
     val uiState: StateFlow<RidesUiState> = _uiState.asStateFlow()
     val activeRole: StateFlow<UserRole> = roleManager.activeRole
 
+    init {
+        observeCurrentDriver()
+    }
+
     fun onEvent(event: RidesEvent) {
         when (event) {
             RidesEvent.LoadRides -> Unit
@@ -162,8 +181,38 @@ class RidesViewModel @Inject constructor(
                 _uiState.update { it.copy(driverSelectedTab = event.tab) }
             }
             RidesEvent.PublishRide -> publishRide()
+            RidesEvent.DismissTrustNotice -> dismissTrustNotice()
             is RidesEvent.CompleteDriverRide -> completeDriverRide(event.rideId)
+            is RidesEvent.CancelDriverRide -> cancelDriverRide(event.rideId)
             is RidesEvent.StartDriverRide -> startDriverRide(event.rideId)
+        }
+    }
+
+    private fun observeCurrentDriver() {
+        viewModelScope.launch {
+            authRepository.getCurrentUser()
+                .filterNotNull()
+                .collect { user ->
+                    currentDriverId = user.id
+                    if (observedTrustUserId != user.id) {
+                        observedTrustUserId = user.id
+                        observeTrustScore(user.id)
+                    }
+                }
+        }
+    }
+
+    private fun observeTrustScore(userId: String) {
+        viewModelScope.launch {
+            driverTrustRepository.observeDriverTrustScore(userId)
+                .catch {
+                    _uiState.update { state -> state.copy(currentDriverTrustScore = null) }
+                }
+                .collect { score ->
+                    _uiState.update { state ->
+                        state.copy(currentDriverTrustScore = score?.reliabilityScore)
+                    }
+                }
         }
     }
 
@@ -228,7 +277,7 @@ class RidesViewModel @Inject constructor(
         if (!currentState.canPublishRide) return
 
         val newRide = DriverRideUiModel(
-            id = "driver-${currentState.driverRides.size + 1}",
+            id = "driver-${UUID.randomUUID()}",
             origin = currentState.origin,
             destination = currentState.destination,
             date = currentState.date,
@@ -260,40 +309,136 @@ class RidesViewModel @Inject constructor(
     }
 
     private fun completeDriverRide(rideId: String) {
-        _uiState.update { state ->
-            state.copy(
-                driverRides = state.driverRides.map { ride ->
-                    if (ride.id == rideId) {
-                        ride.copy(
-                            status = DriverRideStatus.COMPLETED,
-                            passengers = ride.passengers.mapIndexed { index, passenger ->
-                                passenger.copy(
-                                    paymentStatus = if (index == ride.passengers.lastIndex) {
-                                        PaymentStatusState.PENDING
-                                    } else {
-                                        PaymentStatusState.PAID
+        val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
+            runCatching {
+                val notice = driverTrustRepository.completeRideAndAwaitTrustUpdate(
+                    params = ride.toTrustActionParams(driverId)
+                )
+                notice
+            }.onSuccess { notice ->
+                _uiState.update { state ->
+                    state.copy(
+                        driverRides = state.driverRides.map { currentRide ->
+                            if (currentRide.id == rideId) {
+                                currentRide.copy(
+                                    status = DriverRideStatus.COMPLETED,
+                                    passengers = currentRide.passengers.mapIndexed { index, passenger ->
+                                        passenger.copy(
+                                            paymentStatus = if (index == currentRide.passengers.lastIndex) {
+                                                PaymentStatusState.PENDING
+                                            } else {
+                                                PaymentStatusState.PAID
+                                            }
+                                        )
                                     }
                                 )
+                            } else {
+                                currentRide
                             }
-                        )
-                    } else {
-                        ride
-                    }
+                        },
+                        actionInProgressRideId = null,
+                        trustNotice = notice,
+                        shouldPopAfterTrustNotice = false,
+                        ridePendingRemovalId = null
+                    )
                 }
-            )
+            }.onFailure { throwable ->
+                showTrustError(
+                    message = throwable.message ?: "We could not update the ride completion right now.",
+                    rideId = rideId
+                )
+            }
         }
     }
 
     private fun startDriverRide(rideId: String) {
+        val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
+            runCatching {
+                driverTrustRepository.startRide(ride.toTrustActionParams(driverId))
+            }.onSuccess {
+                _uiState.update { state ->
+                    state.copy(
+                        driverRides = state.driverRides.map { currentRide ->
+                            if (currentRide.id == rideId) {
+                                currentRide.copy(status = DriverRideStatus.ACTIVE)
+                            } else {
+                                currentRide
+                            }
+                        },
+                        actionInProgressRideId = null
+                    )
+                }
+            }.onFailure { throwable ->
+                showTrustError(
+                    message = throwable.message ?: "We could not start this ride right now.",
+                    rideId = rideId
+                )
+            }
+        }
+    }
+
+    private fun cancelDriverRide(rideId: String) {
+        val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
+            runCatching {
+                driverTrustRepository.cancelRideAndAwaitTrustUpdate(
+                    params = ride.toTrustActionParams(driverId)
+                )
+            }.onSuccess { notice ->
+                _uiState.update { state ->
+                    state.copy(
+                        actionInProgressRideId = null,
+                        trustNotice = notice,
+                        shouldPopAfterTrustNotice = true,
+                        ridePendingRemovalId = rideId
+                    )
+                }
+            }.onFailure { throwable ->
+                showTrustError(
+                    message = throwable.message ?: "We could not cancel this ride right now.",
+                    rideId = rideId
+                )
+            }
+        }
+    }
+
+    private fun dismissTrustNotice() {
         _uiState.update { state ->
             state.copy(
-                driverRides = state.driverRides.map { ride ->
-                    if (ride.id == rideId) {
-                        ride.copy(status = DriverRideStatus.ACTIVE)
-                    } else {
-                        ride
-                    }
-                }
+                driverRides = if (state.ridePendingRemovalId == null) {
+                    state.driverRides
+                } else {
+                    state.driverRides.filterNot { it.id == state.ridePendingRemovalId }
+                },
+                trustNotice = null,
+                shouldPopAfterTrustNotice = false,
+                ridePendingRemovalId = null
+            )
+        }
+    }
+
+    private fun showTrustError(message: String, rideId: String? = null) {
+        _uiState.update { state ->
+            state.copy(
+                actionInProgressRideId = if (rideId == null) state.actionInProgressRideId else null,
+                trustNotice = TrustScoreNotice(
+                    title = "Trust score unavailable",
+                    message = message,
+                    type = TrustScoreNoticeType.ERROR
+                ),
+                shouldPopAfterTrustNotice = false,
+                ridePendingRemovalId = null
             )
         }
     }
@@ -347,6 +492,7 @@ sealed interface RidesEvent {
     data object DriverIncreaseSeats : RidesEvent
     data object DriverDecreaseSeats : RidesEvent
     data object PublishRide : RidesEvent
+    data object DismissTrustNotice : RidesEvent
     data class SearchChanged(val value: String) : RidesEvent
     data class FiltersExpandedChanged(val expanded: Boolean) : RidesEvent
     data class AreaSelected(val area: String) : RidesEvent
@@ -362,6 +508,7 @@ sealed interface RidesEvent {
     data class DriverDescriptionChanged(val value: String) : RidesEvent
     data class DriverTabChanged(val tab: DriverRidesTab) : RidesEvent
     data class CompleteDriverRide(val rideId: String) : RidesEvent
+    data class CancelDriverRide(val rideId: String) : RidesEvent
     data class StartDriverRide(val rideId: String) : RidesEvent
 }
 
@@ -386,7 +533,12 @@ data class RidesUiState(
     val licensePlate: String = "",
     val description: String = "",
     val driverSelectedTab: DriverRidesTab = DriverRidesTab.CREATE_RIDE,
-    val driverRides: List<DriverRideUiModel> = emptyList()
+    val driverRides: List<DriverRideUiModel> = emptyList(),
+    val currentDriverTrustScore: Int? = null,
+    val actionInProgressRideId: String? = null,
+    val trustNotice: TrustScoreNotice? = null,
+    val shouldPopAfterTrustNotice: Boolean = false,
+    val ridePendingRemovalId: String? = null
 ) {
     val estimatedEarnings: Int
         get() = (pricePerSeat.toIntOrNull() ?: 0) * totalSeats
@@ -425,6 +577,23 @@ data class DriverRideUiModel(
 
     val totalEarnings: Int
         get() = passengers.size * pricePerSeat
+
+    fun toTrustActionParams(driverId: String): DriverRideTrustActionParams {
+        val scheduledStartAtMillis = runCatching {
+            val (year, month, day) = date.split("-").map { it.toInt() }
+            val (hour, minute) = time.split(":").map { it.toInt() }
+            java.util.Calendar.getInstance().apply {
+                set(year, month - 1, day, hour, minute, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }.getOrElse { System.currentTimeMillis() }
+
+        return DriverRideTrustActionParams(
+            rideId = id,
+            driverId = driverId,
+            scheduledStartAtMillis = scheduledStartAtMillis
+        )
+    }
 }
 
 enum class DriverRideStatus {

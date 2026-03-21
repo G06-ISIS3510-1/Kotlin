@@ -27,6 +27,8 @@ MOCKUP-PASSENGER/
 captures/
 .externalNativeBuild/
 .cxx/
+functions/node_modules/
+functions/lib/
 
 # Fastlane
 fastlane/report.xml
