@@ -46,6 +46,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileEvent
@@ -53,7 +55,8 @@ import com.wheels.app.features.profile.presentation.viewmodel.ProfileEvent
 @Composable
 fun ProfileScreen(
     innerPadding: PaddingValues,
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel,
+    navController: NavController
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -341,6 +344,7 @@ fun ProfileScreen(
                             icon = Icons.Outlined.StarBorder,
                             title = "Trust & Fairness",
                             subtitle = "View your reliability metrics",
+                            onClick = { navController.navigate(Destinations.TrustFairness.route) },
                             showDivider = true
                         )
                         MenuItemRow(
@@ -539,13 +543,14 @@ fun MenuItemRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    onClick: () -> Unit = {},
     showDivider: Boolean = false
 ) {
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { /* Handle navigation */ }
+                .clickable(onClick = onClick)
                 .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
