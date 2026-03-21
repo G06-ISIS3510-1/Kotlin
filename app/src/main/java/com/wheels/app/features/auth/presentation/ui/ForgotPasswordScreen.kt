@@ -2,6 +2,7 @@ package com.wheels.app.features.auth.presentation.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -16,9 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -37,36 +34,26 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsSurface
-import com.wheels.app.features.auth.presentation.viewmodel.SignInEvent
-import com.wheels.app.features.auth.presentation.viewmodel.SignInViewModel
+import com.wheels.app.features.auth.presentation.viewmodel.ForgotPasswordEvent
+import com.wheels.app.features.auth.presentation.viewmodel.ForgotPasswordViewModel
 
 @Composable
-fun SignInScreen(
+fun ForgotPasswordScreen(
     innerPadding: PaddingValues,
     navController: NavController,
-    viewModel: SignInViewModel = hiltViewModel()
+    viewModel: ForgotPasswordViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val errorMessage = state.errorMessage
-
-    LaunchedEffect(state.signedIn) {
-        if (state.signedIn) {
-            navController.navigate(Destinations.Home.route) {
-                popUpTo(Destinations.SignIn.route) { inclusive = true }
-            }
-            viewModel.onEvent(SignInEvent.ConsumeNavigation)
-        }
-    }
+    val successMessage = state.successMessage
 
     Column(
         modifier = Modifier
@@ -96,19 +83,19 @@ fun SignInScreen(
                 color = PrimaryBlue,
                 shadowElevation = 8.dp
             ) {
-                androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
+                Box(contentAlignment = Alignment.Center) {
                     AuthBrandLogo()
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Welcome Back",
+                text = "Forgot Password",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                 color = PrimaryBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Sign in to continue to Wheels",
+                text = "Enter your university email and we will send recovery instructions.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
@@ -129,24 +116,8 @@ fun SignInScreen(
                     .padding(20.dp)
             ) {
                 WheelsInputField(
-                    value = state.fullName,
-                    onValueChange = { viewModel.onEvent(SignInEvent.FullNameChanged(it)) },
-                    label = "Full Name",
-                    placeholder = "Your full name",
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                WheelsInputField(
                     value = state.email,
-                    onValueChange = { viewModel.onEvent(SignInEvent.EmailChanged(it)) },
+                    onValueChange = { viewModel.onEvent(ForgotPasswordEvent.EmailChanged(it)) },
                     label = "University Email",
                     placeholder = "student@university.edu",
                     keyboardType = KeyboardType.Email,
@@ -159,54 +130,6 @@ fun SignInScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-
-                WheelsInputField(
-                    value = state.password,
-                    onValueChange = { viewModel.onEvent(SignInEvent.PasswordChanged(it)) },
-                    label = "Password",
-                    placeholder = "At least 8 characters",
-                    keyboardType = KeyboardType.Password,
-                    visualTransformation = PasswordVisualTransformation(),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Lock,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                WheelsInputField(
-                    value = state.confirmPassword,
-                    onValueChange = { viewModel.onEvent(SignInEvent.ConfirmPasswordChanged(it)) },
-                    label = "Confirm Password",
-                    placeholder = "Repeat your password",
-                    keyboardType = KeyboardType.Password,
-                    visualTransformation = PasswordVisualTransformation(),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Lock,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Forgot Password?",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFF5B89C8),
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .clickable { navController.navigate(Destinations.ForgotPassword.route) }
-                )
-
                 if (errorMessage != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -216,10 +139,19 @@ fun SignInScreen(
                     )
                 }
 
+                if (successMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = successMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF10B981)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = { viewModel.onEvent(SignInEvent.Submit) },
+                    onClick = { viewModel.onEvent(ForgotPasswordEvent.Submit) },
                     enabled = state.canSubmit && !state.isSubmitting,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -240,7 +172,7 @@ fun SignInScreen(
                         )
                     } else {
                         Text(
-                            text = "Sign In",
+                            text = "Send Instructions",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
                     }
@@ -249,16 +181,15 @@ fun SignInScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
-                    text = "Don't have an account? Sign Up",
+                    text = "Back to Sign In",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { navController.navigate(Destinations.CreateAccount.route) }
+                        .clickable { navController.popBackStack() }
                 )
             }
         }
     }
 }
-

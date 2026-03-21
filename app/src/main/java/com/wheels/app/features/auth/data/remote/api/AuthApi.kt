@@ -1,6 +1,7 @@
 package com.wheels.app.features.auth.data.remote.api
 
 import com.wheels.app.features.auth.data.remote.dto.CreateAccountRequestDto
+import com.wheels.app.features.auth.data.remote.dto.ForgotPasswordRequestDto
 import com.wheels.app.features.auth.data.remote.dto.SignInRequestDto
 import com.wheels.app.features.profile.data.remote.dto.UserDto
 import retrofit2.http.Body
@@ -16,4 +17,7 @@ interface AuthApi {
 
     @POST("auth/login")
     suspend fun signIn(@Body request: SignInRequestDto): UserDto
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequestDto)
 }

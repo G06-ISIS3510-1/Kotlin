@@ -14,8 +14,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wheels.app.core.ui.components.WheelsBottomBar
 import com.wheels.app.features.auth.presentation.ui.CreateAccountScreen
+import com.wheels.app.features.auth.presentation.ui.ForgotPasswordScreen
 import com.wheels.app.features.auth.presentation.ui.SignInScreen
 import com.wheels.app.features.auth.presentation.viewmodel.CreateAccountViewModel
+import com.wheels.app.features.auth.presentation.viewmodel.ForgotPasswordViewModel
 import com.wheels.app.features.auth.presentation.viewmodel.SignInViewModel
 import com.wheels.app.features.chat.presentation.ui.GroupChatScreen
 import com.wheels.app.features.chat.presentation.viewmodel.GroupChatViewModel
@@ -51,6 +53,7 @@ fun WheelsNavGraph() {
     val routesWithoutBottomBar = setOf(
         Destinations.SignIn.route,
         Destinations.CreateAccount.route,
+        Destinations.ForgotPassword.route,
         Destinations.QuickPayment.route,
         Destinations.GroupChat.route,
         Destinations.RideRequest.route,
@@ -93,6 +96,14 @@ fun WheelsNavGraph() {
             composable(Destinations.CreateAccount.route) {
                 val viewModel: CreateAccountViewModel = hiltViewModel()
                 CreateAccountScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
+            composable(Destinations.ForgotPassword.route) {
+                val viewModel: ForgotPasswordViewModel = hiltViewModel()
+                ForgotPasswordScreen(
                     innerPadding = innerPadding,
                     navController = navController,
                     viewModel = viewModel
