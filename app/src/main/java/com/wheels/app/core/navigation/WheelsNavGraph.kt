@@ -27,6 +27,7 @@ import com.wheels.app.features.payments.presentation.ui.PaymentsScreen
 import com.wheels.app.features.payments.presentation.ui.QuickPaymentScreen
 import com.wheels.app.features.payments.presentation.viewmodel.PaymentsViewModel
 import com.wheels.app.features.profile.presentation.ui.ProfileScreen
+import com.wheels.app.features.profile.presentation.ui.TrustFairnessScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 import com.wheels.app.features.rides.presentation.ui.ActiveRideManagementScreen
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
@@ -175,7 +176,19 @@ fun WheelsNavGraph() {
             }
             composable(Destinations.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
-                ProfileScreen(innerPadding = innerPadding, viewModel = viewModel)
+                ProfileScreen(
+                    innerPadding = innerPadding,
+                    viewModel = viewModel,
+                    navController = navController
+                )
+            }
+            composable(Destinations.TrustFairness.route) {
+                val viewModel: ProfileViewModel = hiltViewModel()
+                TrustFairnessScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
             }
             composable(
                 route = Destinations.ReviewsRatings.route,
