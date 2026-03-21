@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +56,7 @@ fun TrustFairnessScreen(
     viewModel: ProfileViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
+    val colors = trustFairnessColors()
 
     val reliabilityScore = state.trustScore ?: 98
     val totalRides = state.ridesCount.coerceAtLeast(1)
@@ -66,7 +68,7 @@ fun TrustFairnessScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF7F9FC))
+            .background(colors.pageBackground)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -78,7 +80,7 @@ fun TrustFairnessScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = Color(0xFF1A3A5C),
+                            color = colors.headerBackground,
                             shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                         )
                         .padding(start = 12.dp, end = 24.dp, top = 28.dp, bottom = 22.dp)
@@ -88,20 +90,20 @@ fun TrustFairnessScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = Color.White
+                                tint = colors.onHeader
                             )
                         }
 
                         Text(
                             text = "Trust & Fairness",
-                            color = Color.White,
+                            color = colors.onHeader,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp,
                             modifier = Modifier.padding(bottom = 6.dp)
                         )
                         Text(
                             text = "Your reliability and accountability metrics",
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = colors.onHeader.copy(alpha = 0.85f),
                             fontSize = 11.sp
                         )
                     }
@@ -116,20 +118,20 @@ fun TrustFairnessScreen(
                         .shadow(
                             elevation = 10.dp,
                             shape = RoundedCornerShape(24.dp),
-                            ambientColor = Color(0xFF1A3A5C).copy(alpha = 0.12f)
+                            ambientColor = colors.shadowColor
                         )
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White)
+                        .background(colors.surface)
                         .padding(20.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        ReliabilityGauge(score = reliabilityScore)
+                        ReliabilityGauge(score = reliabilityScore, colors = colors)
 
                         Text(
                             text = if (reliabilityScore >= 90) "Excellent Reliability!" else "Keep Improving",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1A3A5C),
+                            color = colors.textPrimary,
                             modifier = Modifier.padding(top = 6.dp)
                         )
                         Text(
@@ -139,7 +141,7 @@ fun TrustFairnessScreen(
                                 "Stay consistent to improve your ranking"
                             },
                             fontSize = 11.sp,
-                            color = Color(0xFF64748B),
+                            color = colors.textSecondary,
                             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                         )
 
@@ -149,21 +151,24 @@ fun TrustFairnessScreen(
                         ) {
                             QuickMetricChip(
                                 modifier = Modifier.weight(1f),
-                                iconTint = Color(0xFF00D9A3),
+                                iconTint = colors.success,
                                 value = onTimePayments.toString(),
-                                label = "On-time pays"
+                                label = "On-time pays",
+                                colors = colors
                             )
                             QuickMetricChip(
                                 modifier = Modifier.weight(1f),
-                                iconTint = Color(0xFF5B89C8),
+                                iconTint = colors.info,
                                 value = "$punctualityRate%",
-                                label = "Punctual"
+                                label = "Punctual",
+                                colors = colors
                             )
                             QuickMetricChip(
                                 modifier = Modifier.weight(1f),
-                                iconTint = Color(0xFFFFA726),
+                                iconTint = colors.warning,
                                 value = cancellations.toString(),
-                                label = "Cancelled"
+                                label = "Cancelled",
+                                colors = colors
                             )
                         }
                     }
@@ -173,7 +178,8 @@ fun TrustFairnessScreen(
             item {
                 SectionTitle(
                     title = "Performance Breakdown",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    colors = colors
                 )
             }
 
@@ -181,12 +187,13 @@ fun TrustFairnessScreen(
                 MetricCard(
                     title = "Payment Reliability",
                     subtitle = "Track record of timely payments",
-                    tint = Color(0xFF00D9A3),
+                    tint = colors.success,
+                    colors = colors,
                     icon = {
                         Icon(
                             imageVector = Icons.Outlined.AttachMoney,
                             contentDescription = "Payment",
-                            tint = Color(0xFF00D9A3),
+                            tint = colors.success,
                             modifier = Modifier.size(22.dp)
                         )
                     },
@@ -197,10 +204,10 @@ fun TrustFairnessScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("On-time payments", color = Color(0xFF64748B), fontSize = 12.sp)
+                            Text("On-time payments", color = colors.textSecondary, fontSize = 12.sp)
                             Text(
                                 "$onTimePayments/$totalRides",
-                                color = Color(0xFF00D9A3),
+                                color = colors.success,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp
                             )
@@ -212,19 +219,19 @@ fun TrustFairnessScreen(
                                 .padding(top = 8.dp)
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(99.dp))
-                                .background(Color(0xFFE8F0F9))
+                                .background(colors.surfaceAlt)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(rate / 100f)
                                     .height(8.dp)
-                                    .background(Color(0xFF00D9A3), RoundedCornerShape(99.dp))
+                                    .background(colors.success, RoundedCornerShape(99.dp))
                             )
                         }
 
                         Text(
                             text = "$rate% payment success rate",
-                            color = Color(0xFF64748B),
+                            color = colors.textSecondary,
                             fontSize = 10.sp,
                             modifier = Modifier.padding(top = 8.dp)
                         )
@@ -236,12 +243,13 @@ fun TrustFairnessScreen(
                 MetricCard(
                     title = "Punctuality Score",
                     subtitle = "Arrival time and waiting detection",
-                    tint = Color(0xFF5B89C8),
+                    tint = colors.info,
+                    colors = colors,
                     icon = {
                         Icon(
                             imageVector = Icons.Outlined.AccessTime,
                             contentDescription = "Punctuality",
-                            tint = Color(0xFF5B89C8),
+                            tint = colors.info,
                             modifier = Modifier.size(22.dp)
                         )
                     },
@@ -250,8 +258,8 @@ fun TrustFairnessScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Average arrival time", color = Color(0xFF64748B), fontSize = 12.sp)
-                            Text("2 min early", color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Average arrival time", color = colors.textSecondary, fontSize = 12.sp)
+                            Text("2 min early", color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         Row(
@@ -260,8 +268,8 @@ fun TrustFairnessScreen(
                                 .padding(top = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Avg driver wait time", color = Color(0xFF64748B), fontSize = 12.sp)
-                            Text("1.5 min", color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Avg driver wait time", color = colors.textSecondary, fontSize = 12.sp)
+                            Text("1.5 min", color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         Box(
@@ -269,20 +277,20 @@ fun TrustFairnessScreen(
                                 .fillMaxWidth()
                                 .padding(top = 12.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF00D9A3).copy(alpha = 0.12f))
-                                .border(1.dp, Color(0xFF00D9A3).copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                .background(colors.success.copy(alpha = 0.12f))
+                                .border(1.dp, colors.success.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .padding(horizontal = 12.dp, vertical = 10.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Outlined.TrendingUp,
                                     contentDescription = "Trend",
-                                    tint = Color(0xFF00B987),
+                                    tint = colors.success,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
                                     text = "Great punctuality! Keep it up",
-                                    color = Color(0xFF00B987),
+                                    color = colors.success,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(start = 8.dp)
@@ -297,12 +305,13 @@ fun TrustFairnessScreen(
                 MetricCard(
                     title = "Cancellation Record",
                     subtitle = "Last-minute cancellations impact score",
-                    tint = Color(0xFFFFA726),
+                    tint = colors.warning,
+                    colors = colors,
                     icon = {
                         Icon(
                             imageVector = Icons.Outlined.Warning,
                             contentDescription = "Cancellation",
-                            tint = Color(0xFFFFA726),
+                            tint = colors.warning,
                             modifier = Modifier.size(22.dp)
                         )
                     },
@@ -313,8 +322,8 @@ fun TrustFairnessScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Total cancellations", color = Color(0xFF64748B), fontSize = 12.sp)
-                            Text(cancellations.toString(), color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Total cancellations", color = colors.textSecondary, fontSize = 12.sp)
+                            Text(cancellations.toString(), color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         Row(
@@ -323,8 +332,8 @@ fun TrustFairnessScreen(
                                 .padding(top = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Cancellation rate", color = Color(0xFF64748B), fontSize = 12.sp)
-                            Text("$cancellationRate%", color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("Cancellation rate", color = colors.textSecondary, fontSize = 12.sp)
+                            Text("$cancellationRate%", color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         if (cancellations > 0) {
@@ -333,13 +342,13 @@ fun TrustFairnessScreen(
                                     .fillMaxWidth()
                                     .padding(top = 12.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFFFA726).copy(alpha = 0.12f))
-                                    .border(1.dp, Color(0xFFFFA726).copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                    .background(colors.warning.copy(alpha = 0.12f))
+                                    .border(1.dp, colors.warning.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                     .padding(12.dp)
                             ) {
                                 Text(
                                     text = "Note: Multiple cancellations may affect your reliability score and access to rides.",
-                                    color = Color(0xFF1A3A5C),
+                                    color = colors.textPrimary,
                                     fontSize = 10.sp,
                                     lineHeight = 14.sp
                                 )
@@ -352,7 +361,8 @@ fun TrustFairnessScreen(
             item {
                 SectionTitle(
                     title = "Accountability System",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    colors = colors
                 )
             }
 
@@ -363,10 +373,10 @@ fun TrustFairnessScreen(
                         .shadow(
                             elevation = 4.dp,
                             shape = RoundedCornerShape(20.dp),
-                            ambientColor = Color(0xFF1A3A5C).copy(alpha = 0.08f)
+                            ambientColor = colors.shadowColor
                         )
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White)
+                        .background(colors.surface)
                         .padding(18.dp)
                 ) {
                     Column {
@@ -374,12 +384,12 @@ fun TrustFairnessScreen(
                             Icon(
                                 imageVector = Icons.Outlined.Shield,
                                 contentDescription = "Policy",
-                                tint = Color(0xFF1A3A5C),
+                                tint = colors.textPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = "Cancellation Policy",
-                                color = Color(0xFF1A3A5C),
+                                color = colors.textPrimary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp,
                                 modifier = Modifier.padding(start = 8.dp)
@@ -388,28 +398,31 @@ fun TrustFairnessScreen(
 
                         PolicyItem(
                             index = "1",
-                            dotColor = Color(0xFF00D9A3),
+                            dotColor = colors.success,
                             title = "Free cancellation",
                             description = "Cancel up to 30 minutes before departure without penalty",
-                            modifier = Modifier.padding(top = 14.dp)
+                            modifier = Modifier.padding(top = 14.dp),
+                            colors = colors
                         )
                         PolicyItem(
                             index = "2",
-                            dotColor = Color(0xFFFFA726),
+                            dotColor = colors.warning,
                             title = "Late cancellation",
                             description = "Cancelling within 30 min results in a -10 point penalty",
-                            modifier = Modifier.padding(top = 10.dp)
+                            modifier = Modifier.padding(top = 10.dp),
+                            colors = colors
                         )
                         PolicyItem(
                             index = "3",
-                            dotColor = Color(0xFFFF5252),
+                            dotColor = colors.danger,
                             title = "No-show penalty",
                             description = "Not showing up: -25 points + temporary suspension",
-                            modifier = Modifier.padding(top = 10.dp)
+                            modifier = Modifier.padding(top = 10.dp),
+                            colors = colors
                         )
 
                         Divider(
-                            color = Color(0xFFE5E9F2),
+                            color = colors.divider,
                             thickness = 1.dp,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -418,7 +431,7 @@ fun TrustFairnessScreen(
 
                         Text(
                             text = "Important: Maintaining a reliability score above 85 is required to continue using Wheels.",
-                            color = Color(0xFF64748B),
+                            color = colors.textSecondary,
                             fontSize = 10.sp,
                             lineHeight = 14.sp
                         )
@@ -429,7 +442,8 @@ fun TrustFairnessScreen(
             item {
                 SectionTitle(
                     title = "Punctuality Rewards",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    colors = colors
                 )
             }
 
@@ -438,7 +452,7 @@ fun TrustFairnessScreen(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF00C794))
+                        .background(colors.rewardBackground)
                         .padding(18.dp)
                 ) {
                     Column {
@@ -447,13 +461,13 @@ fun TrustFairnessScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.2f)),
+                                    .background(colors.rewardOverlay),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.EmojiEvents,
                                     contentDescription = "Rewards",
-                                    tint = Color.White,
+                                    tint = colors.onReward,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -464,26 +478,26 @@ fun TrustFairnessScreen(
                             ) {
                                 Text(
                                     text = "Reward Points",
-                                    color = Color.White,
+                                    color = colors.onReward,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 14.sp
                                 )
                                 Text(
                                     text = "Earn points for good behavior",
-                                    color = Color.White.copy(alpha = 0.85f),
+                                    color = colors.onReward.copy(alpha = 0.85f),
                                     fontSize = 10.sp
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     text = rewardPoints.toString(),
-                                    color = Color.White,
+                                    color = colors.onReward,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 24.sp
                                 )
                                 Text(
                                     text = "points",
-                                    color = Color.White.copy(alpha = 0.85f),
+                                    color = colors.onReward.copy(alpha = 0.85f),
                                     fontSize = 10.sp
                                 )
                             }
@@ -494,13 +508,13 @@ fun TrustFairnessScreen(
                                 .fillMaxWidth()
                                 .padding(top = 12.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(Color.White.copy(alpha = 0.16f))
+                                .background(colors.rewardOverlay)
                                 .padding(12.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RewardRow(label = "On-time arrival", points = "+5 pts")
-                                RewardRow(label = "Quick payment", points = "+3 pts")
-                                RewardRow(label = "Positive review", points = "+10 pts")
+                                RewardRow(label = "On-time arrival", points = "+5 pts", colors = colors)
+                                RewardRow(label = "Quick payment", points = "+3 pts", colors = colors)
+                                RewardRow(label = "Positive review", points = "+10 pts", colors = colors)
                             }
                         }
                     }
@@ -515,7 +529,7 @@ fun TrustFairnessScreen(
 }
 
 @Composable
-private fun ReliabilityGauge(score: Int) {
+private fun ReliabilityGauge(score: Int, colors: TrustFairnessColors) {
     Box(contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.size(168.dp)) {
             val stroke = 12.dp.toPx()
@@ -524,7 +538,7 @@ private fun ReliabilityGauge(score: Int) {
             val arcSize = Size(diameter, diameter)
 
             drawArc(
-                color = Color(0xFFE8F0F9),
+                color = colors.surfaceAlt,
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -534,7 +548,7 @@ private fun ReliabilityGauge(score: Int) {
             )
 
             drawArc(
-                color = Color(0xFF00D9A3),
+                color = colors.success,
                 startAngle = -90f,
                 sweepAngle = 360f * (score.coerceIn(0, 100) / 100f),
                 useCenter = false,
@@ -547,13 +561,13 @@ private fun ReliabilityGauge(score: Int) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = score.toString(),
-                color = Color(0xFF1A3A5C),
+                color = colors.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 40.sp
             )
             Text(
                 text = "Score",
-                color = Color(0xFF64748B),
+                color = colors.textSecondary,
                 fontSize = 11.sp
             )
         }
@@ -565,12 +579,13 @@ private fun QuickMetricChip(
     modifier: Modifier = Modifier,
     iconTint: Color,
     value: String,
-    label: String
+    label: String,
+    colors: TrustFairnessColors
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFF7F9FC))
+            .background(colors.surfaceAlt)
             .padding(vertical = 12.dp, horizontal = 8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -591,14 +606,14 @@ private fun QuickMetricChip(
             }
             Text(
                 text = value,
-                color = Color(0xFF1A3A5C),
+                color = colors.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
                 text = label,
-                color = Color(0xFF64748B),
+                color = colors.textSecondary,
                 fontSize = 9.sp
             )
         }
@@ -606,10 +621,14 @@ private fun QuickMetricChip(
 }
 
 @Composable
-private fun SectionTitle(title: String, modifier: Modifier = Modifier) {
+private fun SectionTitle(
+    title: String,
+    modifier: Modifier = Modifier,
+    colors: TrustFairnessColors
+) {
     Text(
         text = title,
-        color = Color(0xFF64748B),
+        color = colors.textSecondary,
         fontSize = 11.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = modifier
@@ -621,6 +640,7 @@ private fun MetricCard(
     title: String,
     subtitle: String,
     tint: Color,
+    colors: TrustFairnessColors,
     icon: @Composable () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -631,10 +651,10 @@ private fun MetricCard(
             .shadow(
                 elevation = 4.dp,
                 shape = RoundedCornerShape(20.dp),
-                ambientColor = Color(0xFF1A3A5C).copy(alpha = 0.08f)
+                ambientColor = colors.shadowColor
             )
             .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
+            .background(colors.surface)
             .padding(16.dp)
     ) {
         Column {
@@ -651,13 +671,13 @@ private fun MetricCard(
                 Column(modifier = Modifier.padding(start = 10.dp)) {
                     Text(
                         text = title,
-                        color = Color(0xFF1A3A5C),
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )
                     Text(
                         text = subtitle,
-                        color = Color(0xFF64748B),
+                        color = colors.textSecondary,
                         fontSize = 10.sp
                     )
                 }
@@ -676,7 +696,8 @@ private fun PolicyItem(
     dotColor: Color,
     title: String,
     description: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    colors: TrustFairnessColors
 ) {
     Row(modifier = modifier) {
         Box(
@@ -697,13 +718,13 @@ private fun PolicyItem(
         Column(modifier = Modifier.padding(start = 10.dp)) {
             Text(
                 text = title,
-                color = Color(0xFF1A3A5C),
+                color = colors.textPrimary,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp
             )
             Text(
                 text = description,
-                color = Color(0xFF64748B),
+                color = colors.textSecondary,
                 fontSize = 10.sp,
                 lineHeight = 14.sp
             )
@@ -712,12 +733,75 @@ private fun PolicyItem(
 }
 
 @Composable
-private fun RewardRow(label: String, points: String) {
+private fun RewardRow(label: String, points: String, colors: TrustFairnessColors) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, color = Color.White.copy(alpha = 0.92f), fontSize = 12.sp)
-        Text(text = points, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        Text(text = label, color = colors.onReward.copy(alpha = 0.92f), fontSize = 12.sp)
+        Text(text = points, color = colors.onReward, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+    }
+}
+
+private data class TrustFairnessColors(
+    val pageBackground: Color,
+    val headerBackground: Color,
+    val onHeader: Color,
+    val surface: Color,
+    val surfaceAlt: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val divider: Color,
+    val shadowColor: Color,
+    val success: Color,
+    val info: Color,
+    val warning: Color,
+    val danger: Color,
+    val rewardBackground: Color,
+    val rewardOverlay: Color,
+    val onReward: Color
+)
+
+@Composable
+private fun trustFairnessColors(): TrustFairnessColors {
+    val isDark = isSystemInDarkTheme()
+    return if (isDark) {
+        TrustFairnessColors(
+            pageBackground = Color(0xFF10141B),
+            headerBackground = Color(0xFF1B2A3B),
+            onHeader = Color(0xFFF4F8FF),
+            surface = Color(0xFF18202B),
+            surfaceAlt = Color(0xFF222D3A),
+            textPrimary = Color(0xFFE6EDF7),
+            textSecondary = Color(0xFF9EB0C6),
+            divider = Color(0xFF2C3948),
+            shadowColor = Color(0xFF000000).copy(alpha = 0.35f),
+            success = Color(0xFF3DD8AA),
+            info = Color(0xFF78A8EE),
+            warning = Color(0xFFFFBE5C),
+            danger = Color(0xFFFF7B7B),
+            rewardBackground = Color(0xFF0FA07A),
+            rewardOverlay = Color(0x33FFFFFF),
+            onReward = Color(0xFFF5FFFC)
+        )
+    } else {
+        TrustFairnessColors(
+            pageBackground = Color(0xFFF7F9FC),
+            headerBackground = Color(0xFF1A3A5C),
+            onHeader = Color.White,
+            surface = Color.White,
+            surfaceAlt = Color(0xFFE8F0F9),
+            textPrimary = Color(0xFF1A3A5C),
+            textSecondary = Color(0xFF64748B),
+            divider = Color(0xFFE5E9F2),
+            shadowColor = Color(0xFF1A3A5C).copy(alpha = 0.12f),
+            success = Color(0xFF00D9A3),
+            info = Color(0xFF5B89C8),
+            warning = Color(0xFFFFA726),
+            danger = Color(0xFFFF5252),
+            rewardBackground = Color(0xFF00C794),
+            rewardOverlay = Color(0x29FFFFFF),
+            onReward = Color.White
+        )
     }
 }
