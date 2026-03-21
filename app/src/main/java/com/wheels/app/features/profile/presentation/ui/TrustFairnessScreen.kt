@@ -96,13 +96,13 @@ fun TrustFairnessScreen(
                             text = "Trust & Fairness",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             modifier = Modifier.padding(bottom = 6.dp)
                         )
                         Text(
                             text = "Your reliability and accountability metrics",
                             color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 12.sp
+                            fontSize = 11.sp
                         )
                     }
                 }
@@ -127,7 +127,7 @@ fun TrustFairnessScreen(
 
                         Text(
                             text = if (reliabilityScore >= 90) "Excellent Reliability!" else "Keep Improving",
-                            fontSize = 22.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1A3A5C),
                             modifier = Modifier.padding(top = 6.dp)
@@ -138,7 +138,7 @@ fun TrustFairnessScreen(
                             } else {
                                 "Stay consistent to improve your ranking"
                             },
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             color = Color(0xFF64748B),
                             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                         )
@@ -197,12 +197,12 @@ fun TrustFairnessScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("On-time payments", color = Color(0xFF64748B), fontSize = 13.sp)
+                            Text("On-time payments", color = Color(0xFF64748B), fontSize = 12.sp)
                             Text(
                                 "$onTimePayments/$totalRides",
                                 color = Color(0xFF00D9A3),
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp
+                                fontSize = 12.sp
                             )
                         }
 
@@ -225,7 +225,7 @@ fun TrustFairnessScreen(
                         Text(
                             text = "$rate% payment success rate",
                             color = Color(0xFF64748B),
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
@@ -250,8 +250,8 @@ fun TrustFairnessScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Average arrival time", color = Color(0xFF64748B), fontSize = 13.sp)
-                            Text("2 min early", color = Color(0xFF1A3A5C), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Average arrival time", color = Color(0xFF64748B), fontSize = 12.sp)
+                            Text("2 min early", color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         Row(
@@ -260,8 +260,8 @@ fun TrustFairnessScreen(
                                 .padding(top = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Avg driver wait time", color = Color(0xFF64748B), fontSize = 13.sp)
-                            Text("1.5 min", color = Color(0xFF1A3A5C), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Avg driver wait time", color = Color(0xFF64748B), fontSize = 12.sp)
+                            Text("1.5 min", color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         Box(
@@ -283,7 +283,7 @@ fun TrustFairnessScreen(
                                 Text(
                                     text = "Great punctuality! Keep it up",
                                     color = Color(0xFF00B987),
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
@@ -313,8 +313,8 @@ fun TrustFairnessScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Total cancellations", color = Color(0xFF64748B), fontSize = 13.sp)
-                            Text(cancellations.toString(), color = Color(0xFF1A3A5C), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Total cancellations", color = Color(0xFF64748B), fontSize = 12.sp)
+                            Text(cancellations.toString(), color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         Row(
@@ -323,8 +323,8 @@ fun TrustFairnessScreen(
                                 .padding(top = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Cancellation rate", color = Color(0xFF64748B), fontSize = 13.sp)
-                            Text("$cancellationRate%", color = Color(0xFF1A3A5C), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Cancellation rate", color = Color(0xFF64748B), fontSize = 12.sp)
+                            Text("$cancellationRate%", color = Color(0xFF1A3A5C), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
 
                         if (cancellations > 0) {
@@ -340,8 +340,8 @@ fun TrustFairnessScreen(
                                 Text(
                                     text = "Note: Multiple cancellations may affect your reliability score and access to rides.",
                                     color = Color(0xFF1A3A5C),
-                                    fontSize = 11.sp,
-                                    lineHeight = 15.sp
+                                    fontSize = 10.sp,
+                                    lineHeight = 14.sp
                                 )
                             }
                         }
@@ -381,7 +381,7 @@ fun TrustFairnessScreen(
                                 text = "Cancellation Policy",
                                 color = Color(0xFF1A3A5C),
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp,
+                                fontSize = 14.sp,
                                 modifier = Modifier.padding(start = 8.dp)
                             )
                         }
@@ -419,8 +419,8 @@ fun TrustFairnessScreen(
                         Text(
                             text = "Important: Maintaining a reliability score above 85 is required to continue using Wheels.",
                             color = Color(0xFF64748B),
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp
+                            fontSize = 10.sp,
+                            lineHeight = 14.sp
                         )
                     }
                 }
@@ -466,12 +466,12 @@ fun TrustFairnessScreen(
                                     text = "Reward Points",
                                     color = Color.White,
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 16.sp
+                                    fontSize = 14.sp
                                 )
                                 Text(
                                     text = "Earn points for good behavior",
                                     color = Color.White.copy(alpha = 0.85f),
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 )
                             }
                             Column(horizontalAlignment = Alignment.End) {
@@ -479,12 +479,12 @@ fun TrustFairnessScreen(
                                     text = rewardPoints.toString(),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 28.sp
+                                    fontSize = 24.sp
                                 )
                                 Text(
                                     text = "points",
                                     color = Color.White.copy(alpha = 0.85f),
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -549,12 +549,12 @@ private fun ReliabilityGauge(score: Int) {
                 text = score.toString(),
                 color = Color(0xFF1A3A5C),
                 fontWeight = FontWeight.Bold,
-                fontSize = 46.sp
+                fontSize = 40.sp
             )
             Text(
                 text = "Score",
                 color = Color(0xFF64748B),
-                fontSize = 12.sp
+                fontSize = 11.sp
             )
         }
     }
@@ -593,13 +593,13 @@ private fun QuickMetricChip(
                 text = value,
                 color = Color(0xFF1A3A5C),
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 modifier = Modifier.padding(top = 8.dp)
             )
             Text(
                 text = label,
                 color = Color(0xFF64748B),
-                fontSize = 10.sp
+                fontSize = 9.sp
             )
         }
     }
@@ -610,7 +610,7 @@ private fun SectionTitle(title: String, modifier: Modifier = Modifier) {
     Text(
         text = title,
         color = Color(0xFF64748B),
-        fontSize = 12.sp,
+        fontSize = 11.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = modifier
     )
@@ -653,12 +653,12 @@ private fun MetricCard(
                         text = title,
                         color = Color(0xFF1A3A5C),
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
+                        fontSize = 14.sp
                     )
                     Text(
                         text = subtitle,
                         color = Color(0xFF64748B),
-                        fontSize = 11.sp
+                        fontSize = 10.sp
                     )
                 }
             }
@@ -690,7 +690,7 @@ private fun PolicyItem(
                 text = index,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
+                fontSize = 11.sp
             )
         }
 
@@ -699,13 +699,13 @@ private fun PolicyItem(
                 text = title,
                 color = Color(0xFF1A3A5C),
                 fontWeight = FontWeight.Medium,
-                fontSize = 14.sp
+                fontSize = 13.sp
             )
             Text(
                 text = description,
                 color = Color(0xFF64748B),
-                fontSize = 11.sp,
-                lineHeight = 15.sp
+                fontSize = 10.sp,
+                lineHeight = 14.sp
             )
         }
     }
@@ -717,7 +717,7 @@ private fun RewardRow(label: String, points: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, color = Color.White.copy(alpha = 0.92f), fontSize = 13.sp)
-        Text(text = points, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Text(text = label, color = Color.White.copy(alpha = 0.92f), fontSize = 12.sp)
+        Text(text = points, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
     }
 }
