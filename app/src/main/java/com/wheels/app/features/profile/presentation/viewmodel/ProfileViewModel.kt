@@ -40,6 +40,11 @@ class ProfileViewModel @Inject constructor(
                 roleManager.setRole(event.role)
                 _uiState.value = _uiState.value.copy(activeRole = event.role)
             }
+            ProfileEvent.ToggleTrustFairnessDarkMode -> {
+                _uiState.value = _uiState.value.copy(
+                    trustFairnessDarkMode = !_uiState.value.trustFairnessDarkMode
+                )
+            }
         }
     }
 
@@ -89,6 +94,7 @@ class ProfileViewModel @Inject constructor(
 sealed interface ProfileEvent {
     data object LoadProfile : ProfileEvent
     data class RoleChanged(val role: UserRole) : ProfileEvent
+    data object ToggleTrustFairnessDarkMode : ProfileEvent
 }
 
 data class ProfileUiState(
@@ -100,5 +106,6 @@ data class ProfileUiState(
     val trustScore: Int? = null,
     val trustScoreLoading: Boolean = true,
     val ridesCount: Int = 16,
-    val activeRole: UserRole = UserRole.PASSENGER
+    val activeRole: UserRole = UserRole.PASSENGER,
+    val trustFairnessDarkMode: Boolean = false
 )
