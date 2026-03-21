@@ -52,9 +52,6 @@ class AuthRepositoryImpl @Inject constructor() : AuthRepository {
 
     override suspend fun signIn(request: SignInRequest): Resource<User> {
         val requestDto = request.toDto()
-        if (requestDto.fullName.isBlank()) {
-            return Resource.Error("Enter your full name.")
-        }
         if (!requestDto.email.contains("@") || !requestDto.email.contains(".")) {
             return Resource.Error("Enter a valid university email.")
         }
@@ -64,7 +61,7 @@ class AuthRepositoryImpl @Inject constructor() : AuthRepository {
 
         val signedInUser = UserDto(
             id = "u_001",
-            fullName = requestDto.fullName,
+            fullName = "Estudiante Uniandes",
             email = requestDto.email,
             universityId = "2026XXXX",
             rating = 4.8,

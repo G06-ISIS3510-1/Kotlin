@@ -26,17 +26,11 @@ class SignInViewModel @Inject constructor(
 
     fun onEvent(event: SignInEvent) {
         when (event) {
-            is SignInEvent.FullNameChanged -> _uiState.update {
-                it.copy(fullName = event.value, errorMessage = null)
-            }
             is SignInEvent.EmailChanged -> _uiState.update {
                 it.copy(email = event.value, errorMessage = null)
             }
             is SignInEvent.PasswordChanged -> _uiState.update {
                 it.copy(password = event.value, errorMessage = null)
-            }
-            is SignInEvent.ConfirmPasswordChanged -> _uiState.update {
-                it.copy(confirmPassword = event.value, errorMessage = null)
             }
             SignInEvent.Submit -> submit()
             SignInEvent.ConsumeNavigation -> _uiState.update { it.copy(signedIn = false) }
@@ -45,26 +39,18 @@ class SignInViewModel @Inject constructor(
 
     private fun submit() {
         val state = _uiState.value
-        if (state.fullName.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Enter your full name.") }
-            return
-        }
         if (state.email.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Enter your university email.") }
             return
         }
         if (state.password.length < 8) {
-            _uiState.update { it.copy(errorMessage = "Password must be at least 8 characters.") }
-            return
-        }
-        if (state.password != state.confirmPassword) {
-            _uiState.update { it.copy(errorMessage = "Passwords do not match.") }
+            _uiState.update { it.copy(errorMessage = "Enter a valid password.") }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
-            when (val result = signInUseCase(SignInRequest(state.fullName.trim(), state.email.trim(), state.password))) {
+            when (val result = signInUseCase(SignInRequest(state.email.trim(), state.password))) {
                 is Resource.Success -> {
                     roleManager.setRole(UserRole.PASSENGER)
                     _uiState.update { it.copy(isSubmitting = false, signedIn = true) }
@@ -83,24 +69,19 @@ class SignInViewModel @Inject constructor(
 }
 
 sealed interface SignInEvent {
-    data class FullNameChanged(val value: String) : SignInEvent
     data class EmailChanged(val value: String) : SignInEvent
     data class PasswordChanged(val value: String) : SignInEvent
-    data class ConfirmPasswordChanged(val value: String) : SignInEvent
     data object Submit : SignInEvent
     data object ConsumeNavigation : SignInEvent
 }
 
 data class SignInUiState(
-    val fullName: String = "",
     val email: String = "",
     val password: String = "",
-    val confirmPassword: String = "",
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
     val signedIn: Boolean = false
 ) {
     val canSubmit: Boolean
-        get() = fullName.isNotBlank() && email.isNotBlank() && password.isNotBlank() &&
-                confirmPassword.isNotBlank() && password == confirmPassword
+        get() = email.isNotBlank() && password.isNotBlank()
 }

@@ -17,8 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -129,22 +127,6 @@ fun SignInScreen(
                     .padding(20.dp)
             ) {
                 WheelsInputField(
-                    value = state.fullName,
-                    onValueChange = { viewModel.onEvent(SignInEvent.FullNameChanged(it)) },
-                    label = "Full Name",
-                    placeholder = "Your full name",
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                WheelsInputField(
                     value = state.email,
                     onValueChange = { viewModel.onEvent(SignInEvent.EmailChanged(it)) },
                     label = "University Email",
@@ -166,25 +148,7 @@ fun SignInScreen(
                     value = state.password,
                     onValueChange = { viewModel.onEvent(SignInEvent.PasswordChanged(it)) },
                     label = "Password",
-                    placeholder = "At least 8 characters",
-                    keyboardType = KeyboardType.Password,
-                    visualTransformation = PasswordVisualTransformation(),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Lock,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                WheelsInputField(
-                    value = state.confirmPassword,
-                    onValueChange = { viewModel.onEvent(SignInEvent.ConfirmPasswordChanged(it)) },
-                    label = "Confirm Password",
-                    placeholder = "Repeat your password",
+                    placeholder = "Enter your password",
                     keyboardType = KeyboardType.Password,
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = {
@@ -250,12 +214,20 @@ fun SignInScreen(
 
                 Text(
                     text = "Don't have an account? Sign Up",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = "Sign Up",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color(0xFF5B89C8),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { navController.navigate(Destinations.CreateAccount.route) }
+                        .padding(top = 2.dp)
                 )
             }
         }

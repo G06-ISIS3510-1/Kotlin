@@ -21,7 +21,6 @@ fun CreateAccountRequest.toDto(): CreateAccountRequestDto = CreateAccountRequest
 )
 
 fun SignInRequest.toDto(): SignInRequestDto = SignInRequestDto(
-    fullName = fullName,
     email = email,
     password = password
 )
