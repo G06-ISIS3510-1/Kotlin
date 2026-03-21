@@ -1,7 +1,9 @@
 package com.wheels.app.features.rides.presentation.ui
 
+import android.Manifest
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.content.pm.PackageManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,10 +54,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +71,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.session.UserRole
@@ -75,6 +82,9 @@ import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.features.rides.presentation.model.LocationSuggestion
+import com.wheels.app.features.rides.presentation.model.RideLocationField
+import com.wheels.app.features.rides.presentation.ui.components.LocationAutocompleteField
 import com.wheels.app.features.rides.presentation.viewmodel.RideCardUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideStatus
@@ -98,8 +108,34 @@ fun RidesScreen(
             state = state,
             innerPadding = innerPadding,
             onBack = { navController.navigate(Destinations.Home.route) },
-            onOriginChanged = { viewModel.onEvent(RidesEvent.DriverOriginChanged(it)) },
-            onDestinationChanged = { viewModel.onEvent(RidesEvent.DriverDestinationChanged(it)) },
+            onOriginChanged = {
+                viewModel.onEvent(RidesEvent.DriverLocationQueryChanged(RideLocationField.ORIGIN, it))
+            },
+            onOriginFieldFocused = {
+                viewModel.onEvent(RidesEvent.DriverLocationFieldFocused(RideLocationField.ORIGIN))
+            },
+            onOriginSuggestionSelected = {
+                viewModel.onEvent(
+                    RidesEvent.DriverLocationSuggestionSelected(RideLocationField.ORIGIN, it)
+                )
+            },
+            onUseCurrentOriginClicked = {
+                viewModel.onEvent(RidesEvent.DriverUseCurrentLocation(RideLocationField.ORIGIN))
+            },
+            onDestinationChanged = {
+                viewModel.onEvent(RidesEvent.DriverLocationQueryChanged(RideLocationField.DESTINATION, it))
+            },
+            onDestinationFieldFocused = {
+                viewModel.onEvent(RidesEvent.DriverLocationFieldFocused(RideLocationField.DESTINATION))
+            },
+            onDestinationSuggestionSelected = {
+                viewModel.onEvent(
+                    RidesEvent.DriverLocationSuggestionSelected(RideLocationField.DESTINATION, it)
+                )
+            },
+            onUseCurrentDestinationClicked = {
+                viewModel.onEvent(RidesEvent.DriverUseCurrentLocation(RideLocationField.DESTINATION))
+            },
             onDateChanged = { viewModel.onEvent(RidesEvent.DriverDateChanged(it)) },
             onTimeChanged = { viewModel.onEvent(RidesEvent.DriverTimeChanged(it)) },
             onIncreaseSeats = { viewModel.onEvent(RidesEvent.DriverIncreaseSeats) },
@@ -199,7 +235,13 @@ private fun DriverCreateRideScreen(
     innerPadding: PaddingValues,
     onBack: () -> Unit,
     onOriginChanged: (String) -> Unit,
+    onOriginFieldFocused: () -> Unit,
+    onOriginSuggestionSelected: (LocationSuggestion) -> Unit,
+    onUseCurrentOriginClicked: () -> Unit,
     onDestinationChanged: (String) -> Unit,
+    onDestinationFieldFocused: () -> Unit,
+    onDestinationSuggestionSelected: (LocationSuggestion) -> Unit,
+    onUseCurrentDestinationClicked: () -> Unit,
     onDateChanged: (String) -> Unit,
     onTimeChanged: (String) -> Unit,
     onIncreaseSeats: () -> Unit,
@@ -213,6 +255,43 @@ private fun DriverCreateRideScreen(
     onPublishRide: () -> Unit
 ) {
     val context = LocalContext.current
+    var pendingLocationPermissionField by remember { mutableStateOf<RideLocationField?>(null) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val field = pendingLocationPermissionField
+        pendingLocationPermissionField = null
+
+        if (field == null) return@rememberLauncherForActivityResult
+
+        when {
+            granted && field == RideLocationField.ORIGIN -> onUseCurrentOriginClicked()
+            granted && field == RideLocationField.DESTINATION -> onUseCurrentDestinationClicked()
+            !granted && field == RideLocationField.ORIGIN -> onUseCurrentOriginClicked()
+            !granted && field == RideLocationField.DESTINATION -> onUseCurrentDestinationClicked()
+        }
+    }
+
+    fun requestCurrentLocationFor(field: RideLocationField) {
+        val permissionGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (permissionGranted) {
+            when (field) {
+                RideLocationField.ORIGIN -> onUseCurrentOriginClicked()
+                RideLocationField.DESTINATION -> onUseCurrentDestinationClicked()
+            }
+        } else {
+            pendingLocationPermissionField = field
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -248,19 +327,21 @@ private fun DriverCreateRideScreen(
                 item {
                     FormSection(title = "Route Details") {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            FormTextField(
-                                value = state.origin,
-                                onValueChange = onOriginChanged,
+                            LocationAutocompleteField(
+                                query = state.origin,
+                                selectedSuggestion = state.selectedOrigin,
+                                suggestions = state.originSuggestions,
+                                currentLocationSuggestion = state.currentLocationSuggestion,
+                                showSuggestions = state.showOriginSuggestions,
+                                noResults = state.originNoResults,
+                                isLoadingCurrentLocation = state.currentLocationLoadingField == RideLocationField.ORIGIN,
+                                currentLocationError = state.originLocationError,
                                 label = "Pickup Location",
                                 placeholder = "e.g., Campus Uniandes - Main Gate",
-                                leadingContent = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .clip(CircleShape)
-                                            .background(SecondaryBlue)
-                                    )
-                                }
+                                onQueryChanged = onOriginChanged,
+                                onSuggestionSelected = onOriginSuggestionSelected,
+                                onUseCurrentLocationClicked = { requestCurrentLocationFor(RideLocationField.ORIGIN) },
+                                onFieldFocused = onOriginFieldFocused
                             )
 
                             Box(
@@ -271,12 +352,21 @@ private fun DriverCreateRideScreen(
                                     .border(1.dp, Border, RoundedCornerShape(2.dp))
                             )
 
-                            FormTextField(
-                                value = state.destination,
-                                onValueChange = onDestinationChanged,
+                            LocationAutocompleteField(
+                                query = state.destination,
+                                selectedSuggestion = state.selectedDestination,
+                                suggestions = state.destinationSuggestions,
+                                currentLocationSuggestion = state.currentLocationSuggestion,
+                                showSuggestions = state.showDestinationSuggestions,
+                                noResults = state.destinationNoResults,
+                                isLoadingCurrentLocation = state.currentLocationLoadingField == RideLocationField.DESTINATION,
+                                currentLocationError = state.destinationLocationError,
                                 label = "Destination",
                                 placeholder = "e.g., Centro Comercial Andino",
-                                leadingIcon = Icons.Default.LocationOn
+                                onQueryChanged = onDestinationChanged,
+                                onSuggestionSelected = onDestinationSuggestionSelected,
+                                onUseCurrentLocationClicked = { requestCurrentLocationFor(RideLocationField.DESTINATION) },
+                                onFieldFocused = onDestinationFieldFocused
                             )
                         }
                     }

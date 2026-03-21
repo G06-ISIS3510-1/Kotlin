@@ -2,6 +2,7 @@ package com.wheels.app.features.rides.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.trust.domain.model.TrustScoreNotice
@@ -9,6 +10,9 @@ import com.wheels.app.core.trust.domain.model.TrustScoreNoticeType
 import com.wheels.app.core.trust.domain.repository.DriverRideTrustActionParams
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
 import com.wheels.app.features.auth.domain.repository.AuthRepository
+import com.wheels.app.features.rides.presentation.mock.OriginAutocompleteMocks
+import com.wheels.app.features.rides.presentation.model.LocationSuggestion
+import com.wheels.app.features.rides.presentation.model.RideLocationField
 import com.wheels.app.features.rides.domain.usecase.GetAvailableRidesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
@@ -26,6 +30,7 @@ class RidesViewModel @Inject constructor(
     private val getAvailableRidesUseCase: GetAvailableRidesUseCase,
     private val authRepository: AuthRepository,
     private val driverTrustRepository: DriverTrustRepository,
+    private val currentLocationProvider: CurrentLocationProvider,
     roleManager: RoleManager
 ) : ViewModel() {
 
@@ -161,8 +166,13 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.MinRatingSelected -> updateFilters(selectedMinRating = event.rating)
             RidesEvent.ApplySuggestedDestination -> updateFilters(searchQuery = "Centro")
             RidesEvent.ClearRatingFilter -> updateFilters(selectedMinRating = null)
-            is RidesEvent.DriverOriginChanged -> updateDriverForm(origin = event.value)
-            is RidesEvent.DriverDestinationChanged -> updateDriverForm(destination = event.value)
+            is RidesEvent.DriverLocationQueryChanged -> updateLocationQuery(event.field, event.value)
+            is RidesEvent.DriverLocationFieldFocused -> showLocationSuggestions(event.field)
+            is RidesEvent.DriverLocationSuggestionSelected -> selectLocationSuggestion(
+                field = event.field,
+                suggestion = event.suggestion
+            )
+            is RidesEvent.DriverUseCurrentLocation -> useCurrentLocation(event.field)
             is RidesEvent.DriverDateChanged -> updateDriverForm(date = event.value)
             is RidesEvent.DriverTimeChanged -> updateDriverForm(time = event.value)
             RidesEvent.DriverIncreaseSeats -> {
@@ -272,6 +282,115 @@ class RidesViewModel @Inject constructor(
         }
     }
 
+    private fun updateLocationQuery(field: RideLocationField, value: String) {
+        val filteredSuggestions = filterLocationSuggestions(value)
+        _uiState.update { state ->
+            when (field) {
+                RideLocationField.ORIGIN -> state.copy(
+                    origin = value,
+                    selectedOrigin = null,
+                    originSuggestions = filteredSuggestions,
+                    showOriginSuggestions = true,
+                    originNoResults = value.isNotBlank() && filteredSuggestions.isEmpty(),
+                    originLocationError = null
+                )
+                RideLocationField.DESTINATION -> state.copy(
+                    destination = value,
+                    selectedDestination = null,
+                    destinationSuggestions = filteredSuggestions,
+                    showDestinationSuggestions = true,
+                    destinationNoResults = value.isNotBlank() && filteredSuggestions.isEmpty(),
+                    destinationLocationError = null
+                )
+            }
+        }
+    }
+
+    private fun showLocationSuggestions(field: RideLocationField) {
+        val query = when (field) {
+            RideLocationField.ORIGIN -> _uiState.value.origin.trim()
+            RideLocationField.DESTINATION -> _uiState.value.destination.trim()
+        }
+        val filteredSuggestions = filterLocationSuggestions(query)
+
+        _uiState.update { state ->
+            when (field) {
+                RideLocationField.ORIGIN -> state.copy(
+                    originSuggestions = filteredSuggestions,
+                    showOriginSuggestions = true,
+                    originNoResults = query.isNotBlank() && filteredSuggestions.isEmpty()
+                )
+                RideLocationField.DESTINATION -> state.copy(
+                    destinationSuggestions = filteredSuggestions,
+                    showDestinationSuggestions = true,
+                    destinationNoResults = query.isNotBlank() && filteredSuggestions.isEmpty()
+                )
+            }
+        }
+    }
+
+    private fun selectLocationSuggestion(field: RideLocationField, suggestion: LocationSuggestion) {
+        _uiState.update { state ->
+            when (field) {
+                RideLocationField.ORIGIN -> state.copy(
+                    origin = suggestion.title,
+                    selectedOrigin = suggestion,
+                    originSuggestions = emptyList(),
+                    showOriginSuggestions = false,
+                    originNoResults = false,
+                    originLocationError = null
+                )
+                RideLocationField.DESTINATION -> state.copy(
+                    destination = suggestion.title,
+                    selectedDestination = suggestion,
+                    destinationSuggestions = emptyList(),
+                    showDestinationSuggestions = false,
+                    destinationNoResults = false,
+                    destinationLocationError = null
+                )
+            }
+        }
+    }
+
+    private fun useCurrentLocation(field: RideLocationField) {
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(
+                    currentLocationLoadingField = field,
+                    originLocationError = if (field == RideLocationField.ORIGIN) null else state.originLocationError,
+                    destinationLocationError = if (field == RideLocationField.DESTINATION) null else state.destinationLocationError
+                )
+            }
+
+            runCatching { currentLocationProvider.getCurrentLocationLabel() }
+                .onSuccess { currentLocation ->
+                    selectLocationSuggestion(
+                        field = field,
+                        suggestion = LocationSuggestion(
+                            id = "${field.name.lowercase()}-current-location",
+                            title = currentLocation.title,
+                            subtitle = currentLocation.subtitle
+                        )
+                    )
+                    _uiState.update { state -> state.copy(currentLocationLoadingField = null) }
+                }
+                .onFailure { throwable ->
+                    _uiState.update { state ->
+                        when (field) {
+                            RideLocationField.ORIGIN -> state.copy(
+                                currentLocationLoadingField = null,
+                                originLocationError = throwable.message ?: "We could not get your current location."
+                            )
+                            RideLocationField.DESTINATION -> state.copy(
+                                currentLocationLoadingField = null,
+                                destinationLocationError = throwable.message ?: "We could not get your current location."
+                            )
+                        }
+                    }
+                }
+        }
+    }
+
     private fun publishRide() {
         val currentState = _uiState.value
         if (!currentState.canPublishRide) return
@@ -296,14 +415,25 @@ class RidesViewModel @Inject constructor(
                 driverSelectedTab = DriverRidesTab.MY_RIDES,
                 driverRides = (it.driverRides + newRide).sortedBy { ride -> "${ride.date} ${ride.time}" },
                 origin = "",
+                selectedOrigin = null,
+                originSuggestions = emptyList(),
+                showOriginSuggestions = false,
+                originNoResults = false,
+                originLocationError = null,
                 destination = "",
+                selectedDestination = null,
+                destinationSuggestions = emptyList(),
+                showDestinationSuggestions = false,
+                destinationNoResults = false,
+                destinationLocationError = null,
                 date = "",
                 time = "",
                 totalSeats = 3,
                 pricePerSeat = "",
                 carModel = "",
                 licensePlate = "",
-                description = ""
+                description = "",
+                currentLocationLoadingField = null
             )
         }
     }
@@ -455,6 +585,17 @@ class RidesViewModel @Inject constructor(
         return String.format("%02d:%02d", arrivalHour, arrivalMinute)
     }
 
+    private fun filterLocationSuggestions(query: String): List<LocationSuggestion> {
+        if (query.isBlank()) {
+            return OriginAutocompleteMocks.locationSuggestions
+        }
+
+        return OriginAutocompleteMocks.locationSuggestions.filter { suggestion ->
+            suggestion.title.contains(query, ignoreCase = true) ||
+                suggestion.subtitle?.contains(query, ignoreCase = true) == true
+        }
+    }
+
     private companion object {
         val defaultPassengers = listOf(
             DriverPassengerUiModel(
@@ -498,8 +639,13 @@ sealed interface RidesEvent {
     data class AreaSelected(val area: String) : RidesEvent
     data class MaxPriceChanged(val value: Float) : RidesEvent
     data class MinRatingSelected(val rating: Double) : RidesEvent
-    data class DriverOriginChanged(val value: String) : RidesEvent
-    data class DriverDestinationChanged(val value: String) : RidesEvent
+    data class DriverLocationQueryChanged(val field: RideLocationField, val value: String) : RidesEvent
+    data class DriverLocationFieldFocused(val field: RideLocationField) : RidesEvent
+    data class DriverLocationSuggestionSelected(
+        val field: RideLocationField,
+        val suggestion: LocationSuggestion
+    ) : RidesEvent
+    data class DriverUseCurrentLocation(val field: RideLocationField) : RidesEvent
     data class DriverDateChanged(val value: String) : RidesEvent
     data class DriverTimeChanged(val value: String) : RidesEvent
     data class DriverPriceChanged(val value: String) : RidesEvent
@@ -524,7 +670,18 @@ data class RidesUiState(
     val allRides: List<RideCardUiModel> = emptyList(),
     val filteredRides: List<RideCardUiModel> = emptyList(),
     val origin: String = "",
+    val selectedOrigin: LocationSuggestion? = null,
+    val originSuggestions: List<LocationSuggestion> = emptyList(),
+    val currentLocationSuggestion: LocationSuggestion = OriginAutocompleteMocks.currentLocationSuggestion,
+    val showOriginSuggestions: Boolean = false,
+    val originNoResults: Boolean = false,
+    val originLocationError: String? = null,
     val destination: String = "",
+    val selectedDestination: LocationSuggestion? = null,
+    val destinationSuggestions: List<LocationSuggestion> = emptyList(),
+    val showDestinationSuggestions: Boolean = false,
+    val destinationNoResults: Boolean = false,
+    val destinationLocationError: String? = null,
     val date: String = "",
     val time: String = "",
     val totalSeats: Int = 3,
@@ -538,7 +695,8 @@ data class RidesUiState(
     val actionInProgressRideId: String? = null,
     val trustNotice: TrustScoreNotice? = null,
     val shouldPopAfterTrustNotice: Boolean = false,
-    val ridePendingRemovalId: String? = null
+    val ridePendingRemovalId: String? = null,
+    val currentLocationLoadingField: RideLocationField? = null
 ) {
     val estimatedEarnings: Int
         get() = (pricePerSeat.toIntOrNull() ?: 0) * totalSeats
