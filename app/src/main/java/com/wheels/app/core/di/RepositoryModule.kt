@@ -1,5 +1,7 @@
 package com.wheels.app.core.di
 
+import com.wheels.app.core.trust.data.repository.FirebaseDriverTrustRepository
+import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
 import com.wheels.app.features.auth.data.repository.AuthRepositoryImpl
 import com.wheels.app.features.payments.data.repository.PaymentRepositoryImpl
 import com.wheels.app.features.rides.data.repository.RideRepositoryImpl
@@ -27,4 +29,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPaymentRepository(impl: PaymentRepositoryImpl): PaymentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDriverTrustRepository(impl: FirebaseDriverTrustRepository): DriverTrustRepository
 }

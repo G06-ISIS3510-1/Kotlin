@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /trustScores/{userId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /trustMetrics/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+
+      match /appliedEvents/{eventId} {
+        allow read: if false;
+        allow write: if false;
+      }
+    }
+
+    match /bookings/{bookingId} {
+      allow read, write: if true;
+    }
+
+    match /rides/{rideId} {
+      allow read, write: if true;
+    }
+  }
+}

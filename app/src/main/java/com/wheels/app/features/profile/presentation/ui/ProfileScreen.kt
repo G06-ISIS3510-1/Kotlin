@@ -218,9 +218,15 @@ fun ProfileScreen(
                         }
 
                         // Stats Grid
+                        val trustScoreValue = when {
+                            state.trustScoreLoading -> "..."
+                            state.trustScore != null -> "${state.trustScore}%"
+                            else -> "--"
+                        }
+
                         val stats = listOf(
-                            Triple("16", "Rides", Color(0xFF1a3a5c)),
-                            Triple("${state.reputationScore}%", "Score", Color(0xFF00d9a3)),
+                            Triple("${state.ridesCount}", "Rides", Color(0xFF1a3a5c)),
+                            Triple(trustScoreValue, "Trust", Color(0xFF00d9a3)),
                             Triple("5.0", "Rating", Color(0xFFffa726)),
                             Triple("142", "Points", Color(0xFF5b89c8))
                         )

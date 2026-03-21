@@ -507,6 +507,7 @@ private fun DriverCreateRideScreen(
                 item {
                     MyRidesSummary(
                         rideCount = state.driverRides.size,
+                        currentTrustScore = state.currentDriverTrustScore,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
@@ -614,6 +615,7 @@ private fun DriverTabButton(
 @Composable
 private fun MyRidesSummary(
     rideCount: Int,
+    currentTrustScore: Int?,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -633,6 +635,14 @@ private fun MyRidesSummary(
                 style = MaterialTheme.typography.bodyMedium,
                 color = WheelsSurface.copy(alpha = 0.9f)
             )
+            if (currentTrustScore != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Current trust score: $currentTrustScore%",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = WheelsSurface
+                )
+            }
         }
     }
 }
