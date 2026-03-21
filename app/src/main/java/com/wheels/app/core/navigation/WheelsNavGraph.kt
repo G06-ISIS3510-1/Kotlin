@@ -13,6 +13,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wheels.app.core.ui.components.WheelsBottomBar
+import com.wheels.app.features.auth.presentation.ui.CreateAccountScreen
+import com.wheels.app.features.auth.presentation.ui.SignInScreen
+import com.wheels.app.features.auth.presentation.viewmodel.CreateAccountViewModel
+import com.wheels.app.features.auth.presentation.viewmodel.SignInViewModel
 import com.wheels.app.features.chat.presentation.ui.GroupChatScreen
 import com.wheels.app.features.chat.presentation.viewmodel.GroupChatViewModel
 import com.wheels.app.features.home.presentation.ui.HomeScreen
@@ -45,6 +49,8 @@ fun WheelsNavGraph() {
             ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
     }
     val routesWithoutBottomBar = setOf(
+        Destinations.SignIn.route,
+        Destinations.CreateAccount.route,
         Destinations.QuickPayment.route,
         Destinations.GroupChat.route,
         Destinations.RideRequest.route,
@@ -74,8 +80,24 @@ fun WheelsNavGraph() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Destinations.Home.route
+            startDestination = Destinations.SignIn.route
         ) {
+            composable(Destinations.SignIn.route) {
+                val viewModel: SignInViewModel = hiltViewModel()
+                SignInScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
+            composable(Destinations.CreateAccount.route) {
+                val viewModel: CreateAccountViewModel = hiltViewModel()
+                CreateAccountScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
             composable(Destinations.Home.route) {
                 val viewModel: HomeViewModel = hiltViewModel()
                 HomeScreen(innerPadding = innerPadding, viewModel = viewModel, navController = navController)

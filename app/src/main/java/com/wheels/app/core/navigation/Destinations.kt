@@ -3,6 +3,8 @@ package com.wheels.app.core.navigation
 import android.net.Uri
 
 sealed class Destinations(val route: String) {
+    data object SignIn : Destinations("sign_in")
+    data object CreateAccount : Destinations("create_account")
     data object Home : Destinations("home")
     data object Rides : Destinations("rides")
     data object Payments : Destinations("payments")
