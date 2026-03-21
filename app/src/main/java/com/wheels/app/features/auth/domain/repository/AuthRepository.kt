@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
     fun getCurrentUser(): Flow<User?>
+    fun getLoginHistory(): List<Long>
 
     suspend fun createAccount(request: CreateAccountRequest): Resource<User>
 
