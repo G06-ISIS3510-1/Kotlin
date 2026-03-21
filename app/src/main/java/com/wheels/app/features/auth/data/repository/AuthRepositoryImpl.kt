@@ -11,9 +11,12 @@ import com.wheels.app.features.profile.data.remote.dto.UserDto
 import com.wheels.app.features.profile.data.remote.mapper.toDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import java.util.Collections
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor() : AuthRepository {
+    private val loginHistoryTimestamps = Collections.synchronizedList(mutableListOf<Long>())
+
     override fun getCurrentUser(): Flow<User?> = flowOf(
         User(
             id = "u_001",
@@ -25,6 +28,8 @@ class AuthRepositoryImpl @Inject constructor() : AuthRepository {
             isDriver = true
         )
     )
+
+    override fun getLoginHistory(): List<Long> = loginHistoryTimestamps.toList()
 
     override suspend fun createAccount(request: CreateAccountRequest): Resource<User> {
         val requestDto = request.toDto()
@@ -68,6 +73,7 @@ class AuthRepositoryImpl @Inject constructor() : AuthRepository {
             ridesCompleted = 24,
             isDriver = false
         )
+        loginHistoryTimestamps.add(System.currentTimeMillis())
         return Resource.Success(signedInUser.toDomain())
     }
 
