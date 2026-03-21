@@ -3,6 +3,7 @@ package com.wheels.app.features.auth.data.repository
 import com.wheels.app.core.common.Resource
 import com.wheels.app.features.auth.data.remote.mapper.toDto
 import com.wheels.app.features.auth.domain.model.CreateAccountRequest
+import com.wheels.app.features.auth.domain.model.ForgotPasswordRequest
 import com.wheels.app.features.auth.domain.model.SignInRequest
 import com.wheels.app.features.profile.domain.model.User
 import com.wheels.app.features.auth.domain.repository.AuthRepository
@@ -71,5 +72,13 @@ class AuthRepositoryImpl @Inject constructor() : AuthRepository {
             isDriver = false
         )
         return Resource.Success(signedInUser.toDomain())
+    }
+
+    override suspend fun forgotPassword(request: ForgotPasswordRequest): Resource<Unit> {
+        val requestDto = request.toDto()
+        if (!requestDto.email.contains("@") || !requestDto.email.contains(".")) {
+            return Resource.Error("Enter a valid university email.")
+        }
+        return Resource.Success(Unit)
     }
 }
