@@ -12,6 +12,7 @@ interface AuthRepository {
     fun observeAuthSession(): Flow<AuthUser?>
 
     fun getCurrentUser(): Flow<User?>
+    fun getLoginHistory(): List<Long>
 
     suspend fun restoreSession(): AuthUser?
 

@@ -17,6 +17,11 @@ import com.wheels.app.features.auth.domain.model.SignInRequest
 import com.wheels.app.features.auth.domain.repository.AuthRepository
 import com.wheels.app.features.auth.domain.util.buildInstitutionalEmail
 import com.wheels.app.features.profile.domain.model.User
+import java.util.Collections
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -26,10 +31,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
@@ -37,6 +38,8 @@ class AuthRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val ioDispatcher: CoroutineDispatcher
 ) : AuthRepository {
+
+    private val loginHistoryTimestamps = Collections.synchronizedList(mutableListOf<Long>())
 
     override fun observeAuthSession(): Flow<AuthUser?> {
         return callbackFlow {
@@ -61,6 +64,8 @@ class AuthRepositoryImpl @Inject constructor(
     override fun getCurrentUser(): Flow<User?> {
         return observeAuthSession().map { authUser -> authUser?.toProfileUser() }
     }
+
+    override fun getLoginHistory(): List<Long> = loginHistoryTimestamps.toList()
 
     override suspend fun restoreSession(): AuthUser? = withContext(ioDispatcher) {
         val currentUser = firebaseAuth.currentUser ?: return@withContext null
@@ -114,6 +119,7 @@ class AuthRepositoryImpl @Inject constructor(
                     throw firestoreException
                 }
 
+                loginHistoryTimestamps.add(System.currentTimeMillis())
                 authUser
             }.fold(
                 onSuccess = { Resource.Success(it) },
@@ -134,7 +140,9 @@ class AuthRepositoryImpl @Inject constructor(
                 val firebaseUser = authResult.user
                     ?: throw IllegalStateException("Sign in finished without a Firebase user.")
 
-                resolveAuthUser(firebaseUser)
+                resolveAuthUser(firebaseUser).also {
+                    loginHistoryTimestamps.add(System.currentTimeMillis())
+                }
             }.fold(
                 onSuccess = { Resource.Success(it) },
                 onFailure = { Resource.Error(it.toAuthFailure().message) }

@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -46,6 +47,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileEvent
@@ -53,7 +56,8 @@ import com.wheels.app.features.profile.presentation.viewmodel.ProfileEvent
 @Composable
 fun ProfileScreen(
     innerPadding: PaddingValues,
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel,
+    navController: NavController
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -341,7 +345,43 @@ fun ProfileScreen(
                             icon = Icons.Outlined.StarBorder,
                             title = "Trust & Fairness",
                             subtitle = "View your reliability metrics",
+                            onClick = { navController.navigate(Destinations.TrustFairness.route) },
                             showDivider = true
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp, bottom = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Trust & Fairness Theme",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF1a3a5c)
+                                )
+                                Text(
+                                    text = if (state.trustFairnessDarkMode) "Dark mode enabled" else "Light mode enabled",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF64748b)
+                                )
+                            }
+                            TextButton(
+                                onClick = { viewModel.onEvent(ProfileEvent.ToggleTrustFairnessDarkMode) }
+                            ) {
+                                Text(
+                                    text = if (state.trustFairnessDarkMode) "Use Light" else "Use Dark",
+                                    color = Color(0xFF1a3a5c),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Divider(
+                            color = Color(0xFFe5e9f2),
+                            thickness = 1.dp,
+                            modifier = Modifier.fillMaxWidth()
                         )
                         MenuItemRow(
                             icon = Icons.Outlined.CreditCard,
@@ -539,13 +579,14 @@ fun MenuItemRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    onClick: () -> Unit = {},
     showDivider: Boolean = false
 ) {
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { /* Handle navigation */ }
+                .clickable(onClick = onClick)
                 .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
