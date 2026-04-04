@@ -48,6 +48,15 @@ export interface UserProfileDocument {
   role?: "driver" | "passenger" | "admin" | string;
 }
 
+export interface UserCancellationMetricsDocument {
+  userId: string;
+  cancellationCount: number;
+  totalHoursBeforeCancellation: number;
+  averageHoursBeforeCancellation: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export interface RideCancellationAnalyticsDocument {
   userId: string;
   rideId: string;

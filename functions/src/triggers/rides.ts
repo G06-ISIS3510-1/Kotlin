@@ -6,7 +6,11 @@ import {
   applyDriverLateCancellationPenalty,
 } from "../services/trustRepository.js";
 import { classifyCancellationPenalty } from "../services/reliability.js";
-import { recordRideCancellationAnalytics } from "../services/cancellationAnalytics.js";
+import {
+  calculateHoursBeforeDeparture,
+  recordRideCancellationAnalytics,
+} from "../services/cancellationAnalytics.js";
+import { updateUserCancellationMetrics } from "../services/cancellationMetrics.js";
 import { RideDocument } from "../types/trust.js";
 
 export const onRideCompleted = onDocumentUpdated(
@@ -56,22 +60,40 @@ export const onRideCanceled = onDocumentUpdated(
       return;
     }
 
-    const millisecondsUntilRide =
-      after.scheduledStartAt.toMillis() - after.canceledAt.toMillis();
-    const hoursBeforeRide = millisecondsUntilRide / (1000 * 60 * 60);
+    const eventId = `ride_canceled:${event.params.rideId}`;
+    const hoursBeforeRide = calculateHoursBeforeDeparture({
+      scheduledStartAt: after.scheduledStartAt,
+      canceledAt: after.canceledAt,
+    });
     const penalty = classifyCancellationPenalty(hoursBeforeRide);
 
     await applyDriverLateCancellationPenalty({
       db,
       userId: after.driverId,
-      eventId: `ride_canceled:${event.params.rideId}`,
+      eventId,
       bucket: penalty.bucket,
       penaltyPoints: penalty.penaltyPoints,
     });
 
     try {
+      await updateUserCancellationMetrics({
+        db,
+        userId: after.driverId,
+        eventId,
+        hoursBeforeDeparture: hoursBeforeRide,
+      });
+    } catch (error) {
+      logger.error("Failed to update user cancellation metrics", {
+        rideId: event.params.rideId,
+        driverId: after.driverId,
+        error,
+      });
+    }
+
+    try {
       await recordRideCancellationAnalytics({
         db,
+        eventId,
         rideId: event.params.rideId,
         userId: after.driverId,
         role: "driver",

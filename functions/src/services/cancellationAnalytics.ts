@@ -35,13 +35,14 @@ export function classifyCancellationType(
 
 export async function recordRideCancellationAnalytics(params: {
   db: Firestore;
+  eventId: string;
   rideId: string;
   userId: string;
   role: "driver" | "passenger";
   scheduledStartAt: Timestamp;
   canceledAt: Timestamp;
 }): Promise<void> {
-  const { db, rideId, userId, role, scheduledStartAt, canceledAt } = params;
+  const { db, eventId, rideId, userId, role, scheduledStartAt, canceledAt } = params;
   const hoursBeforeDeparture = calculateHoursBeforeDeparture({
     scheduledStartAt,
     canceledAt,
@@ -61,7 +62,10 @@ export async function recordRideCancellationAnalytics(params: {
     driverEmail: driverProfile?.email,
   };
 
-  await db.collection(ANALYTICS_RIDE_CANCELLATIONS_COLLECTION).add(analyticsDoc);
+  await db
+    .collection(ANALYTICS_RIDE_CANCELLATIONS_COLLECTION)
+    .doc(eventId)
+    .set(analyticsDoc, { merge: true });
 }
 
 async function readUserProfile(
