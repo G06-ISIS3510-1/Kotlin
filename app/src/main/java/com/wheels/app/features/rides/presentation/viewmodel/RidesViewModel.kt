@@ -36,6 +36,8 @@ class RidesViewModel @Inject constructor(
     private var currentDriverId: String? = null
     private var observedTrustUserId: String? = null
 
+    private fun newBackendRideId(prefix: String = "ride"): String = "$prefix-${UUID.randomUUID()}"
+
     private val mockRides = listOf(
         RideCardUiModel(
             id = "1",
@@ -93,6 +95,7 @@ class RidesViewModel @Inject constructor(
     private val mockDriverRides = listOf(
         DriverRideUiModel(
             id = "driver-1",
+            backendRideId = newBackendRideId("mock-driver-1"),
             origin = "Campus Uniandes - Main Gate",
             destination = "Centro Comercial Andino",
             date = "2026-03-19",
@@ -107,6 +110,7 @@ class RidesViewModel @Inject constructor(
         ),
         DriverRideUiModel(
             id = "driver-2",
+            backendRideId = newBackendRideId("mock-driver-2"),
             origin = "Campus Uniandes - ML Building",
             destination = "Usaquen",
             date = "2026-03-19",
@@ -121,6 +125,7 @@ class RidesViewModel @Inject constructor(
         ),
         DriverRideUiModel(
             id = "driver-3",
+            backendRideId = newBackendRideId("mock-driver-3"),
             origin = "Campus Uniandes - Entrance Gate",
             destination = "Suba Centro",
             date = "2026-03-20",
@@ -401,6 +406,7 @@ class RidesViewModel @Inject constructor(
 
         val newRide = DriverRideUiModel(
             id = "driver-${UUID.randomUUID()}",
+            backendRideId = newBackendRideId("created-driver"),
             origin = currentState.origin,
             destination = currentState.destination,
             date = currentState.date,
@@ -722,6 +728,7 @@ enum class DriverRidesTab {
 
 data class DriverRideUiModel(
     val id: String,
+    val backendRideId: String,
     val origin: String,
     val destination: String,
     val date: String,
@@ -751,7 +758,7 @@ data class DriverRideUiModel(
         }.getOrElse { System.currentTimeMillis() }
 
         return DriverRideTrustActionParams(
-            rideId = id,
+            rideId = backendRideId,
             driverId = driverId,
             scheduledStartAtMillis = scheduledStartAtMillis
         )
