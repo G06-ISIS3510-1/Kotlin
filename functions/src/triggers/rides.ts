@@ -6,6 +6,7 @@ import {
   applyDriverLateCancellationPenalty,
 } from "../services/trustRepository.js";
 import { classifyCancellationPenalty } from "../services/reliability.js";
+import { recordRideCancellationAnalytics } from "../services/cancellationAnalytics.js";
 import { RideDocument } from "../types/trust.js";
 
 export const onRideCompleted = onDocumentUpdated(
@@ -67,5 +68,22 @@ export const onRideCanceled = onDocumentUpdated(
       bucket: penalty.bucket,
       penaltyPoints: penalty.penaltyPoints,
     });
+
+    try {
+      await recordRideCancellationAnalytics({
+        db,
+        rideId: event.params.rideId,
+        userId: after.driverId,
+        role: "driver",
+        scheduledStartAt: after.scheduledStartAt,
+        canceledAt: after.canceledAt,
+      });
+    } catch (error) {
+      logger.error("Failed to record ride cancellation analytics", {
+        rideId: event.params.rideId,
+        driverId: after.driverId,
+        error,
+      });
+    }
   },
 );

@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 export type BookingStatus =
   | "requested"
@@ -19,6 +19,8 @@ export type CancellationBucket =
   | "between_1h_3h"
   | "lt_1h";
 
+export type CancellationAnalyticsType = "early" | "normal" | "late";
+
 export interface BookingDocument {
   rideId: string;
   driverId: string;
@@ -38,6 +40,25 @@ export interface RideDocument {
   canceledAt?: Timestamp;
   canceledByRole?: "driver" | "passenger" | "system";
   updatedAt?: Timestamp;
+}
+
+export interface UserProfileDocument {
+  fullName?: string;
+  email?: string;
+  role?: "driver" | "passenger" | "admin" | string;
+}
+
+export interface RideCancellationAnalyticsDocument {
+  userId: string;
+  rideId: string;
+  role: "driver" | "passenger";
+  cancelledAt: FieldValue;
+  cancellationHour: number;
+  cancellationDayOfWeek: number;
+  hoursBeforeDeparture: number;
+  cancellationType: CancellationAnalyticsType;
+  driverName?: string;
+  driverEmail?: string;
 }
 
 export interface TrustMetricsDocument {
