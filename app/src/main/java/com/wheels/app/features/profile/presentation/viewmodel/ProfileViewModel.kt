@@ -5,13 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
+import com.wheels.app.features.auth.domain.usecase.SignOutUseCase
 import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,7 +19,8 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val roleManager: RoleManager,
-    private val driverTrustRepository: DriverTrustRepository
+    private val driverTrustRepository: DriverTrustRepository,
+    private val signOutUseCase: SignOutUseCase
 ) : ViewModel() {
 
     private var observedTrustUserId: String? = null
@@ -36,6 +37,7 @@ class ProfileViewModel @Inject constructor(
     fun onEvent(event: ProfileEvent) {
         when (event) {
             ProfileEvent.LoadProfile -> Unit
+            ProfileEvent.LogOut -> logOut()
             is ProfileEvent.RoleChanged -> {
                 roleManager.setRole(event.role)
                 _uiState.value = _uiState.value.copy(activeRole = event.role)
@@ -52,19 +54,31 @@ class ProfileViewModel @Inject constructor(
                         trustScoreLoading = false
                     )
                 }
-                .filterNotNull()
                 .collect { user ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        name = user.fullName,
-                        email = user.email,
-                        reputationScore = user.rating,
-                        ridesCount = user.ridesCompleted
-                    )
+                    if (user == null) {
+                        observedTrustUserId = null
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            name = "Estudiante Uniandes",
+                            email = "",
+                            reputationScore = 0.0,
+                            ridesCount = 0,
+                            trustScore = null,
+                            trustScoreLoading = false
+                        )
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            name = user.fullName,
+                            email = user.email,
+                            reputationScore = user.rating,
+                            ridesCount = user.ridesCompleted
+                        )
 
-                    if (observedTrustUserId != user.id) {
-                        observedTrustUserId = user.id
-                        observeTrustScore(user.id)
+                        if (observedTrustUserId != user.id) {
+                            observedTrustUserId = user.id
+                            observeTrustScore(user.id)
+                        }
                     }
                 }
         }
@@ -84,10 +98,18 @@ class ProfileViewModel @Inject constructor(
                 }
         }
     }
+
+    private fun logOut() {
+        viewModelScope.launch {
+            signOutUseCase()
+            roleManager.setRole(UserRole.PASSENGER)
+        }
+    }
 }
 
 sealed interface ProfileEvent {
     data object LoadProfile : ProfileEvent
+    data object LogOut : ProfileEvent
     data class RoleChanged(val role: UserRole) : ProfileEvent
 }
 

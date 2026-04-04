@@ -34,7 +34,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -65,15 +64,6 @@ fun CreateAccountScreen(
     val state by viewModel.uiState.collectAsState()
     val errorMessage = state.errorMessage
 
-    LaunchedEffect(state.accountCreated) {
-        if (state.accountCreated) {
-            navController.navigate(Destinations.Home.route) {
-                popUpTo(Destinations.CreateAccount.route) { inclusive = true }
-            }
-            viewModel.onEvent(CreateAccountEvent.ConsumeNavigation)
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -85,7 +75,7 @@ fun CreateAccountScreen(
         IconButton(
             onClick = {
                 if (!navController.popBackStack()) {
-                    navController.navigate(Destinations.Home.route) {
+                    navController.navigate(Destinations.SignIn.route) {
                         popUpTo(Destinations.CreateAccount.route) { inclusive = true }
                     }
                 }
@@ -158,10 +148,10 @@ fun CreateAccountScreen(
                 )
 
                 WheelsInputField(
-                    value = state.email,
-                    onValueChange = { viewModel.onEvent(CreateAccountEvent.EmailChanged(it)) },
-                    label = "University Email",
-                    placeholder = "student@university.edu",
+                    value = state.username,
+                    onValueChange = { viewModel.onEvent(CreateAccountEvent.UsernameChanged(it)) },
+                    label = "Uniandes Username",
+                    placeholder = "your.username",
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -170,6 +160,12 @@ fun CreateAccountScreen(
                             tint = TextSecondary
                         )
                     }
+                )
+
+                Text(
+                    text = "Your account email will be ${state.username.ifBlank { "your.username" }}@uniandes.edu.co",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
                 )
 
                 WheelsInputField(
@@ -276,7 +272,7 @@ fun CreateAccountScreen(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .clickable {
-                    navController.navigate(Destinations.Home.route) {
+                    navController.navigate(Destinations.SignIn.route) {
                         popUpTo(Destinations.CreateAccount.route) { inclusive = true }
                     }
                 }
@@ -284,5 +280,4 @@ fun CreateAccountScreen(
         )
     }
 }
-
 

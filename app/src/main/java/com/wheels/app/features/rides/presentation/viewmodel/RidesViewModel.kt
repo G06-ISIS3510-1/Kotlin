@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -191,12 +190,17 @@ class RidesViewModel @Inject constructor(
     private fun observeCurrentDriver() {
         viewModelScope.launch {
             authRepository.getCurrentUser()
-                .filterNotNull()
                 .collect { user ->
-                    currentDriverId = user.id
-                    if (observedTrustUserId != user.id) {
-                        observedTrustUserId = user.id
-                        observeTrustScore(user.id)
+                    if (user == null) {
+                        currentDriverId = null
+                        observedTrustUserId = null
+                        _uiState.update { state -> state.copy(currentDriverTrustScore = null) }
+                    } else {
+                        currentDriverId = user.id
+                        if (observedTrustUserId != user.id) {
+                            observedTrustUserId = user.id
+                            observeTrustScore(user.id)
+                        }
                     }
                 }
         }

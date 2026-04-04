@@ -2,6 +2,8 @@ package com.wheels.app.core.navigation
 
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -13,6 +15,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wheels.app.core.ui.components.WheelsBottomBar
+import com.wheels.app.features.auth.presentation.session.AuthSessionViewModel
+import com.wheels.app.features.auth.presentation.session.SessionGateScreen
 import com.wheels.app.features.auth.presentation.ui.CreateAccountScreen
 import com.wheels.app.features.auth.presentation.ui.ForgotPasswordScreen
 import com.wheels.app.features.auth.presentation.ui.SignInScreen
@@ -40,8 +44,11 @@ import com.wheels.app.features.rides.presentation.viewmodel.mockRideRequestData
 @Composable
 fun WheelsNavGraph() {
     val navController = rememberNavController()
+    val sessionViewModel: AuthSessionViewModel = hiltViewModel()
+    val sessionState by sessionViewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
     val selectedRoute = if (currentDestination?.route == Destinations.ReviewsRatings.route) {
         navBackStackEntry?.arguments?.getString("origin")
     } else {
@@ -51,6 +58,7 @@ fun WheelsNavGraph() {
             ?.firstOrNull { route -> wheelsBottomNavItems.any { it.route == route } }
     }
     val routesWithoutBottomBar = setOf(
+        Destinations.SessionGate.route,
         Destinations.SignIn.route,
         Destinations.CreateAccount.route,
         Destinations.ForgotPassword.route,
@@ -61,6 +69,32 @@ fun WheelsNavGraph() {
         Destinations.BookingConfirmation.route
     )
     val shouldShowBottomBar = currentDestination?.route !in routesWithoutBottomBar
+
+    LaunchedEffect(sessionState.isLoading, sessionState.authUser, currentRoute) {
+        if (sessionState.isLoading) return@LaunchedEffect
+
+        val authRoutes = setOf(
+            Destinations.SessionGate.route,
+            Destinations.SignIn.route,
+            Destinations.CreateAccount.route,
+            Destinations.ForgotPassword.route
+        )
+
+        if (sessionState.authUser != null && currentRoute in authRoutes) {
+            navController.navigate(Destinations.Home.route) {
+                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                launchSingleTop = true
+            }
+        } else if (
+            sessionState.authUser == null &&
+            (currentRoute == Destinations.SessionGate.route || currentRoute !in authRoutes)
+        ) {
+            navController.navigate(Destinations.SignIn.route) {
+                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -83,8 +117,11 @@ fun WheelsNavGraph() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Destinations.SignIn.route
+            startDestination = Destinations.SessionGate.route
         ) {
+            composable(Destinations.SessionGate.route) {
+                SessionGateScreen(innerPadding = innerPadding)
+            }
             composable(Destinations.SignIn.route) {
                 val viewModel: SignInViewModel = hiltViewModel()
                 SignInScreen(
@@ -175,7 +212,10 @@ fun WheelsNavGraph() {
             }
             composable(Destinations.Profile.route) {
                 val viewModel: ProfileViewModel = hiltViewModel()
-                ProfileScreen(innerPadding = innerPadding, viewModel = viewModel)
+                ProfileScreen(
+                    innerPadding = innerPadding,
+                    viewModel = viewModel
+                )
             }
             composable(
                 route = Destinations.ReviewsRatings.route,

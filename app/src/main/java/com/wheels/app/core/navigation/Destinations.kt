@@ -3,6 +3,7 @@ package com.wheels.app.core.navigation
 import android.net.Uri
 
 sealed class Destinations(val route: String) {
+    data object SessionGate : Destinations("session_gate")
     data object SignIn : Destinations("sign_in")
     data object CreateAccount : Destinations("create_account")
     data object ForgotPassword : Destinations("forgot_password")

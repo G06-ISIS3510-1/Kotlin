@@ -2,21 +2,47 @@ package com.wheels.app.features.home.presentation.viewmodel
 
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor() : ViewModel() {
+class HomeViewModel @Inject constructor(
+    private val getUserProfileUseCase: GetUserProfileUseCase
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    init {
+        observeCurrentUser()
+    }
+
     fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.Refresh -> Unit
+        }
+    }
+
+    private fun observeCurrentUser() {
+        viewModelScope.launch {
+            getUserProfileUseCase()
+                .catch { /* Keep fallback name if profile loading fails */ }
+                .collect { user ->
+                    _uiState.value = _uiState.value.copy(
+                        userName = user
+                            ?.fullName
+                            ?.substringBefore(" ")
+                            ?.ifBlank { user.fullName }
+                            ?: "User"
+                    )
+                }
         }
     }
 }
@@ -27,7 +53,7 @@ sealed interface HomeEvent {
 
 data class HomeUiState(
     val isLoading: Boolean = false,
-    val userName: String = "Maria",
+    val userName: String = "User",
     val welcomeMessage: String = "Welcome back",
     val quickStats: List<HomeQuickStat> = listOf(
         HomeQuickStat(label = "Rides", value = "12"),

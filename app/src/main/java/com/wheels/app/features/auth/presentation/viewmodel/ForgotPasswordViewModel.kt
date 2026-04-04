@@ -23,10 +23,10 @@ class ForgotPasswordViewModel @Inject constructor(
 
     fun onEvent(event: ForgotPasswordEvent) {
         when (event) {
-            is ForgotPasswordEvent.EmailChanged -> {
+            is ForgotPasswordEvent.UsernameChanged -> {
                 _uiState.update {
                     it.copy(
-                        email = event.value,
+                        username = event.value,
                         errorMessage = null,
                         successMessage = null
                     )
@@ -37,13 +37,9 @@ class ForgotPasswordViewModel @Inject constructor(
     }
 
     private fun submit() {
-        val email = _uiState.value.email.trim()
-        if (email.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Enter your university email.") }
-            return
-        }
-        if (!email.contains("@") || !email.contains(".")) {
-            _uiState.update { it.copy(errorMessage = "Enter a valid university email.") }
+        val username = _uiState.value.username.trim()
+        if (username.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Enter your Uniandes username.") }
             return
         }
 
@@ -55,12 +51,12 @@ class ForgotPasswordViewModel @Inject constructor(
                     successMessage = null
                 )
             }
-            when (val result = forgotPasswordUseCase(ForgotPasswordRequest(email))) {
+            when (val result = forgotPasswordUseCase(ForgotPasswordRequest(username))) {
                 is Resource.Success -> {
                     _uiState.update {
                         it.copy(
                             isSubmitting = false,
-                            successMessage = "Recovery instructions were sent to $email."
+                            successMessage = "Recovery instructions were sent to ${username}@uniandes.edu.co."
                         )
                     }
                 }
@@ -79,16 +75,16 @@ class ForgotPasswordViewModel @Inject constructor(
 }
 
 sealed interface ForgotPasswordEvent {
-    data class EmailChanged(val value: String) : ForgotPasswordEvent
+    data class UsernameChanged(val value: String) : ForgotPasswordEvent
     data object Submit : ForgotPasswordEvent
 }
 
 data class ForgotPasswordUiState(
-    val email: String = "",
+    val username: String = "",
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
 ) {
     val canSubmit: Boolean
-        get() = email.isNotBlank()
+        get() = username.isNotBlank()
 }

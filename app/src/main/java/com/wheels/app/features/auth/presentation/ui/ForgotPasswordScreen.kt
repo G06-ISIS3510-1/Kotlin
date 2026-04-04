@@ -116,10 +116,10 @@ fun ForgotPasswordScreen(
                     .padding(20.dp)
             ) {
                 WheelsInputField(
-                    value = state.email,
-                    onValueChange = { viewModel.onEvent(ForgotPasswordEvent.EmailChanged(it)) },
-                    label = "University Email",
-                    placeholder = "student@university.edu",
+                    value = state.username,
+                    onValueChange = { viewModel.onEvent(ForgotPasswordEvent.UsernameChanged(it)) },
+                    label = "Uniandes Username",
+                    placeholder = "your.username",
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -128,6 +128,13 @@ fun ForgotPasswordScreen(
                             tint = TextSecondary
                         )
                     }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "We'll send recovery instructions to ${state.username.ifBlank { "your.username" }}@uniandes.edu.co",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
                 )
 
                 if (errorMessage != null) {

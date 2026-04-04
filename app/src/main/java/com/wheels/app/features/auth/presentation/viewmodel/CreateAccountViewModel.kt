@@ -3,7 +3,6 @@ package com.wheels.app.features.auth.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.common.Resource
-import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.auth.domain.model.CreateAccountRequest
 import com.wheels.app.features.auth.domain.usecase.CreateAccountUseCase
@@ -17,8 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CreateAccountViewModel @Inject constructor(
-    private val createAccountUseCase: CreateAccountUseCase,
-    private val roleManager: RoleManager
+    private val createAccountUseCase: CreateAccountUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateAccountUiState())
@@ -27,20 +25,17 @@ class CreateAccountViewModel @Inject constructor(
     fun onEvent(event: CreateAccountEvent) {
         when (event) {
             is CreateAccountEvent.FullNameChanged -> updateState(fullName = event.value)
-            is CreateAccountEvent.EmailChanged -> updateState(email = event.value)
+            is CreateAccountEvent.UsernameChanged -> updateState(username = event.value)
             is CreateAccountEvent.PasswordChanged -> updateState(password = event.value)
             is CreateAccountEvent.ConfirmPasswordChanged -> updateState(confirmPassword = event.value)
             is CreateAccountEvent.PhoneChanged -> updateState(phone = event.value)
             CreateAccountEvent.Submit -> submit()
-            CreateAccountEvent.ConsumeNavigation -> {
-                _uiState.update { it.copy(accountCreated = false) }
-            }
         }
     }
 
     private fun updateState(
         fullName: String = _uiState.value.fullName,
-        email: String = _uiState.value.email,
+        username: String = _uiState.value.username,
         password: String = _uiState.value.password,
         confirmPassword: String = _uiState.value.confirmPassword,
         phone: String = _uiState.value.phone
@@ -48,7 +43,7 @@ class CreateAccountViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 fullName = fullName,
-                email = email,
+                username = username,
                 password = password,
                 confirmPassword = confirmPassword,
                 phone = phone,
@@ -71,22 +66,14 @@ class CreateAccountViewModel @Inject constructor(
                 val result = createAccountUseCase(
                     CreateAccountRequest(
                         state.fullName.trim(),
-                        state.email.trim(),
+                        state.username.trim(),
                         state.password,
                         state.phone.trim(),
                         UserRole.PASSENGER
                     )
                 )
             ) {
-                is Resource.Success -> {
-                    roleManager.setRole(UserRole.PASSENGER)
-                    _uiState.update {
-                        it.copy(
-                            isSubmitting = false,
-                            accountCreated = true
-                        )
-                    }
-                }
+                is Resource.Success -> _uiState.update { it.copy(isSubmitting = false) }
 
                 is Resource.Error -> {
                     _uiState.update {
@@ -104,10 +91,7 @@ class CreateAccountViewModel @Inject constructor(
 
     private fun validate(state: CreateAccountUiState): String? {
         if (state.fullName.isBlank()) return "Enter your full name."
-        if (state.email.isBlank()) return "Enter your university email."
-        if (!state.email.contains("@") || !state.email.contains(".")) {
-            return "Enter a valid email."
-        }
+        if (state.username.isBlank()) return "Enter your Uniandes username."
         if (state.phone.isBlank()) return "Enter your phone number."
         if (state.password.length < 8) return "Password must be at least 8 characters."
         if (state.password != state.confirmPassword) return "Passwords do not match."
@@ -117,27 +101,25 @@ class CreateAccountViewModel @Inject constructor(
 
 sealed interface CreateAccountEvent {
     data class FullNameChanged(val value: String) : CreateAccountEvent
-    data class EmailChanged(val value: String) : CreateAccountEvent
+    data class UsernameChanged(val value: String) : CreateAccountEvent
     data class PasswordChanged(val value: String) : CreateAccountEvent
     data class ConfirmPasswordChanged(val value: String) : CreateAccountEvent
     data class PhoneChanged(val value: String) : CreateAccountEvent
     data object Submit : CreateAccountEvent
-    data object ConsumeNavigation : CreateAccountEvent
 }
 
 data class CreateAccountUiState(
     val fullName: String = "",
-    val email: String = "",
+    val username: String = "",
     val password: String = "",
     val confirmPassword: String = "",
     val phone: String = "",
     val isSubmitting: Boolean = false,
-    val errorMessage: String? = null,
-    val accountCreated: Boolean = false
+    val errorMessage: String? = null
 ) {
     val isFormFilled: Boolean
         get() = fullName.isNotBlank() &&
-            email.isNotBlank() &&
+            username.isNotBlank() &&
             password.isNotBlank() &&
             confirmPassword.isNotBlank() &&
             phone.isNotBlank()
