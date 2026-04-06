@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,5 +32,14 @@ object FirebaseModule {
     ): FirebaseFirestore {
         val app = FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context)
         return FirebaseFirestore.getInstance(requireNotNull(app))
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseMessaging(
+        @ApplicationContext context: Context
+    ): FirebaseMessaging {
+        FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context)
+        return FirebaseMessaging.getInstance()
     }
 }

@@ -29,6 +29,7 @@ class CreateAccountViewModel @Inject constructor(
             is CreateAccountEvent.PasswordChanged -> updateState(password = event.value)
             is CreateAccountEvent.ConfirmPasswordChanged -> updateState(confirmPassword = event.value)
             is CreateAccountEvent.PhoneChanged -> updateState(phone = event.value)
+            is CreateAccountEvent.RoleToggled -> toggleRole(event.role)
             CreateAccountEvent.Submit -> submit()
         }
     }
@@ -52,6 +53,22 @@ class CreateAccountViewModel @Inject constructor(
         }
     }
 
+    private fun toggleRole(role: UserRole) {
+        val currentRoles = _uiState.value.selectedRoles
+        val updatedRoles = if (role in currentRoles) {
+            currentRoles - role
+        } else {
+            currentRoles + role
+        }
+
+        _uiState.update {
+            it.copy(
+                selectedRoles = updatedRoles,
+                errorMessage = null
+            )
+        }
+    }
+
     private fun submit() {
         val state = _uiState.value
         val validationError = validate(state)
@@ -65,16 +82,15 @@ class CreateAccountViewModel @Inject constructor(
             when (
                 val result = createAccountUseCase(
                     CreateAccountRequest(
-                        state.fullName.trim(),
-                        state.username.trim(),
-                        state.password,
-                        state.phone.trim(),
-                        UserRole.PASSENGER
+                        fullName = state.fullName.trim(),
+                        username = state.username.trim(),
+                        password = state.password,
+                        phone = state.phone.trim(),
+                        roles = state.selectedRoles
                     )
                 )
             ) {
                 is Resource.Success -> _uiState.update { it.copy(isSubmitting = false) }
-
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(
@@ -83,7 +99,6 @@ class CreateAccountViewModel @Inject constructor(
                         )
                     }
                 }
-
                 Resource.Loading -> Unit
             }
         }
@@ -93,6 +108,7 @@ class CreateAccountViewModel @Inject constructor(
         if (state.fullName.isBlank()) return "Enter your full name."
         if (state.username.isBlank()) return "Enter your Uniandes username."
         if (state.phone.isBlank()) return "Enter your phone number."
+        if (state.selectedRoles.isEmpty()) return "Choose at least one role to continue."
         if (state.password.length < 8) return "Password must be at least 8 characters."
         if (state.password != state.confirmPassword) return "Passwords do not match."
         return null
@@ -105,6 +121,7 @@ sealed interface CreateAccountEvent {
     data class PasswordChanged(val value: String) : CreateAccountEvent
     data class ConfirmPasswordChanged(val value: String) : CreateAccountEvent
     data class PhoneChanged(val value: String) : CreateAccountEvent
+    data class RoleToggled(val role: UserRole) : CreateAccountEvent
     data object Submit : CreateAccountEvent
 }
 
@@ -114,6 +131,7 @@ data class CreateAccountUiState(
     val password: String = "",
     val confirmPassword: String = "",
     val phone: String = "",
+    val selectedRoles: Set<UserRole> = setOf(UserRole.PASSENGER),
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
 ) {
@@ -122,5 +140,6 @@ data class CreateAccountUiState(
             username.isNotBlank() &&
             password.isNotBlank() &&
             confirmPassword.isNotBlank() &&
-            phone.isNotBlank()
+            phone.isNotBlank() &&
+            selectedRoles.isNotEmpty()
 }

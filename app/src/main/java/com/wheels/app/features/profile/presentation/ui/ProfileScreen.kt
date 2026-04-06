@@ -31,8 +31,11 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Divider
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -191,7 +195,7 @@ fun ProfileScreen(
                                 }
 
                                 Text(
-                                    text = "Member since Jan 2025",
+                                    text = state.memberSinceLabel,
                                     fontSize = 12.sp,
                                     color = Color(0xFF64748b)
                                 )
@@ -204,6 +208,7 @@ fun ProfileScreen(
                                     RoleSwitchButton(
                                         label = "Passenger",
                                         selected = state.activeRole == UserRole.PASSENGER,
+                                        enabled = UserRole.PASSENGER in state.availableRoles,
                                         onClick = {
                                             viewModel.onEvent(ProfileEvent.RoleChanged(UserRole.PASSENGER))
                                         },
@@ -212,17 +217,98 @@ fun ProfileScreen(
                                     RoleSwitchButton(
                                         label = "Driver",
                                         selected = state.activeRole == UserRole.DRIVER,
+                                        enabled = UserRole.DRIVER in state.availableRoles,
                                         onClick = {
                                             viewModel.onEvent(ProfileEvent.RoleChanged(UserRole.DRIVER))
                                         },
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
+
+                                val roleInfoMessage = state.roleInfoMessage
+                                if (roleInfoMessage != null) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = roleInfoMessage,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748b)
+                                    )
+                                }
+
+                                val roleUpgradeTarget = state.roleUpgradeTarget
+                                if (roleUpgradeTarget != null) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(Color(0xFFF7F9FC))
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Text(
+                                            text = "Enable ${roleUpgradeTarget.displayName} role",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1a3a5c)
+                                        )
+                                        Text(
+                                            text = "Confirm your password and we'll add this role to your account.",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF64748b)
+                                        )
+                                        OutlinedTextField(
+                                            value = state.roleUpgradePassword,
+                                            onValueChange = {
+                                                viewModel.onEvent(ProfileEvent.RoleUpgradePasswordChanged(it))
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            label = { Text("Password") },
+                                            visualTransformation = PasswordVisualTransformation(),
+                                            singleLine = true
+                                        )
+                                        val roleUpgradeErrorMessage = state.roleUpgradeErrorMessage
+                                        if (roleUpgradeErrorMessage != null) {
+                                            Text(
+                                                text = roleUpgradeErrorMessage,
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            TextButton(
+                                                onClick = {
+                                                    viewModel.onEvent(ProfileEvent.DismissRoleUpgradePrompt)
+                                                },
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Text("Cancel")
+                                            }
+                                            Button(
+                                                onClick = {
+                                                    viewModel.onEvent(ProfileEvent.ConfirmRoleUpgrade)
+                                                },
+                                                enabled = state.roleUpgradePassword.isNotBlank() && !state.roleActionLoading,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                if (state.roleActionLoading) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        strokeWidth = 2.dp
+                                                    )
+                                                } else {
+                                                    Text("Enable Role")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 
                         // Stats Grid
                         val trustScoreValue = when {
+                            state.activeRole != UserRole.DRIVER -> "--"
                             state.trustScoreLoading -> "..."
                             state.trustScore != null -> "${state.trustScore}%"
                             else -> "--"
@@ -230,7 +316,11 @@ fun ProfileScreen(
 
                         val stats = listOf(
                             Triple("${state.ridesCount}", "Rides", Color(0xFF1a3a5c)),
-                            Triple(trustScoreValue, "Trust", Color(0xFF00d9a3)),
+                            Triple(
+                                trustScoreValue,
+                                if (state.activeRole == UserRole.DRIVER) "Driver Trust" else "Trust",
+                                if (state.activeRole == UserRole.DRIVER) Color(0xFF00d9a3) else Color(0xFF94A3B8)
+                            ),
                             Triple("5.0", "Rating", Color(0xFFffa726)),
                             Triple("142", "Points", Color(0xFF5b89c8))
                         )
@@ -310,7 +400,7 @@ fun ProfileScreen(
                         ContactInfoRow(
                             icon = Icons.Outlined.Phone,
                             label = "Phone",
-                            value = state.phone
+                            value = state.phone.ifBlank { "Not provided yet" }
                         )
                     }
                 }
@@ -496,13 +586,16 @@ fun ProfileScreen(
 private fun RoleSwitchButton(
     label: String,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) Color(0xFF1a3a5c) else Color(0xFFF7F9FC))
+            .background(
+                if (selected) Color(0xFF1a3a5c) else if (enabled) Color(0xFFF7F9FC) else Color(0xFFF1F5F9)
+            )
             .border(
                 width = 1.5.dp,
                 color = if (selected) Color(0xFF1a3a5c) else Color(0xFFE2E8F0),
@@ -516,7 +609,7 @@ private fun RoleSwitchButton(
             text = label,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (selected) Color.White else Color(0xFF64748b)
+            color = if (selected) Color.White else if (enabled) Color(0xFF64748b) else Color(0xFF94A3B8)
         )
     }
 }

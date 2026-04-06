@@ -8,9 +8,12 @@ fun AuthUser.toProfileUser(): User {
         id = uid,
         fullName = fullName.ifBlank { "Wheels User" },
         email = email,
+        phone = phone,
+        createdAtMillis = createdAtMillis,
         universityId = email.substringBefore("@").uppercase(),
         rating = 0.0,
         ridesCompleted = 0,
-        isDriver = role == "driver"
+        roles = roles,
+        activeRole = activeRole
     )
 }

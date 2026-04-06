@@ -85,6 +85,7 @@ dependencies {
     ksp("com.google.dagger:hilt-compiler:2.52")
     implementation("com.google.firebase:firebase-auth:22.3.1")
     implementation("com.google.firebase:firebase-firestore:25.1.2")
+    implementation("com.google.firebase:firebase-messaging:24.0.3")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

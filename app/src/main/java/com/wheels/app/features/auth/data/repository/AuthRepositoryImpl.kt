@@ -2,12 +2,14 @@ package com.wheels.app.features.auth.data.repository
 
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.wheels.app.core.common.Resource
+import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.auth.data.remote.mapper.toProfileUser
 import com.wheels.app.features.auth.domain.model.AuthFailure
 import com.wheels.app.features.auth.domain.model.AuthUser
@@ -83,6 +85,8 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun createAccount(request: CreateAccountRequest): Resource<AuthUser> {
         return withContext(ioDispatcher) {
             val institutionalEmail = buildInstitutionalEmail(request.username)
+            val roles = request.roles.ifEmpty { setOf(UserRole.PASSENGER) }
+            val activeRole = roles.resolveInitialActiveRole()
 
             runCatching {
                 val authResult = firebaseAuth
@@ -95,8 +99,11 @@ class AuthRepositoryImpl @Inject constructor(
                 val authUser = AuthUser(
                     uid = firebaseUser.uid,
                     email = institutionalEmail,
-                    role = DEFAULT_ROLE,
-                    fullName = request.fullName.trim()
+                    fullName = request.fullName.trim(),
+                    phone = request.phone.trim(),
+                    createdAtMillis = null,
+                    roles = roles,
+                    activeRole = activeRole
                 )
 
                 try {
@@ -106,7 +113,9 @@ class AuthRepositoryImpl @Inject constructor(
                             mapOf(
                                 "fullName" to authUser.fullName,
                                 "email" to authUser.email,
-                                "role" to authUser.role,
+                                "phone" to authUser.phone,
+                                "roles" to authUser.roles.map { it.storageValue },
+                                "activeRole" to authUser.activeRole.storageValue,
                                 "photoUrl" to "",
                                 "createdAt" to FieldValue.serverTimestamp(),
                                 "updatedAt" to FieldValue.serverTimestamp()
@@ -163,10 +172,85 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun switchActiveRole(role: UserRole): Resource<AuthUser> {
+        return withContext(ioDispatcher) {
+            runCatching {
+                val currentUser = firebaseAuth.currentUser
+                    ?: throw IllegalStateException("No authenticated user found.")
+                val currentAuthUser = resolveAuthUser(currentUser)
+                if (role !in currentAuthUser.roles) {
+                    throw IllegalStateException("You are not registered as ${role.displayName.lowercase()} yet.")
+                }
+
+                updateUserRolesDocument(
+                    uid = currentUser.uid,
+                    roles = currentAuthUser.roles,
+                    activeRole = role
+                )
+
+                resolveAuthUser(currentUser)
+            }.fold(
+                onSuccess = { Resource.Success(it) },
+                onFailure = { Resource.Error(it.toAuthFailure().message) }
+            )
+        }
+    }
+
+    override suspend fun registerAdditionalRole(role: UserRole, password: String): Resource<AuthUser> {
+        return withContext(ioDispatcher) {
+            runCatching {
+                val currentUser = firebaseAuth.currentUser
+                    ?: throw IllegalStateException("No authenticated user found.")
+                val currentEmail = currentUser.email.orEmpty()
+                if (currentEmail.isBlank()) {
+                    throw IllegalStateException("Your account email is unavailable.")
+                }
+                if (password.isBlank()) {
+                    throw IllegalArgumentException("Enter your password to confirm this role change.")
+                }
+
+                currentUser.reauthenticate(
+                    EmailAuthProvider.getCredential(currentEmail, password)
+                ).awaitResult()
+
+                val currentAuthUser = resolveAuthUser(currentUser)
+                val updatedRoles = currentAuthUser.roles + role
+                updateUserRolesDocument(
+                    uid = currentUser.uid,
+                    roles = updatedRoles,
+                    activeRole = role
+                )
+
+                resolveAuthUser(currentUser)
+            }.fold(
+                onSuccess = { Resource.Success(it) },
+                onFailure = { Resource.Error(it.toAuthFailure().message) }
+            )
+        }
+    }
+
     override suspend fun signOut() {
         withContext(ioDispatcher) {
             firebaseAuth.signOut()
         }
+    }
+
+    private suspend fun updateUserRolesDocument(
+        uid: String,
+        roles: Set<UserRole>,
+        activeRole: UserRole
+    ) {
+        firestore.collection(USERS_COLLECTION)
+            .document(uid)
+            .set(
+                mapOf(
+                    "roles" to roles.map { it.storageValue },
+                    "activeRole" to activeRole.storageValue,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+            .awaitResult()
     }
 
     private suspend fun resolveAuthUser(firebaseUser: FirebaseUser): AuthUser {
@@ -178,14 +262,53 @@ class AuthRepositoryImpl @Inject constructor(
         }.getOrNull()
 
         val fullName = snapshot?.getString("fullName").orEmpty()
-        val role = snapshot?.getString("role").orEmpty().ifBlank { DEFAULT_ROLE }
+        val resolvedRoles = snapshot.resolveStoredRoles()
+        val activeRole = snapshot.resolveActiveRole(resolvedRoles)
 
         return AuthUser(
             uid = firebaseUser.uid,
             email = snapshot?.getString("email") ?: firebaseUser.email.orEmpty(),
-            role = role,
-            fullName = fullName
+            fullName = fullName,
+            phone = snapshot?.getString("phone").orEmpty(),
+            createdAtMillis = snapshot?.getTimestamp("createdAt")?.toDate()?.time,
+            roles = resolvedRoles,
+            activeRole = activeRole
         )
+    }
+
+    private fun com.google.firebase.firestore.DocumentSnapshot?.resolveStoredRoles(): Set<UserRole> {
+        val explicitRoles = this
+            ?.get("roles")
+            ?.let { raw -> raw as? List<*> }
+            ?.mapNotNull { UserRole.fromStorageValue(it as? String) }
+            ?.toSet()
+            .orEmpty()
+
+        if (explicitRoles.isNotEmpty()) {
+            return explicitRoles
+        }
+
+        return setOf(
+            UserRole.fromStorageValue(this?.getString("role")) ?: UserRole.PASSENGER
+        )
+    }
+
+    private fun com.google.firebase.firestore.DocumentSnapshot?.resolveActiveRole(
+        roles: Set<UserRole>
+    ): UserRole {
+        val explicitActiveRole = UserRole.fromStorageValue(this?.getString("activeRole"))
+        return when {
+            explicitActiveRole != null && explicitActiveRole in roles -> explicitActiveRole
+            UserRole.PASSENGER in roles -> UserRole.PASSENGER
+            else -> roles.firstOrNull() ?: UserRole.PASSENGER
+        }
+    }
+
+    private fun Set<UserRole>.resolveInitialActiveRole(): UserRole {
+        return when {
+            UserRole.PASSENGER in this -> UserRole.PASSENGER
+            else -> firstOrNull() ?: UserRole.PASSENGER
+        }
     }
 
     private fun Throwable.toAuthFailure(): AuthFailure {
@@ -201,6 +324,8 @@ class AuthRepositoryImpl @Inject constructor(
                 "ERROR_NETWORK_REQUEST_FAILED" -> AuthFailure.NetworkError
                 else -> AuthFailure.Unknown(message)
             }
+            is IllegalArgumentException -> AuthFailure.Unknown(message)
+            is IllegalStateException -> AuthFailure.Unknown(message)
             else -> AuthFailure.Unknown(message)
         }
     }
@@ -214,6 +339,5 @@ class AuthRepositoryImpl @Inject constructor(
 
     private companion object {
         const val USERS_COLLECTION = "users"
-        const val DEFAULT_ROLE = "passenger"
     }
 }

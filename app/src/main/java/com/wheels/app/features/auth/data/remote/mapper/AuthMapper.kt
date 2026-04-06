@@ -17,7 +17,7 @@ fun CreateAccountRequest.toDto(): CreateAccountRequestDto = CreateAccountRequest
     email = username,
     password = password,
     phone = phone,
-    isDriver = role.name == "DRIVER"
+    isDriver = roles.contains(com.wheels.app.core.session.UserRole.DRIVER)
 )
 
 fun SignInRequest.toDto(): SignInRequestDto = SignInRequestDto(

@@ -1,6 +1,7 @@
 package com.wheels.app.features.auth.domain.repository
 
 import com.wheels.app.core.common.Resource
+import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.auth.domain.model.AuthUser
 import com.wheels.app.features.auth.domain.model.CreateAccountRequest
 import com.wheels.app.features.auth.domain.model.ForgotPasswordRequest
@@ -21,6 +22,10 @@ interface AuthRepository {
     suspend fun signIn(request: SignInRequest): Resource<AuthUser>
 
     suspend fun forgotPassword(request: ForgotPasswordRequest): Resource<Unit>
+
+    suspend fun switchActiveRole(role: UserRole): Resource<AuthUser>
+
+    suspend fun registerAdditionalRole(role: UserRole, password: String): Resource<AuthUser>
 
     suspend fun signOut()
 }

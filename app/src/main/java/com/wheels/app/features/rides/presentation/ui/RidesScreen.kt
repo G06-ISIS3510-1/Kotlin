@@ -636,14 +636,35 @@ private fun DriverCreateRideScreen(
                     )
                 }
 
-                items(state.driverRides, key = { it.id }) { ride ->
-                    DriverRideCard(
-                        ride = ride,
-                        onClick = {
-                            onMyRideSelected(ride.id)
-                        },
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
+                when {
+                    state.isLoadingDriverRides -> {
+                        item {
+                            Text(
+                                text = "Loading your rides...",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                    state.driverRides.isEmpty() -> {
+                        item {
+                            EmptyDriverRidesState(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                    }
+                    else -> {
+                        items(state.driverRides, key = { it.id }) { ride ->
+                            DriverRideCard(
+                                ride = ride,
+                                onClick = {
+                                    onMyRideSelected(ride.id)
+                                },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -667,7 +688,7 @@ private fun DriverCreateRideScreen(
                     contentPadding = PaddingValues(vertical = 16.dp),
                     content = {
                         Text(
-                            text = "Publish Ride",
+                            text = if (state.isPublishingRide) "Publishing..." else "Publish Ride",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -677,6 +698,14 @@ private fun DriverCreateRideScreen(
                         )
                     }
                 )
+                state.publishRideErrorMessage?.let { errorMessage ->
+                    Text(
+                        text = errorMessage,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFDC2626)
+                    )
+                }
             }
         }
     }
@@ -817,6 +846,29 @@ private fun MyRidesSummary(
                     color = WheelsSurface
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptyDriverRidesState(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "No rides published yet",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryBlue
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Create a ride and it will appear here for this account across devices.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
         }
     }
 }

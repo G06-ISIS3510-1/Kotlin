@@ -137,7 +137,7 @@ class FirebaseDriverTrustRepository @Inject constructor(
         val rideSnapshot = rideRef.get().awaitResult()
         val baseFields = mapOf(
             "driverId" to params.driverId,
-            "scheduledStartAt" to Timestamp(Date(params.scheduledStartAtMillis)),
+            "departureAt" to Timestamp(Date(params.scheduledStartAtMillis)),
             "updatedAt" to FieldValue.serverTimestamp()
         )
 
