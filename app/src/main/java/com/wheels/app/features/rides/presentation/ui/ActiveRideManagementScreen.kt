@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -58,6 +60,7 @@ import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.features.rides.presentation.navigation.NavigationLauncherService
 import com.wheels.app.features.rides.presentation.viewmodel.DriverPassengerUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideStatus
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideUiModel
@@ -74,6 +77,8 @@ fun ActiveRideManagementScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val ride = state.driverRides.firstOrNull { it.id == rideId }
+    val context = LocalContext.current
+    val navigationLauncher = remember { NavigationLauncherService() }
     var showEndConfirmation by remember { mutableStateOf(false) }
     var showCancelConfirmation by remember { mutableStateOf(false) }
     val isActionInProgress = state.actionInProgressRideId == rideId
@@ -229,6 +234,40 @@ fun ActiveRideManagementScreen(
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                                 color = SecondaryBlue
                             )
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                navigationLauncher.openDrivingDirections(
+                                    context = context,
+                                    destination = ride.destination,
+                                    origin = ride.origin
+                                )
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFE8F0F9),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, Border)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = Icons.Default.Navigation,
+                                contentDescription = null,
+                                tint = SecondaryBlue
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Open Drive Navigation",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = SecondaryBlue
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }

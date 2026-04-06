@@ -35,6 +35,7 @@ export interface BookingDocument {
 export interface RideDocument {
   driverId: string;
   status: RideStatus;
+  destination?: string;
   scheduledStartAt?: Timestamp;
   completedAt?: Timestamp;
   canceledAt?: Timestamp;
@@ -68,6 +69,31 @@ export interface RideCancellationAnalyticsDocument {
   cancellationType: CancellationAnalyticsType;
   driverName?: string;
   driverEmail?: string;
+}
+
+export interface DestinationEventDocument {
+  eventType: "ride_booked" | "search_performed";
+  userId: string;
+  rideId?: string;
+  destinationName: string;
+  destinationKey: string;
+  createdAt: Timestamp;
+}
+
+export interface UserDestinationInsightsDocument {
+  userId: string;
+  totalBookingsTracked: number;
+  destinationCounts: Array<{
+    destinationName: string;
+    bookingCount: number;
+  }>;
+  topDestinations: Array<{
+    destinationName: string;
+    bookingCount: number;
+    rank: number;
+  }>;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface TrustMetricsDocument {

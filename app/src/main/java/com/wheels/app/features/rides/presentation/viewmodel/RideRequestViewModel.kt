@@ -2,16 +2,23 @@ package com.wheels.app.features.rides.presentation.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
+import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class RideRequestViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    private val getUserProfileUseCase: GetUserProfileUseCase,
+    private val userDestinationInsightsRepository: UserDestinationInsightsRepository
 ) : ViewModel() {
 
     private val rideId: String = savedStateHandle.get<String>("rideId").orEmpty()
@@ -41,7 +48,25 @@ class RideRequestViewModel @Inject constructor(
             }
 
             RideRequestEvent.ConfirmRequest -> {
-                _uiState.update { it.copy(showConfirmation = false, requestConfirmed = true) }
+                confirmRideRequest()
+            }
+        }
+    }
+
+    private fun confirmRideRequest() {
+        val currentRide = _uiState.value.ride
+        _uiState.update { it.copy(showConfirmation = false, requestConfirmed = true) }
+
+        if (currentRide == null) return
+
+        viewModelScope.launch {
+            val currentUser = getUserProfileUseCase().firstOrNull() ?: return@launch
+            runCatching {
+                userDestinationInsightsRepository.logRideBookedDestination(
+                    userId = currentUser.id,
+                    rideId = currentRide.id,
+                    destinationName = currentRide.destination
+                )
             }
         }
     }

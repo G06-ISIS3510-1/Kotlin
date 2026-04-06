@@ -66,6 +66,7 @@ import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
 import com.wheels.app.features.home.presentation.viewmodel.ActiveRideUiModel
+import com.wheels.app.features.home.presentation.viewmodel.FrequentDestinationUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeQuickStat
 import com.wheels.app.features.home.presentation.viewmodel.HomeUpdateUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeUiState
@@ -92,6 +93,12 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 104.dp)
         ) {
             item { HeaderSection(state) }
+            item {
+                FrequentDestinationsSection(
+                    destinations = state.destinationInsights,
+                    trackedBookings = state.trackedDestinationBookings
+                )
+            }
             item { MapSection(state.activeRide) }
             item {
                 CurrentRideSection(
@@ -128,6 +135,91 @@ fun HomeScreen(
             modifier = Modifier
                 .padding(end = 20.dp, bottom = 140.dp)
                 .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
+        )
+    }
+}
+
+@Composable
+private fun FrequentDestinationsSection(
+    destinations: List<FrequentDestinationUiModel>,
+    trackedBookings: Int
+) {
+    if (destinations.isEmpty()) {
+        return
+    }
+
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = WheelsSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Your top destinations",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryBlue
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Based on your recent booked rides${if (trackedBookings > 0) " ($trackedBookings tracked)" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            destinations.forEach { destination ->
+                FrequentDestinationRow(destination = destination)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FrequentDestinationRow(destination: FrequentDestinationUiModel) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = when (destination.rank) {
+                1 -> ElectricGreen.copy(alpha = 0.16f)
+                2 -> Color(0xFFE8F0F9)
+                else -> WheelsBackground
+            }
+        ) {
+            Text(
+                text = "#${destination.rank}",
+                color = if (destination.rank == 1) ElectricGreen else SecondaryBlue,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = destination.destinationName,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = PrimaryBlue
+            )
+            Text(
+                text = "${destination.bookingCount} booked ride${if (destination.bookingCount > 1) "s" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.Place,
+            contentDescription = null,
+            tint = SecondaryBlue.copy(alpha = 0.7f)
         )
     }
 }
