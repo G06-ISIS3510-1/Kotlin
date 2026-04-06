@@ -35,6 +35,7 @@ export interface BookingDocument {
 export interface RideDocument {
   driverId: string;
   status: RideStatus;
+  departureAt?: Timestamp;
   scheduledStartAt?: Timestamp;
   completedAt?: Timestamp;
   canceledAt?: Timestamp;
