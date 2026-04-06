@@ -148,9 +148,6 @@ fun ActiveRideManagementScreen(
                 CurrentRideCard(ride = ride)
             }
             item {
-                LiveRouteCard()
-            }
-            item {
                 PassengersCard(
                     ride = ride,
                     passengers = ride.passengers
@@ -435,27 +432,6 @@ private fun CurrentRideCard(ride: DriverRideUiModel) {
                     modifier = Modifier.weight(1f)
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun LiveRouteCard() {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "[ LIVE ROUTE TRACKING ]",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = TextSecondary
-            )
         }
     }
 }
