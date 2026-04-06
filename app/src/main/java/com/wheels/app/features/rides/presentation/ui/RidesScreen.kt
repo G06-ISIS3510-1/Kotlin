@@ -998,6 +998,7 @@ private fun DriverRideStatusChip(status: DriverRideStatus) {
         DriverRideStatus.PENDING -> Triple("Pending", Color(0xFFFEF3C7), Color(0xFFF59E0B))
         DriverRideStatus.ACTIVE -> Triple("Active", Color(0xFFD1FAE5), ElectricGreen)
         DriverRideStatus.COMPLETED -> Triple("Completed", Color(0xFFE2E8F0), PrimaryBlue)
+        DriverRideStatus.CANCELLED -> Triple("Cancelled", Color(0xFFFEE2E2), Color(0xFFDC2626))
     }
 
     Surface(

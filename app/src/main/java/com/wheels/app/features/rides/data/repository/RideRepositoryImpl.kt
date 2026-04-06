@@ -97,6 +97,10 @@ class RideRepositoryImpl @Inject constructor(
         return rideId
     }
 
+    override suspend fun deleteDriverRide(rideId: String) {
+        firestore.collection(RIDES_COLLECTION).document(rideId).delete().awaitResult()
+    }
+
     override suspend fun bookRide(rideId: String, seats: Int): Booking =
         Booking(
             id = "b_001",
@@ -107,6 +111,7 @@ class RideRepositoryImpl @Inject constructor(
         )
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toDriverRideRecord(): DriverRideRecord? {
+        val status = getString("status").orEmpty().ifBlank { RIDE_STATUS_PUBLISHED }
         val departureAt = (getTimestamp("departureAt") ?: getTimestamp("scheduledStartAt"))
             ?.toDate()
             ?.toInstant()
@@ -136,7 +141,7 @@ class RideRepositoryImpl @Inject constructor(
             notes = getString("notes") ?: getString("description").orEmpty(),
             driverName = getString("driverName").orEmpty(),
             driverEmail = getString("driverEmail").orEmpty(),
-            status = getString("status").orEmpty().ifBlank { RIDE_STATUS_PUBLISHED }
+            status = status
         )
     }
 
@@ -150,6 +155,7 @@ class RideRepositoryImpl @Inject constructor(
     private companion object {
         const val RIDES_COLLECTION = "rides"
         const val RIDE_STATUS_PUBLISHED = "published"
+        const val RIDE_STATUS_CANCELED = "canceled"
         const val DEFAULT_RIDE_DURATION_MINUTES = 30
     }
 }

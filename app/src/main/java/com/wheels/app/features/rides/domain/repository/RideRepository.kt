@@ -10,5 +10,6 @@ interface RideRepository {
     fun getAvailableRides(): Flow<List<Ride>>
     fun observeDriverRides(driverId: String): Flow<List<DriverRideRecord>>
     suspend fun publishRide(request: PublishRideRequest): String
+    suspend fun deleteDriverRide(rideId: String)
     suspend fun bookRide(rideId: String, seats: Int): Booking
 }

@@ -219,6 +219,7 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.CompleteDriverRide -> completeDriverRide(event.rideId)
             is RidesEvent.CancelDriverRide -> cancelDriverRide(event.rideId)
             is RidesEvent.StartDriverRide -> startDriverRide(event.rideId)
+            is RidesEvent.DeleteDriverRide -> deleteDriverRide(event.rideId)
         }
     }
 
@@ -589,6 +590,9 @@ class RidesViewModel @Inject constructor(
 
     private fun completeDriverRide(rideId: String) {
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.ACTIVE) {
+            return showTrustError("Only active rides can be completed.")
+        }
         val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
 
         viewModelScope.launch {
@@ -636,6 +640,9 @@ class RidesViewModel @Inject constructor(
 
     private fun startDriverRide(rideId: String) {
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.PENDING) {
+            return showTrustError("Only pending rides can be started.")
+        }
         val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
 
         viewModelScope.launch {
@@ -666,6 +673,9 @@ class RidesViewModel @Inject constructor(
 
     private fun cancelDriverRide(rideId: String) {
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.PENDING) {
+            return showTrustError("Only pending rides can be canceled from this screen.")
+        }
         val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
 
         viewModelScope.launch {
@@ -679,8 +689,8 @@ class RidesViewModel @Inject constructor(
                     state.copy(
                         actionInProgressRideId = null,
                         trustNotice = notice,
-                        shouldPopAfterTrustNotice = true,
-                        ridePendingRemovalId = rideId
+                        shouldPopAfterTrustNotice = false,
+                        ridePendingRemovalId = null
                     )
                 }
             }.onFailure { throwable ->
@@ -695,15 +705,38 @@ class RidesViewModel @Inject constructor(
     private fun dismissTrustNotice() {
         _uiState.update { state ->
             state.copy(
-                driverRides = if (state.ridePendingRemovalId == null) {
-                    state.driverRides
-                } else {
-                    state.driverRides.filterNot { it.id == state.ridePendingRemovalId }
-                },
                 trustNotice = null,
                 shouldPopAfterTrustNotice = false,
                 ridePendingRemovalId = null
             )
+        }
+    }
+
+    private fun deleteDriverRide(rideId: String) {
+        val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.COMPLETED && ride.status != DriverRideStatus.CANCELLED) {
+            return showTrustError("Only completed or cancelled rides can be deleted from My Rides.")
+        }
+
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
+            runCatching {
+                rideRepository.deleteDriverRide(ride.backendRideId)
+            }.onSuccess {
+                _uiState.update { state ->
+                    state.copy(
+                        driverRides = state.driverRides.filterNot { it.id == rideId },
+                        actionInProgressRideId = null,
+                        trustNotice = null,
+                        shouldPopAfterTrustNotice = true
+                    )
+                }
+            }.onFailure { throwable ->
+                showTrustError(
+                    message = throwable.message ?: "We could not delete this ride right now.",
+                    rideId = rideId
+                )
+            }
         }
     }
 
@@ -819,6 +852,7 @@ sealed interface RidesEvent {
     data class CompleteDriverRide(val rideId: String) : RidesEvent
     data class CancelDriverRide(val rideId: String) : RidesEvent
     data class StartDriverRide(val rideId: String) : RidesEvent
+    data class DeleteDriverRide(val rideId: String) : RidesEvent
 }
 
 data class RidesUiState(
@@ -978,7 +1012,9 @@ private fun normalizeSearchValue(value: String): String {
 private fun String.toDriverRideStatus(): DriverRideStatus {
     return when (this) {
         "completed" -> DriverRideStatus.COMPLETED
+        "canceled" -> DriverRideStatus.CANCELLED
         "in_progress" -> DriverRideStatus.ACTIVE
+        "published" -> DriverRideStatus.PENDING
         else -> DriverRideStatus.PENDING
     }
 }
@@ -1015,7 +1051,8 @@ private fun defaultDriverPassengers(): List<DriverPassengerUiModel> {
 enum class DriverRideStatus {
     PENDING,
     ACTIVE,
-    COMPLETED
+    COMPLETED,
+    CANCELLED
 }
 
 enum class PaymentStatusState {
