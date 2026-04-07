@@ -3,6 +3,7 @@
 
 # Gradle
 .gradle/
+.gradle-user-home/
 build/
 */build/
 
