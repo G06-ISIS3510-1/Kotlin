@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -56,15 +55,6 @@ fun SignInScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val errorMessage = state.errorMessage
-
-    LaunchedEffect(state.signedIn) {
-        if (state.signedIn) {
-            navController.navigate(Destinations.Home.route) {
-                popUpTo(Destinations.SignIn.route) { inclusive = true }
-            }
-            viewModel.onEvent(SignInEvent.ConsumeNavigation)
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -127,10 +117,10 @@ fun SignInScreen(
                     .padding(20.dp)
             ) {
                 WheelsInputField(
-                    value = state.email,
-                    onValueChange = { viewModel.onEvent(SignInEvent.EmailChanged(it)) },
-                    label = "University Email",
-                    placeholder = "student@university.edu",
+                    value = state.username,
+                    onValueChange = { viewModel.onEvent(SignInEvent.UsernameChanged(it)) },
+                    label = "Uniandes Username",
+                    placeholder = "Enter your Uniandes username (without @uniandes.edu.co)",
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -169,6 +159,13 @@ fun SignInScreen(
                     modifier = Modifier
                         .align(Alignment.End)
                         .clickable { navController.navigate(Destinations.ForgotPassword.route) }
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "We'll sign you in as ${state.username.ifBlank { "your.username" }}@uniandes.edu.co",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
                 )
 
                 if (errorMessage != null) {
@@ -233,4 +230,3 @@ fun SignInScreen(
         }
     }
 }
-

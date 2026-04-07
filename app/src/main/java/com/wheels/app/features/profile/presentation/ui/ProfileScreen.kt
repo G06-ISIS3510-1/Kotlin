@@ -460,7 +460,7 @@ fun ProfileScreen(
                     )
                     .border(2.dp, Color(0xFFe5e9f2), RoundedCornerShape(20.dp))
                     .background(Color.White, RoundedCornerShape(20.dp))
-                    .clickable { /* Handle logout */ }
+                    .clickable { viewModel.onEvent(ProfileEvent.LogOut) }
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {

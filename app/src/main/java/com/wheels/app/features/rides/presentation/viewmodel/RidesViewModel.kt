@@ -10,6 +10,10 @@ import com.wheels.app.core.trust.domain.model.TrustScoreNoticeType
 import com.wheels.app.core.trust.domain.repository.DriverRideTrustActionParams
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
 import com.wheels.app.features.auth.domain.repository.AuthRepository
+import com.wheels.app.features.rides.domain.repository.CancellationBehaviorRepository
+import com.wheels.app.features.rides.domain.usecase.ShouldShowBehavioralNudgeUseCase
+import com.wheels.app.features.rides.domain.model.BehavioralNudge
+import com.wheels.app.features.rides.domain.model.CancellationBehaviorMetrics
 import com.wheels.app.features.rides.presentation.mock.OriginAutocompleteMocks
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
 import com.wheels.app.features.rides.presentation.model.RideLocationField
@@ -19,9 +23,12 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
 
@@ -30,12 +37,17 @@ class RidesViewModel @Inject constructor(
     private val getAvailableRidesUseCase: GetAvailableRidesUseCase,
     private val authRepository: AuthRepository,
     private val driverTrustRepository: DriverTrustRepository,
+    private val cancellationBehaviorRepository: CancellationBehaviorRepository,
+    private val shouldShowBehavioralNudgeUseCase: ShouldShowBehavioralNudgeUseCase,
     private val currentLocationProvider: CurrentLocationProvider,
     roleManager: RoleManager
 ) : ViewModel() {
 
     private var currentDriverId: String? = null
     private var observedTrustUserId: String? = null
+    private var observedCancellationMetricsUserId: String? = null
+
+    private fun newBackendRideId(prefix: String = "ride"): String = "$prefix-${UUID.randomUUID()}"
 
     private val mockRides = listOf(
         RideCardUiModel(
@@ -94,11 +106,12 @@ class RidesViewModel @Inject constructor(
     private val mockDriverRides = listOf(
         DriverRideUiModel(
             id = "driver-1",
+            backendRideId = newBackendRideId("mock-driver-1"),
             origin = "Campus Uniandes - Main Gate",
             destination = "Centro Comercial Andino",
-            date = "2026-03-19",
-            time = "14:30",
-            estimatedArrival = "15:00",
+            date = "2026-04-15",
+            time = "17:00",
+            estimatedArrival = "17:30",
             totalSeats = 3,
             pricePerSeat = 3500,
             carModel = "Toyota Corolla 2020",
@@ -108,11 +121,12 @@ class RidesViewModel @Inject constructor(
         ),
         DriverRideUiModel(
             id = "driver-2",
+            backendRideId = newBackendRideId("mock-driver-2"),
             origin = "Campus Uniandes - ML Building",
             destination = "Usaquen",
-            date = "2026-03-19",
-            time = "17:15",
-            estimatedArrival = "17:50",
+            date = "2026-04-15",
+            time = "17:00",
+            estimatedArrival = "17:35",
             totalSeats = 2,
             pricePerSeat = 4000,
             carModel = "Mazda 3 2021",
@@ -122,11 +136,12 @@ class RidesViewModel @Inject constructor(
         ),
         DriverRideUiModel(
             id = "driver-3",
+            backendRideId = newBackendRideId("mock-driver-3"),
             origin = "Campus Uniandes - Entrance Gate",
             destination = "Suba Centro",
-            date = "2026-03-20",
-            time = "07:45",
-            estimatedArrival = "08:25",
+            date = "2026-04-15",
+            time = "17:00",
+            estimatedArrival = "17:40",
             totalSeats = 4,
             pricePerSeat = 4500,
             carModel = "Chevrolet Spark 2019",
@@ -173,8 +188,8 @@ class RidesViewModel @Inject constructor(
                 suggestion = event.suggestion
             )
             is RidesEvent.DriverUseCurrentLocation -> useCurrentLocation(event.field)
-            is RidesEvent.DriverDateChanged -> updateDriverForm(date = event.value)
-            is RidesEvent.DriverTimeChanged -> updateDriverForm(time = event.value)
+            is RidesEvent.DriverDateChanged -> updateSchedule(date = event.value)
+            is RidesEvent.DriverTimeChanged -> updateSchedule(time = event.value)
             RidesEvent.DriverIncreaseSeats -> {
                 updateDriverForm(totalSeats = (_uiState.value.totalSeats + 1).coerceAtMost(6))
             }
@@ -201,12 +216,28 @@ class RidesViewModel @Inject constructor(
     private fun observeCurrentDriver() {
         viewModelScope.launch {
             authRepository.getCurrentUser()
-                .filterNotNull()
                 .collect { user ->
-                    currentDriverId = user.id
-                    if (observedTrustUserId != user.id) {
-                        observedTrustUserId = user.id
-                        observeTrustScore(user.id)
+                    if (user == null) {
+                        currentDriverId = null
+                        observedTrustUserId = null
+                        observedCancellationMetricsUserId = null
+                        _uiState.update { state ->
+                            state.copy(
+                                currentDriverTrustScore = null,
+                                cancellationBehaviorMetrics = null,
+                                behavioralNudge = null
+                            )
+                        }
+                    } else {
+                        currentDriverId = user.id
+                        if (observedTrustUserId != user.id) {
+                            observedTrustUserId = user.id
+                            observeTrustScore(user.id)
+                        }
+                        if (observedCancellationMetricsUserId != user.id) {
+                            observedCancellationMetricsUserId = user.id
+                            observeCancellationBehaviorMetrics(user.id)
+                        }
                     }
                 }
         }
@@ -221,6 +252,28 @@ class RidesViewModel @Inject constructor(
                 .collect { score ->
                     _uiState.update { state ->
                         state.copy(currentDriverTrustScore = score?.reliabilityScore)
+                    }
+                }
+        }
+    }
+
+    private fun observeCancellationBehaviorMetrics(userId: String) {
+        viewModelScope.launch {
+            cancellationBehaviorRepository.observeCancellationBehaviorMetrics(userId)
+                .catch {
+                    _uiState.update { state ->
+                        state.copy(
+                            cancellationBehaviorMetrics = null,
+                            behavioralNudge = null
+                        )
+                    }
+                }
+                .collect { metrics ->
+                    _uiState.update { state ->
+                        state.copy(
+                            cancellationBehaviorMetrics = metrics,
+                            behavioralNudge = shouldShowBehavioralNudgeUseCase(metrics)
+                        )
                     }
                 }
         }
@@ -278,6 +331,20 @@ class RidesViewModel @Inject constructor(
                 carModel = carModel,
                 licensePlate = licensePlate,
                 description = description
+            )
+        }
+    }
+
+    private fun updateSchedule(
+        date: String = _uiState.value.date,
+        time: String = _uiState.value.time
+    ) {
+        val validationMessage = validateSchedule(date = date, time = time)
+        _uiState.update {
+            it.copy(
+                date = date,
+                time = time,
+                scheduleValidationMessage = validationMessage
             )
         }
     }
@@ -397,6 +464,7 @@ class RidesViewModel @Inject constructor(
 
         val newRide = DriverRideUiModel(
             id = "driver-${UUID.randomUUID()}",
+            backendRideId = newBackendRideId("created-driver"),
             origin = currentState.origin,
             destination = currentState.destination,
             date = currentState.date,
@@ -696,7 +764,10 @@ data class RidesUiState(
     val trustNotice: TrustScoreNotice? = null,
     val shouldPopAfterTrustNotice: Boolean = false,
     val ridePendingRemovalId: String? = null,
-    val currentLocationLoadingField: RideLocationField? = null
+    val currentLocationLoadingField: RideLocationField? = null,
+    val cancellationBehaviorMetrics: CancellationBehaviorMetrics? = null,
+    val behavioralNudge: BehavioralNudge? = null,
+    val scheduleValidationMessage: String? = null
 ) {
     val estimatedEarnings: Int
         get() = (pricePerSeat.toIntOrNull() ?: 0) * totalSeats
@@ -708,7 +779,8 @@ data class RidesUiState(
             time.isNotBlank() &&
             pricePerSeat.isNotBlank() &&
             carModel.isNotBlank() &&
-            licensePlate.isNotBlank()
+            licensePlate.isNotBlank() &&
+            scheduleValidationMessage == null
 }
 
 enum class DriverRidesTab {
@@ -718,6 +790,7 @@ enum class DriverRidesTab {
 
 data class DriverRideUiModel(
     val id: String,
+    val backendRideId: String,
     val origin: String,
     val destination: String,
     val date: String,
@@ -747,10 +820,31 @@ data class DriverRideUiModel(
         }.getOrElse { System.currentTimeMillis() }
 
         return DriverRideTrustActionParams(
-            rideId = id,
+            rideId = backendRideId,
             driverId = driverId,
             scheduledStartAtMillis = scheduledStartAtMillis
         )
+    }
+}
+
+private fun validateSchedule(date: String, time: String): String? {
+    if (date.isBlank() || time.isBlank()) return null
+
+    val selectedDate = runCatching {
+        LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
+    }.getOrNull() ?: return null
+
+    val selectedTime = runCatching {
+        LocalTime.parse(time, DateTimeFormatter.ofPattern("HH:mm"))
+    }.getOrNull() ?: return null
+
+    val now = LocalDateTime.now()
+    if (selectedDate != now.toLocalDate()) return null
+
+    return if (selectedTime.isBefore(now.toLocalTime().withSecond(0).withNano(0))) {
+        "If the ride is today, choose a departure time later than the current time."
+    } else {
+        null
     }
 }
 

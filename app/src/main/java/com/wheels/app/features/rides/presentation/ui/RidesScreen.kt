@@ -59,9 +59,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateOf import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +81,7 @@ import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
 import com.wheels.app.features.rides.presentation.model.RideLocationField
 import com.wheels.app.features.rides.presentation.ui.components.LocationAutocompleteField
@@ -324,6 +324,16 @@ private fun DriverCreateRideScreen(
                     )
                 }
 
+                state.behavioralNudge?.let { nudge ->
+                    item {
+                        BehavioralNudgeCard(
+                            nudge = nudge,
+                            averageHoursBeforeCancellation = state.cancellationBehaviorMetrics?.averageHoursBeforeCancellation,
+                            cancellationCount = state.cancellationBehaviorMetrics?.cancellationCount
+                        )
+                    }
+                }
+
                 item {
                     FormSection(title = "Route Details") {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -413,17 +423,40 @@ private fun DriverCreateRideScreen(
                                 readOnly = true,
                                 onClick = {
                                     val calendar = Calendar.getInstance()
+                                    val selectedDateIsToday = state.date == String.format(
+                                        "%04d-%02d-%02d",
+                                        calendar.get(Calendar.YEAR),
+                                        calendar.get(Calendar.MONTH) + 1,
+                                        calendar.get(Calendar.DAY_OF_MONTH)
+                                    )
+                                    val initialHour = if (selectedDateIsToday) {
+                                        calendar.get(Calendar.HOUR_OF_DAY)
+                                    } else {
+                                        calendar.get(Calendar.HOUR_OF_DAY)
+                                    }
+                                    val initialMinute = if (selectedDateIsToday) {
+                                        calendar.get(Calendar.MINUTE)
+                                    } else {
+                                        calendar.get(Calendar.MINUTE)
+                                    }
                                     TimePickerDialog(
                                         context,
                                         { _, hourOfDay, minute ->
                                             onTimeChanged(String.format("%02d:%02d", hourOfDay, minute))
                                         },
-                                        calendar.get(Calendar.HOUR_OF_DAY),
-                                        calendar.get(Calendar.MINUTE),
+                                        initialHour,
+                                        initialMinute,
                                         true
                                     ).show()
                                 }
                             )
+                            state.scheduleValidationMessage?.let { validationMessage ->
+                                Text(
+                                    text = validationMessage,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
                         }
                     }
                 }
@@ -642,6 +675,56 @@ private fun DriverCreateRideScreen(
                             contentDescription = null
                         )
                     }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BehavioralNudgeCard(
+    nudge: BehavioralNudge,
+    averageHoursBeforeCancellation: Double?,
+    cancellationCount: Int?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)),
+        border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = Color(0xFFF59E0B)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = nudge.title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = PrimaryBlue
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = nudge.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+            if (averageHoursBeforeCancellation != null &&
+                averageHoursBeforeCancellation >= 0 &&
+                cancellationCount != null
+            ) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Recent pattern: $cancellationCount cancellations, average ${String.format("%.1f", averageHoursBeforeCancellation)} hours before departure.",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = PrimaryBlue
                 )
             }
         }
@@ -1672,7 +1755,7 @@ private fun ActionButton(
                 Icon(
                     imageVector = trailingIcon,
                     contentDescription = null,
-                    tint = WheelsSurface,
+                    tint = if (emphasized) WheelsSurface else SecondaryBlue,
                     modifier = Modifier.size(18.dp)
                 )
             }
