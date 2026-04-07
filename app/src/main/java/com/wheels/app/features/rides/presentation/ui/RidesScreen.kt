@@ -59,9 +59,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateOf import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1809,7 +1808,7 @@ private fun ActionButton(
                 Icon(
                     imageVector = trailingIcon,
                     contentDescription = null,
-                    tint = WheelsSurface,
+                    tint = if (emphasized) WheelsSurface else SecondaryBlue,
                     modifier = Modifier.size(18.dp)
                 )
             }

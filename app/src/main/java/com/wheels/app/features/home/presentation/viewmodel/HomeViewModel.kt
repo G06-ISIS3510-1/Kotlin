@@ -3,6 +3,7 @@ package com.wheels.app.features.home.presentation.viewmodel
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
 import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
@@ -14,11 +15,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getUserProfileUseCase: GetUserProfileUseCase
+    private val getUserProfileUseCase: GetUserProfileUseCase,
+    private val userDestinationInsightsRepository: UserDestinationInsightsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var observedInsightsUserId: String? = null
 
     init {
         observeCurrentUser()
@@ -42,6 +45,41 @@ class HomeViewModel @Inject constructor(
                             ?.ifBlank { user.fullName }
                             ?: "User"
                     )
+
+                    if (user == null) {
+                        observedInsightsUserId = null
+                        _uiState.value = _uiState.value.copy(
+                            destinationInsights = emptyList(),
+                            trackedDestinationBookings = 0
+                        )
+                    } else if (observedInsightsUserId != user.id) {
+                        observedInsightsUserId = user.id
+                        observeDestinationInsights(user.id)
+                    }
+                }
+        }
+    }
+
+    private fun observeDestinationInsights(userId: String) {
+        viewModelScope.launch {
+            userDestinationInsightsRepository.observeUserDestinationInsights(userId)
+                .catch {
+                    _uiState.value = _uiState.value.copy(
+                        destinationInsights = emptyList(),
+                        trackedDestinationBookings = 0
+                    )
+                }
+                .collect { insights ->
+                    _uiState.value = _uiState.value.copy(
+                        destinationInsights = insights?.topDestinations.orEmpty().map {
+                            FrequentDestinationUiModel(
+                                destinationName = it.destinationName,
+                                bookingCount = it.bookingCount,
+                                rank = it.rank
+                            )
+                        },
+                        trackedDestinationBookings = insights?.totalBookingsTracked ?: 0
+                    )
                 }
         }
     }
@@ -61,6 +99,8 @@ data class HomeUiState(
         HomeQuickStat(label = "Rating", value = "5.0")
     ),
     val activeRide: ActiveRideUiModel = ActiveRideUiModel(),
+    val destinationInsights: List<FrequentDestinationUiModel> = emptyList(),
+    val trackedDestinationBookings: Int = 0,
     val updates: List<HomeUpdateUiModel> = listOf(
         HomeUpdateUiModel(
             title = "Driver arriving soon",
@@ -75,6 +115,12 @@ data class HomeUiState(
             tone = UpdateTone.Info
         )
     )
+)
+
+data class FrequentDestinationUiModel(
+    val destinationName: String,
+    val bookingCount: Int,
+    val rank: Int
 )
 
 data class HomeQuickStat(

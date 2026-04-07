@@ -167,6 +167,7 @@ fun RideRequestScreen(
             totalPrice = state.totalPrice,
             onDismiss = { viewModel.onEvent(RideRequestEvent.ConfirmationDismissed) },
             onConfirm = {
+                viewModel.onEvent(RideRequestEvent.ConfirmRequest)
                 navController.navigate(
                     Destinations.BookingConfirmation.createRoute(
                         rideId = ride.id,

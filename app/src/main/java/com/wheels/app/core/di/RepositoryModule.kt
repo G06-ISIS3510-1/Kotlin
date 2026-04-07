@@ -1,5 +1,7 @@
 package com.wheels.app.core.di
 
+import com.wheels.app.core.analytics.data.repository.FirebaseUserDestinationInsightsRepository
+import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
 import com.wheels.app.core.location.data.provider.FusedCurrentLocationProvider
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
 import com.wheels.app.core.session.data.repository.FirebaseUserSessionMetadataRepository
@@ -23,6 +25,12 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindUserDestinationInsightsRepository(
+        impl: FirebaseUserDestinationInsightsRepository
+    ): UserDestinationInsightsRepository
 
     @Binds
     @Singleton
