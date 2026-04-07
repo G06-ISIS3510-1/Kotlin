@@ -7,5 +7,5 @@ data class CreateAccountRequest(
     val username: String,
     val password: String,
     val phone: String,
-    val role: UserRole = UserRole.PASSENGER
+    val roles: Set<UserRole> = setOf(UserRole.PASSENGER)
 )

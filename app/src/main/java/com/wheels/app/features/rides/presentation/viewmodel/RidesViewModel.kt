@@ -14,6 +14,9 @@ import com.wheels.app.features.rides.domain.repository.CancellationBehaviorRepos
 import com.wheels.app.features.rides.domain.usecase.ShouldShowBehavioralNudgeUseCase
 import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.domain.model.CancellationBehaviorMetrics
+import com.wheels.app.features.rides.domain.model.DriverRideRecord
+import com.wheels.app.features.rides.domain.model.PublishRideRequest
+import com.wheels.app.features.rides.domain.repository.RideRepository
 import com.wheels.app.features.rides.presentation.mock.OriginAutocompleteMocks
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
 import com.wheels.app.features.rides.presentation.model.RideLocationField
@@ -29,12 +32,14 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class RidesViewModel @Inject constructor(
     private val getAvailableRidesUseCase: GetAvailableRidesUseCase,
+    private val rideRepository: RideRepository,
     private val authRepository: AuthRepository,
     private val driverTrustRepository: DriverTrustRepository,
     private val cancellationBehaviorRepository: CancellationBehaviorRepository,
@@ -44,8 +49,12 @@ class RidesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private var currentDriverId: String? = null
+    private var currentDriverName: String = ""
+    private var currentDriverEmail: String = ""
+    private var currentDriverRating: Int = 5
     private var observedTrustUserId: String? = null
     private var observedCancellationMetricsUserId: String? = null
+    private var observedDriverRidesUserId: String? = null
 
     private fun newBackendRideId(prefix: String = "ride"): String = "$prefix-${UUID.randomUUID()}"
 
@@ -103,7 +112,7 @@ class RidesViewModel @Inject constructor(
         )
     )
 
-    private val mockDriverRides = listOf(
+    private val seedDriverRides = listOf(
         DriverRideUiModel(
             id = "driver-1",
             backendRideId = newBackendRideId("mock-driver-1"),
@@ -159,7 +168,7 @@ class RidesViewModel @Inject constructor(
         RidesUiState(
             allRides = mockRides,
             filteredRides = mockRides,
-            driverRides = mockDriverRides
+            driverRides = emptyList()
         )
     )
     val uiState: StateFlow<RidesUiState> = _uiState.asStateFlow()
@@ -210,6 +219,7 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.CompleteDriverRide -> completeDriverRide(event.rideId)
             is RidesEvent.CancelDriverRide -> cancelDriverRide(event.rideId)
             is RidesEvent.StartDriverRide -> startDriverRide(event.rideId)
+            is RidesEvent.DeleteDriverRide -> deleteDriverRide(event.rideId)
         }
     }
 
@@ -219,17 +229,32 @@ class RidesViewModel @Inject constructor(
                 .collect { user ->
                     if (user == null) {
                         currentDriverId = null
+                        currentDriverName = ""
+                        currentDriverEmail = ""
+                        currentDriverRating = 5
                         observedTrustUserId = null
                         observedCancellationMetricsUserId = null
+                        observedDriverRidesUserId = null
                         _uiState.update { state ->
                             state.copy(
                                 currentDriverTrustScore = null,
                                 cancellationBehaviorMetrics = null,
-                                behavioralNudge = null
+                                behavioralNudge = null,
+                                driverRides = emptyList(),
+                                isLoadingDriverRides = false
                             )
                         }
                     } else {
                         currentDriverId = user.id
+                        currentDriverName = user.fullName.ifBlank {
+                            user.email.substringBefore("@").replace('.', ' ')
+                        }
+                        currentDriverEmail = user.email
+                        currentDriverRating = if (user.rating > 0.0) {
+                            user.rating.roundToInt().coerceIn(1, 5)
+                        } else {
+                            5
+                        }
                         if (observedTrustUserId != user.id) {
                             observedTrustUserId = user.id
                             observeTrustScore(user.id)
@@ -237,6 +262,10 @@ class RidesViewModel @Inject constructor(
                         if (observedCancellationMetricsUserId != user.id) {
                             observedCancellationMetricsUserId = user.id
                             observeCancellationBehaviorMetrics(user.id)
+                        }
+                        if (observedDriverRidesUserId != user.id) {
+                            observedDriverRidesUserId = user.id
+                            observeDriverRides(user.id)
                         }
                     }
                 }
@@ -273,6 +302,29 @@ class RidesViewModel @Inject constructor(
                         state.copy(
                             cancellationBehaviorMetrics = metrics,
                             behavioralNudge = shouldShowBehavioralNudgeUseCase(metrics)
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun observeDriverRides(userId: String) {
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(isLoadingDriverRides = true) }
+            rideRepository.observeDriverRides(userId)
+                .catch {
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoadingDriverRides = false,
+                            driverRides = emptyList()
+                        )
+                    }
+                }
+                .collect { rides ->
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoadingDriverRides = false,
+                            driverRides = rides.map { it.toUiModel() }
                         )
                     }
                 }
@@ -330,7 +382,8 @@ class RidesViewModel @Inject constructor(
                 pricePerSeat = pricePerSeat,
                 carModel = carModel,
                 licensePlate = licensePlate,
-                description = description
+                description = description,
+                publishRideErrorMessage = null
             )
         }
     }
@@ -344,7 +397,8 @@ class RidesViewModel @Inject constructor(
             it.copy(
                 date = date,
                 time = time,
-                scheduleValidationMessage = validationMessage
+                scheduleValidationMessage = validationMessage,
+                publishRideErrorMessage = null
             )
         }
     }
@@ -461,53 +515,84 @@ class RidesViewModel @Inject constructor(
     private fun publishRide() {
         val currentState = _uiState.value
         if (!currentState.canPublishRide) return
-
-        val newRide = DriverRideUiModel(
-            id = "driver-${UUID.randomUUID()}",
-            backendRideId = newBackendRideId("created-driver"),
-            origin = currentState.origin,
-            destination = currentState.destination,
+        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+        val departureAt = buildRideDateTime(
             date = currentState.date,
-            time = currentState.time,
-            estimatedArrival = estimateArrival(currentState.time),
-            totalSeats = currentState.totalSeats,
-            pricePerSeat = currentState.pricePerSeat.toIntOrNull() ?: 0,
-            carModel = currentState.carModel,
-            licensePlate = currentState.licensePlate,
-            status = DriverRideStatus.PENDING,
-            passengers = defaultPassengers.take(currentState.totalSeats.coerceAtMost(defaultPassengers.size))
-        )
+            time = currentState.time
+        ) ?: return showTrustError("We could not parse the selected ride schedule.")
+        val estimatedDurationMinutes = 30
 
-        _uiState.update {
-            it.copy(
-                driverSelectedTab = DriverRidesTab.MY_RIDES,
-                driverRides = (it.driverRides + newRide).sortedBy { ride -> "${ride.date} ${ride.time}" },
-                origin = "",
-                selectedOrigin = null,
-                originSuggestions = emptyList(),
-                showOriginSuggestions = false,
-                originNoResults = false,
-                originLocationError = null,
-                destination = "",
-                selectedDestination = null,
-                destinationSuggestions = emptyList(),
-                showDestinationSuggestions = false,
-                destinationNoResults = false,
-                destinationLocationError = null,
-                date = "",
-                time = "",
-                totalSeats = 3,
-                pricePerSeat = "",
-                carModel = "",
-                licensePlate = "",
-                description = "",
-                currentLocationLoadingField = null
-            )
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(isPublishingRide = true) }
+            runCatching {
+                rideRepository.publishRide(
+                    PublishRideRequest(
+                        driverId = driverId,
+                        driverName = currentDriverName,
+                        driverEmail = currentDriverEmail,
+                        origin = currentState.origin,
+                        originSearch = normalizeSearchValue(currentState.origin),
+                        destination = currentState.destination,
+                        destinationSearch = normalizeSearchValue(currentState.destination),
+                        departureAt = departureAt,
+                        estimatedDurationMinutes = estimatedDurationMinutes,
+                        totalSeats = currentState.totalSeats,
+                        pricePerSeat = currentState.pricePerSeat.toIntOrNull() ?: 0,
+                        carModel = currentState.carModel,
+                        licensePlate = currentState.licensePlate,
+                        notes = currentState.description,
+                        driverRating = currentDriverRating,
+                        onTimeRate = 100,
+                        reviewCount = 0,
+                        verifiedByUniversity = true
+                    )
+                )
+            }.onSuccess {
+                _uiState.update { state ->
+                    state.copy(
+                        isPublishingRide = false,
+                        driverSelectedTab = DriverRidesTab.MY_RIDES,
+                        origin = "",
+                        selectedOrigin = null,
+                        originSuggestions = emptyList(),
+                        showOriginSuggestions = false,
+                        originNoResults = false,
+                        originLocationError = null,
+                        destination = "",
+                        selectedDestination = null,
+                        destinationSuggestions = emptyList(),
+                        showDestinationSuggestions = false,
+                        destinationNoResults = false,
+                        destinationLocationError = null,
+                        date = "",
+                        time = "",
+                        totalSeats = 3,
+                        pricePerSeat = "",
+                        carModel = "",
+                        licensePlate = "",
+                        description = "",
+                        currentLocationLoadingField = null,
+                        scheduleValidationMessage = null,
+                        publishRideErrorMessage = null
+                    )
+                }
+            }.onFailure { throwable ->
+                _uiState.update { state ->
+                    state.copy(
+                        isPublishingRide = false,
+                        publishRideErrorMessage = throwable.message
+                            ?: "We could not publish this ride right now."
+                    )
+                }
+            }
         }
     }
 
     private fun completeDriverRide(rideId: String) {
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.ACTIVE) {
+            return showTrustError("Only active rides can be completed.")
+        }
         val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
 
         viewModelScope.launch {
@@ -555,6 +640,9 @@ class RidesViewModel @Inject constructor(
 
     private fun startDriverRide(rideId: String) {
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.PENDING) {
+            return showTrustError("Only pending rides can be started.")
+        }
         val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
 
         viewModelScope.launch {
@@ -585,6 +673,9 @@ class RidesViewModel @Inject constructor(
 
     private fun cancelDriverRide(rideId: String) {
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.PENDING) {
+            return showTrustError("Only pending rides can be canceled from this screen.")
+        }
         val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
 
         viewModelScope.launch {
@@ -598,8 +689,8 @@ class RidesViewModel @Inject constructor(
                     state.copy(
                         actionInProgressRideId = null,
                         trustNotice = notice,
-                        shouldPopAfterTrustNotice = true,
-                        ridePendingRemovalId = rideId
+                        shouldPopAfterTrustNotice = false,
+                        ridePendingRemovalId = null
                     )
                 }
             }.onFailure { throwable ->
@@ -614,15 +705,38 @@ class RidesViewModel @Inject constructor(
     private fun dismissTrustNotice() {
         _uiState.update { state ->
             state.copy(
-                driverRides = if (state.ridePendingRemovalId == null) {
-                    state.driverRides
-                } else {
-                    state.driverRides.filterNot { it.id == state.ridePendingRemovalId }
-                },
                 trustNotice = null,
                 shouldPopAfterTrustNotice = false,
                 ridePendingRemovalId = null
             )
+        }
+    }
+
+    private fun deleteDriverRide(rideId: String) {
+        val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
+        if (ride.status != DriverRideStatus.COMPLETED && ride.status != DriverRideStatus.CANCELLED) {
+            return showTrustError("Only completed or cancelled rides can be deleted from My Rides.")
+        }
+
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
+            runCatching {
+                rideRepository.deleteDriverRide(ride.backendRideId)
+            }.onSuccess {
+                _uiState.update { state ->
+                    state.copy(
+                        driverRides = state.driverRides.filterNot { it.id == rideId },
+                        actionInProgressRideId = null,
+                        trustNotice = null,
+                        shouldPopAfterTrustNotice = true
+                    )
+                }
+            }.onFailure { throwable ->
+                showTrustError(
+                    message = throwable.message ?: "We could not delete this ride right now.",
+                    rideId = rideId
+                )
+            }
         }
     }
 
@@ -651,6 +765,20 @@ class RidesViewModel @Inject constructor(
         val arrivalHour = (totalMinutes / 60) % 24
         val arrivalMinute = totalMinutes % 60
         return String.format("%02d:%02d", arrivalHour, arrivalMinute)
+    }
+
+    private fun buildRideDateTime(date: String, time: String): java.time.Instant? {
+        val selectedDate = runCatching {
+            LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
+        }.getOrNull() ?: return null
+
+        val selectedTime = runCatching {
+            LocalTime.parse(time, DateTimeFormatter.ofPattern("HH:mm"))
+        }.getOrNull() ?: return null
+
+        return selectedDate.atTime(selectedTime)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
     }
 
     private fun filterLocationSuggestions(query: String): List<LocationSuggestion> {
@@ -724,6 +852,7 @@ sealed interface RidesEvent {
     data class CompleteDriverRide(val rideId: String) : RidesEvent
     data class CancelDriverRide(val rideId: String) : RidesEvent
     data class StartDriverRide(val rideId: String) : RidesEvent
+    data class DeleteDriverRide(val rideId: String) : RidesEvent
 }
 
 data class RidesUiState(
@@ -767,7 +896,10 @@ data class RidesUiState(
     val currentLocationLoadingField: RideLocationField? = null,
     val cancellationBehaviorMetrics: CancellationBehaviorMetrics? = null,
     val behavioralNudge: BehavioralNudge? = null,
-    val scheduleValidationMessage: String? = null
+    val scheduleValidationMessage: String? = null,
+    val isPublishingRide: Boolean = false,
+    val publishRideErrorMessage: String? = null,
+    val isLoadingDriverRides: Boolean = false
 ) {
     val estimatedEarnings: Int
         get() = (pricePerSeat.toIntOrNull() ?: 0) * totalSeats
@@ -780,7 +912,8 @@ data class RidesUiState(
             pricePerSeat.isNotBlank() &&
             carModel.isNotBlank() &&
             licensePlate.isNotBlank() &&
-            scheduleValidationMessage == null
+            scheduleValidationMessage == null &&
+            !isPublishingRide
 }
 
 enum class DriverRidesTab {
@@ -848,10 +981,78 @@ private fun validateSchedule(date: String, time: String): String? {
     }
 }
 
+private fun DriverRideRecord.toUiModel(): DriverRideUiModel {
+    val dateTime = departureAt.atZone(java.time.ZoneId.systemDefault())
+    val arrivalDateTime = departureAt
+        .plusSeconds(estimatedDurationMinutes * 60L)
+        .atZone(java.time.ZoneId.systemDefault())
+
+    return DriverRideUiModel(
+        id = id,
+        backendRideId = id,
+        origin = origin,
+        destination = destination,
+        date = dateTime.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE),
+        time = dateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
+        estimatedArrival = arrivalDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
+        totalSeats = totalSeats,
+        pricePerSeat = pricePerSeat,
+        carModel = carModel,
+        licensePlate = licensePlate,
+        status = status.toDriverRideStatus(),
+        passengers = defaultDriverPassengers()
+            .take(totalSeats.coerceAtMost(defaultDriverPassengers().size))
+    )
+}
+
+private fun normalizeSearchValue(value: String): String {
+    return value.trim().lowercase()
+}
+
+private fun String.toDriverRideStatus(): DriverRideStatus {
+    return when (this) {
+        "completed" -> DriverRideStatus.COMPLETED
+        "canceled" -> DriverRideStatus.CANCELLED
+        "in_progress" -> DriverRideStatus.ACTIVE
+        "published" -> DriverRideStatus.PENDING
+        else -> DriverRideStatus.PENDING
+    }
+}
+
+private fun defaultDriverPassengers(): List<DriverPassengerUiModel> {
+    return listOf(
+        DriverPassengerUiModel(
+            id = "passenger-1",
+            name = "Ana Garcia",
+            rating = 4.9,
+            seat = 1,
+            status = "confirmed",
+            paymentStatus = PaymentStatusState.PENDING
+        ),
+        DriverPassengerUiModel(
+            id = "passenger-2",
+            name = "Pedro Lopez",
+            rating = 4.7,
+            seat = 2,
+            status = "confirmed",
+            paymentStatus = PaymentStatusState.PENDING
+        ),
+        DriverPassengerUiModel(
+            id = "passenger-3",
+            name = "Maria Diaz",
+            rating = 5.0,
+            seat = 3,
+            status = "confirmed",
+            paymentStatus = PaymentStatusState.PENDING
+        )
+    )
+}
+
 enum class DriverRideStatus {
     PENDING,
     ACTIVE,
-    COMPLETED
+    COMPLETED,
+    CANCELLED
 }
 
 enum class PaymentStatusState {

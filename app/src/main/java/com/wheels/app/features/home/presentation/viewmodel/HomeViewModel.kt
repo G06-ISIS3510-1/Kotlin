@@ -19,10 +19,9 @@ class HomeViewModel @Inject constructor(
     private val userDestinationInsightsRepository: UserDestinationInsightsRepository
 ) : ViewModel() {
 
-    private var observedInsightsUserId: String? = null
-
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var observedInsightsUserId: String? = null
 
     init {
         observeCurrentUser()

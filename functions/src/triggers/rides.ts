@@ -13,6 +13,10 @@ import {
 import { updateUserCancellationMetrics } from "../services/cancellationMetrics.js";
 import { RideDocument } from "../types/trust.js";
 
+function resolveDepartureAt(ride: RideDocument) {
+  return ride.departureAt ?? ride.scheduledStartAt;
+}
+
 export const onRideCompleted = onDocumentUpdated(
   "rides/{rideId}",
   async (event) => {
@@ -53,7 +57,9 @@ export const onRideCanceled = onDocumentUpdated(
       return;
     }
 
-    if (!after.canceledAt || !after.scheduledStartAt) {
+    const departureAt = resolveDepartureAt(after);
+
+    if (!after.canceledAt || !departureAt) {
       logger.warn("Ride cancellation missing timestamps", {
         rideId: event.params.rideId,
       });
@@ -62,7 +68,7 @@ export const onRideCanceled = onDocumentUpdated(
 
     const eventId = `ride_canceled:${event.params.rideId}`;
     const hoursBeforeRide = calculateHoursBeforeDeparture({
-      scheduledStartAt: after.scheduledStartAt,
+      departureAt,
       canceledAt: after.canceledAt,
     });
     const penalty = classifyCancellationPenalty(hoursBeforeRide);
@@ -97,7 +103,7 @@ export const onRideCanceled = onDocumentUpdated(
         rideId: event.params.rideId,
         userId: after.driverId,
         role: "driver",
-        scheduledStartAt: after.scheduledStartAt,
+        departureAt,
         canceledAt: after.canceledAt,
       });
     } catch (error) {

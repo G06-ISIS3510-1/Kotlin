@@ -103,9 +103,9 @@ function toInsightsDocument(
 }
 
 function upsertDestinationCount(
-  destinations: UserDestinationInsightsDocument["topDestinations"],
+  destinations: UserDestinationInsightsDocument["destinationCounts"],
   destinationName: string,
-): UserDestinationInsightsDocument["topDestinations"] {
+): UserDestinationInsightsDocument["destinationCounts"] {
   const existingDestination = destinations.find(
     (item) => item.destinationName === destinationName,
   );
@@ -116,7 +116,6 @@ function upsertDestinationCount(
       {
         destinationName,
         bookingCount: 1,
-        rank: destinations.length + 1,
       },
     ];
   }

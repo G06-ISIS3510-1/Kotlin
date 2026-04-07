@@ -4,6 +4,8 @@ import com.wheels.app.core.analytics.data.repository.FirebaseUserDestinationInsi
 import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
 import com.wheels.app.core.location.data.provider.FusedCurrentLocationProvider
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
+import com.wheels.app.core.session.data.repository.FirebaseUserSessionMetadataRepository
+import com.wheels.app.core.session.domain.repository.UserSessionMetadataRepository
 import com.wheels.app.core.trust.data.repository.FirebaseDriverTrustRepository
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
 import com.wheels.app.features.auth.data.repository.AuthRepositoryImpl
@@ -55,4 +57,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCurrentLocationProvider(impl: FusedCurrentLocationProvider): CurrentLocationProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindUserSessionMetadataRepository(
+        impl: FirebaseUserSessionMetadataRepository
+    ): UserSessionMetadataRepository
 }

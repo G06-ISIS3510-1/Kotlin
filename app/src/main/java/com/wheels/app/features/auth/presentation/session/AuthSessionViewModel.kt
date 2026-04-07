@@ -2,6 +2,8 @@ package com.wheels.app.features.auth.presentation.session
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheels.app.core.session.RoleManager
+import com.wheels.app.core.session.domain.usecase.SyncCurrentSessionMetadataUseCase
 import com.wheels.app.features.auth.domain.model.AuthUser
 import com.wheels.app.features.auth.domain.usecase.ObserveAuthSessionUseCase
 import com.wheels.app.features.auth.domain.usecase.RestoreSessionUseCase
@@ -16,7 +18,9 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthSessionViewModel @Inject constructor(
     private val restoreSessionUseCase: RestoreSessionUseCase,
-    private val observeAuthSessionUseCase: ObserveAuthSessionUseCase
+    private val observeAuthSessionUseCase: ObserveAuthSessionUseCase,
+    private val roleManager: RoleManager,
+    private val syncCurrentSessionMetadataUseCase: SyncCurrentSessionMetadataUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthSessionUiState())
@@ -33,12 +37,21 @@ class AuthSessionViewModel @Inject constructor(
                 isLoading = false,
                 authUser = restoredUser
             )
+            roleManager.syncFromAuthUser(restoredUser)
+            if (restoredUser != null) {
+                runCatching { syncCurrentSessionMetadataUseCase() }
+            }
 
             observeAuthSessionUseCase()
                 .catch {
+                    roleManager.syncFromAuthUser(null)
                     _uiState.value = _uiState.value.copy(isLoading = false, authUser = null)
                 }
                 .collect { authUser ->
+                    roleManager.syncFromAuthUser(authUser)
+                    if (authUser != null) {
+                        runCatching { syncCurrentSessionMetadataUseCase() }
+                    }
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         authUser = authUser

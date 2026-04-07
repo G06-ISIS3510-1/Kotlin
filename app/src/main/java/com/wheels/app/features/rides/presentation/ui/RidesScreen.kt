@@ -635,14 +635,35 @@ private fun DriverCreateRideScreen(
                     )
                 }
 
-                items(state.driverRides, key = { it.id }) { ride ->
-                    DriverRideCard(
-                        ride = ride,
-                        onClick = {
-                            onMyRideSelected(ride.id)
-                        },
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
+                when {
+                    state.isLoadingDriverRides -> {
+                        item {
+                            Text(
+                                text = "Loading your rides...",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                    state.driverRides.isEmpty() -> {
+                        item {
+                            EmptyDriverRidesState(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                    }
+                    else -> {
+                        items(state.driverRides, key = { it.id }) { ride ->
+                            DriverRideCard(
+                                ride = ride,
+                                onClick = {
+                                    onMyRideSelected(ride.id)
+                                },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -666,7 +687,7 @@ private fun DriverCreateRideScreen(
                     contentPadding = PaddingValues(vertical = 16.dp),
                     content = {
                         Text(
-                            text = "Publish Ride",
+                            text = if (state.isPublishingRide) "Publishing..." else "Publish Ride",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -676,6 +697,14 @@ private fun DriverCreateRideScreen(
                         )
                     }
                 )
+                state.publishRideErrorMessage?.let { errorMessage ->
+                    Text(
+                        text = errorMessage,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFDC2626)
+                    )
+                }
             }
         }
     }
@@ -821,6 +850,29 @@ private fun MyRidesSummary(
 }
 
 @Composable
+private fun EmptyDriverRidesState(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "No rides published yet",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryBlue
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Create a ride and it will appear here for this account across devices.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
 private fun DriverRideCard(
     ride: DriverRideUiModel,
     onClick: () -> Unit,
@@ -945,6 +997,7 @@ private fun DriverRideStatusChip(status: DriverRideStatus) {
         DriverRideStatus.PENDING -> Triple("Pending", Color(0xFFFEF3C7), Color(0xFFF59E0B))
         DriverRideStatus.ACTIVE -> Triple("Active", Color(0xFFD1FAE5), ElectricGreen)
         DriverRideStatus.COMPLETED -> Triple("Completed", Color(0xFFE2E8F0), PrimaryBlue)
+        DriverRideStatus.CANCELLED -> Triple("Cancelled", Color(0xFFFEE2E2), Color(0xFFDC2626))
     }
 
     Surface(

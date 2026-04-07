@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.wheels.app.core.navigation.Destinations
+import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
@@ -168,6 +171,37 @@ fun CreateAccountScreen(
                     color = TextSecondary
                 )
 
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Choose your role(s)",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = PrimaryBlue
+                    )
+                    Text(
+                        text = "You can register as passenger, driver, or both. If you choose both, Wheels will start in passenger mode first.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        RoleSelectionChip(
+                            label = UserRole.PASSENGER.displayName,
+                            selected = UserRole.PASSENGER in state.selectedRoles,
+                            onClick = {
+                                viewModel.onEvent(CreateAccountEvent.RoleToggled(UserRole.PASSENGER))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        RoleSelectionChip(
+                            label = UserRole.DRIVER.displayName,
+                            selected = UserRole.DRIVER in state.selectedRoles,
+                            onClick = {
+                                viewModel.onEvent(CreateAccountEvent.RoleToggled(UserRole.DRIVER))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
                 WheelsInputField(
                     value = state.phone,
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.PhoneChanged(it)) },
@@ -281,3 +315,29 @@ fun CreateAccountScreen(
     }
 }
 
+@Composable
+private fun RoleSelectionChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (selected) PrimaryBlue.copy(alpha = 0.08f) else Color.Transparent,
+            contentColor = if (selected) PrimaryBlue else TextSecondary
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (selected) PrimaryBlue else Border
+        )
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+        )
+    }
+}

@@ -2,9 +2,9 @@ package com.wheels.app.core.di
 
 import android.content.Context
 import com.google.firebase.FirebaseApp
-import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,16 +15,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object FirebaseModule {
-
-    @Provides
-    @Singleton
-    fun provideFirebaseAnalytics(
-        @ApplicationContext context: Context
-    ): FirebaseAnalytics {
-        val app = FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context)
-        requireNotNull(app)
-        return FirebaseAnalytics.getInstance(context)
-    }
 
     @Provides
     @Singleton
@@ -42,5 +32,14 @@ object FirebaseModule {
     ): FirebaseFirestore {
         val app = FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context)
         return FirebaseFirestore.getInstance(requireNotNull(app))
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseMessaging(
+        @ApplicationContext context: Context
+    ): FirebaseMessaging {
+        FirebaseApp.getApps(context).firstOrNull() ?: FirebaseApp.initializeApp(context)
+        return FirebaseMessaging.getInstance()
     }
 }

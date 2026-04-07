@@ -10,11 +10,11 @@ const USERS_COLLECTION = "users";
 const BOGOTA_TIMEZONE = "America/Bogota";
 
 export function calculateHoursBeforeDeparture(params: {
-  scheduledStartAt: Timestamp;
+  departureAt: Timestamp;
   canceledAt: Timestamp;
 }): number {
   const millisecondsUntilRide =
-    params.scheduledStartAt.toMillis() - params.canceledAt.toMillis();
+    params.departureAt.toMillis() - params.canceledAt.toMillis();
 
   return Number((millisecondsUntilRide / (1000 * 60 * 60)).toFixed(2));
 }
@@ -39,12 +39,12 @@ export async function recordRideCancellationAnalytics(params: {
   rideId: string;
   userId: string;
   role: "driver" | "passenger";
-  scheduledStartAt: Timestamp;
+  departureAt: Timestamp;
   canceledAt: Timestamp;
 }): Promise<void> {
-  const { db, eventId, rideId, userId, role, scheduledStartAt, canceledAt } = params;
+  const { db, eventId, rideId, userId, role, departureAt, canceledAt } = params;
   const hoursBeforeDeparture = calculateHoursBeforeDeparture({
-    scheduledStartAt,
+    departureAt,
     canceledAt,
   });
   const driverProfile = await readUserProfile(db, userId);

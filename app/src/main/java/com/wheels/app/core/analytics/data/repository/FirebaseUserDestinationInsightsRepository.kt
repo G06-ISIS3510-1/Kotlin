@@ -3,8 +3,6 @@ package com.wheels.app.core.analytics.data.repository
 import android.content.Context
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseApp
-import com.google.firebase.analytics.FirebaseAnalytics
-import com.google.firebase.analytics.ktx.logEvent
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.wheels.app.core.analytics.domain.model.DestinationInsight
@@ -29,7 +27,6 @@ import kotlin.coroutines.resumeWithException
 @Singleton
 class FirebaseUserDestinationInsightsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val firebaseAnalytics: FirebaseAnalytics,
     private val ioDispatcher: CoroutineDispatcher
 ) : UserDestinationInsightsRepository {
 
@@ -43,17 +40,11 @@ class FirebaseUserDestinationInsightsRepository @Inject constructor(
             val normalizedDestination = normalizeDestination(destinationName)
             val eventId = "ride_booked_${userId}_${rideId}_${UUID.randomUUID()}"
 
-            firebaseAnalytics.logEvent(EVENT_RIDE_BOOKED) {
-                param(PARAM_RIDE_ID, rideId)
-                param(PARAM_DESTINATION_NAME, destinationName)
-                param(PARAM_DESTINATION_KEY, normalizedDestination)
-            }
-
             firestore.collection(DESTINATION_EVENTS_COLLECTION)
                 .document(eventId)
                 .set(
                     mapOf(
-                        "eventType" to EVENT_RIDE_BOOKED,
+                        "eventType" to "ride_booked",
                         "userId" to userId,
                         "rideId" to rideId,
                         "destinationName" to destinationName,
@@ -134,9 +125,5 @@ class FirebaseUserDestinationInsightsRepository @Inject constructor(
     private companion object {
         const val DESTINATION_EVENTS_COLLECTION = "analytics_destination_events"
         const val USER_DESTINATION_INSIGHTS_COLLECTION = "user_destination_insights"
-        const val EVENT_RIDE_BOOKED = "ride_booked"
-        const val PARAM_RIDE_ID = "ride_id"
-        const val PARAM_DESTINATION_NAME = "destination_name"
-        const val PARAM_DESTINATION_KEY = "destination_key"
     }
 }
