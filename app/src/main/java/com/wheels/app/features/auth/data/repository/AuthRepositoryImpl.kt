@@ -162,12 +162,42 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun forgotPassword(request: ForgotPasswordRequest): Resource<Unit> {
         return withContext(ioDispatcher) {
             val institutionalEmail = buildInstitutionalEmail(request.username)
+            val normalizedUsername = request.username.trim().substringBefore("@").lowercase()
 
             runCatching {
                 firebaseAuth.sendPasswordResetEmail(institutionalEmail).awaitResult()
+                runCatching {
+                    firestore.collection(PASSWORD_RESET_REQUESTS_COLLECTION)
+                        .add(
+                            mapOf(
+                                "username" to normalizedUsername,
+                                "email" to institutionalEmail,
+                                "status" to "email_sent",
+                                "requestedAt" to FieldValue.serverTimestamp(),
+                                "source" to "android_app"
+                            )
+                        )
+                        .awaitResult()
+                }
             }.fold(
                 onSuccess = { Resource.Success(Unit) },
-                onFailure = { Resource.Error(it.toAuthFailure().message) }
+                onFailure = {
+                    runCatching {
+                        firestore.collection(PASSWORD_RESET_REQUESTS_COLLECTION)
+                            .add(
+                                mapOf(
+                                    "username" to normalizedUsername,
+                                    "email" to institutionalEmail,
+                                    "status" to "failed",
+                                    "requestedAt" to FieldValue.serverTimestamp(),
+                                    "failureMessage" to it.toAuthFailure().message,
+                                    "source" to "android_app"
+                                )
+                            )
+                            .awaitResult()
+                    }
+                    Resource.Error(it.toAuthFailure().message)
+                }
             )
         }
     }
@@ -339,5 +369,6 @@ class AuthRepositoryImpl @Inject constructor(
 
     private companion object {
         const val USERS_COLLECTION = "users"
+        const val PASSWORD_RESET_REQUESTS_COLLECTION = "passwordResetRequests"
     }
 }
