@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -438,41 +439,6 @@ fun ProfileScreen(
                             onClick = { navController.navigate(Destinations.TrustFairness.route) },
                             showDivider = true
                         )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp, bottom = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Trust & Fairness Theme",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF1a3a5c)
-                                )
-                                Text(
-                                    text = if (state.trustFairnessDarkMode) "Dark mode enabled" else "Light mode enabled",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF64748b)
-                                )
-                            }
-                            TextButton(
-                                onClick = { viewModel.onEvent(ProfileEvent.ToggleTrustFairnessDarkMode) }
-                            ) {
-                                Text(
-                                    text = if (state.trustFairnessDarkMode) "Use Light" else "Use Dark",
-                                    color = Color(0xFF1a3a5c),
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                        Divider(
-                            color = Color(0xFFe5e9f2),
-                            thickness = 1.dp,
-                            modifier = Modifier.fillMaxWidth()
-                        )
                         MenuItemRow(
                             icon = Icons.Outlined.CreditCard,
                             title = "Payment Methods",
@@ -514,6 +480,13 @@ fun ProfileScreen(
                         .padding(20.dp)
                 ) {
                     Column {
+                        MenuItemRow(
+                            icon = Icons.Outlined.Palette,
+                            title = "UI Theme",
+                            subtitle = "Adjust dark mode and adaptive appearance",
+                            onClick = { navController.navigate(Destinations.UiTheme.route) },
+                            showDivider = true
+                        )
                         MenuItemRow(
                             icon = Icons.Outlined.Notifications,
                             title = "Notifications",

@@ -28,4 +28,5 @@ sealed class Destinations(val route: String) {
     }
     data object Profile : Destinations("profile")
     data object TrustFairness : Destinations("trust_fairness")
+    data object UiTheme : Destinations("ui_theme")
 }

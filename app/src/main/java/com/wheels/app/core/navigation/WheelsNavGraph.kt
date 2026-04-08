@@ -32,6 +32,7 @@ import com.wheels.app.features.payments.presentation.ui.QuickPaymentScreen
 import com.wheels.app.features.payments.presentation.viewmodel.PaymentsViewModel
 import com.wheels.app.features.profile.presentation.ui.ProfileScreen
 import com.wheels.app.features.profile.presentation.ui.TrustFairnessScreen
+import com.wheels.app.features.profile.presentation.ui.UiThemeScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 import com.wheels.app.features.rides.presentation.ui.ActiveRideManagementScreen
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
@@ -225,6 +226,12 @@ fun WheelsNavGraph() {
                     innerPadding = innerPadding,
                     navController = navController,
                     viewModel = viewModel
+                )
+            }
+            composable(Destinations.UiTheme.route) {
+                UiThemeScreen(
+                    innerPadding = innerPadding,
+                    navController = navController
                 )
             }
             composable(
