@@ -1,6 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /passwordResetRequests/{requestId} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+
     match /trustScores/{userId} {
       allow read: if true;
       allow write: if false;
