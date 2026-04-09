@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Schedule
@@ -75,6 +76,7 @@ import com.wheels.app.features.home.presentation.viewmodel.HomeQuickStat
 import com.wheels.app.features.home.presentation.viewmodel.HomeUpdateUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeUiState
 import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
+import com.wheels.app.features.home.presentation.viewmodel.LocationAwareCardUiModel
 import com.wheels.app.features.home.presentation.viewmodel.UpdateTone
 
 @Composable
@@ -97,6 +99,12 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 104.dp)
         ) {
             item { HeaderSection(state) }
+            item {
+                LocationAwareSection(
+                    card = state.locationAwareCard,
+                    onActionClick = { navController.navigate(Destinations.Rides.route) }
+                )
+            }
             item {
                 FrequentDestinationsSection(
                     destinations = state.destinationInsights,
@@ -140,6 +148,88 @@ fun HomeScreen(
                 .padding(end = 20.dp, bottom = 140.dp)
                 .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
         )
+    }
+}
+
+@Composable
+private fun LocationAwareSection(
+    card: LocationAwareCardUiModel,
+    onActionClick: () -> Unit
+) {
+    val gradient = if (card.isPreciseLocationAvailable) {
+        listOf(Color(0xFFE8F6FF), Color(0xFFD5EBFF))
+    } else {
+        listOf(Color(0xFFF3F6FA), Color(0xFFE8EDF4))
+    }
+    val accent = if (card.isPreciseLocationAvailable) SecondaryBlue else PrimaryBlue
+
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .background(Brush.linearGradient(gradient))
+                .padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = accent.copy(alpha = 0.14f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MyLocation,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Location-Aware System",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = accent
+                    )
+                    Text(
+                        text = card.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = PrimaryBlue
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = card.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onActionClick,
+                shape = RoundedCornerShape(999.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = accent,
+                    contentColor = WheelsSurface
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Explore,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = card.actionLabel)
+            }
+        }
     }
 }
 
