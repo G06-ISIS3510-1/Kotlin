@@ -52,6 +52,7 @@ fun UiThemeScreen(
 ) {
     val themeState = viewModel.uiState.collectAsStateWithLifecycle()
     val darkModeEnabled = themeState.value.isDarkModeEnabled
+    val adaptiveThemeEnabled = themeState.value.isAdaptiveThemeEnabled
     val colorScheme = MaterialTheme.colorScheme
 
     Box(
@@ -131,7 +132,7 @@ fun UiThemeScreen(
                             title = "Dark mode",
                             subtitle = if (darkModeEnabled) "Enabled" else "Disabled",
                             checked = darkModeEnabled,
-                            enabled = true,
+                            enabled = !adaptiveThemeEnabled,
                             onCheckedChange = viewModel::setDarkModeEnabled
                         )
 
@@ -144,10 +145,10 @@ fun UiThemeScreen(
                         ThemeSwitchRow(
                             icon = Icons.Outlined.WbSunny,
                             title = "Adaptive UI Theme",
-                            subtitle = "Coming soon. Dark mode is manual for now.",
-                            checked = false,
-                            enabled = false,
-                            onCheckedChange = {}
+                            subtitle = "The UI Theme adapts to the environmental light.",
+                            checked = adaptiveThemeEnabled,
+                            enabled = true,
+                            onCheckedChange = viewModel::setAdaptiveThemeEnabled
                         )
                     }
                 }

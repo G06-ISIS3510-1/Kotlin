@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
             val themeViewModel: ThemeSettingsViewModel = hiltViewModel()
             val themeState = themeViewModel.uiState.collectAsStateWithLifecycle()
 
-            WheelsTheme(darkTheme = themeState.value.isDarkModeEnabled) {
+            WheelsTheme(darkTheme = themeState.value.effectiveDarkTheme) {
                 WheelsNavGraph(themeViewModel = themeViewModel)
             }
         }

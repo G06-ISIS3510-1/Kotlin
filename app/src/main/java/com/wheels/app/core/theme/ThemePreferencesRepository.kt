@@ -10,6 +10,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
+
+data class ThemePreferences(
+    val isDarkModeEnabled: Boolean = false,
+    val isAdaptiveThemeEnabled: Boolean = false
+)
 
 @Singleton
 class ThemePreferencesRepository @Inject constructor(
@@ -19,9 +25,14 @@ class ThemePreferencesRepository @Inject constructor(
         produceFile = { context.preferencesDataStoreFile("theme_preferences") }
     )
 
-    val isDarkModeEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[DARK_MODE_ENABLED] ?: false
-    }
+    val themePreferences: Flow<ThemePreferences> = dataStore.data
+        .map { preferences ->
+            ThemePreferences(
+                isDarkModeEnabled = preferences[DARK_MODE_ENABLED] ?: false,
+                isAdaptiveThemeEnabled = preferences[ADAPTIVE_THEME_ENABLED] ?: false
+            )
+        }
+        .distinctUntilChanged()
 
     suspend fun setDarkModeEnabled(enabled: Boolean) {
         dataStore.edit { preferences ->
@@ -29,7 +40,14 @@ class ThemePreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setAdaptiveThemeEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[ADAPTIVE_THEME_ENABLED] = enabled
+        }
+    }
+
     private companion object {
         val DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
+        val ADAPTIVE_THEME_ENABLED = booleanPreferencesKey("adaptive_theme_enabled")
     }
 }
