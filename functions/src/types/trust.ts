@@ -62,7 +62,7 @@ export interface UserCancellationMetricsDocument {
 export interface RideCancellationAnalyticsDocument {
   userId: string;
   rideId: string;
-  role: "driver" | "passenger";
+  activeRole: "driver" | "passenger";
   cancelledAt: FieldValue;
   cancellationHour: number;
   cancellationDayOfWeek: number;

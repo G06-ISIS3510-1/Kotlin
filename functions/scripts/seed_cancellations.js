@@ -9,15 +9,15 @@ const COLLECTION_NAME = "analytics_ride_cancellations";
 const DEFAULT_COUNT = 15;
 const BOGOTA_TIMEZONE = "America/Bogota";
 
-const DRIVER_PROFILES = [
-  { userId: "user_001", driverName: "Andres", driverEmail: "andres@uniandes.edu.co", weight: 5 },
-  { userId: "user_002", driverName: "Maria", driverEmail: "maria@uniandes.edu.co", weight: 4 },
-  { userId: "user_003", driverName: "Juan", driverEmail: "juan@uniandes.edu.co", weight: 3 },
-  { userId: "user_004", driverName: "Valentina", driverEmail: "valentina@uniandes.edu.co", weight: 2 },
-  { userId: "user_005", driverName: "Camilo", driverEmail: "camilo@uniandes.edu.co", weight: 2 },
-  { userId: "user_006", driverName: "Paula", driverEmail: "paula@uniandes.edu.co", weight: 2 },
-  { userId: "user_007", driverName: "Santiago", driverEmail: "santiago@uniandes.edu.co", weight: 1 },
-  { userId: "user_008", driverName: "Laura", driverEmail: "laura@uniandes.edu.co", weight: 1 },
+const USER_PROFILES = [
+  { userId: "user_001", fullName: "Andres", email: "andres@uniandes.edu.co", weight: 5 },
+  { userId: "user_002", fullName: "Maria", email: "maria@uniandes.edu.co", weight: 4 },
+  { userId: "user_003", fullName: "Juan", email: "juan@uniandes.edu.co", weight: 3 },
+  { userId: "user_004", fullName: "Valentina", email: "valentina@uniandes.edu.co", weight: 2 },
+  { userId: "user_005", fullName: "Camilo", email: "camilo@uniandes.edu.co", weight: 2 },
+  { userId: "user_006", fullName: "Paula", email: "paula@uniandes.edu.co", weight: 2 },
+  { userId: "user_007", fullName: "Santiago", email: "santiago@uniandes.edu.co", weight: 1 },
+  { userId: "user_008", fullName: "Laura", email: "laura@uniandes.edu.co", weight: 1 },
 ];
 
 async function main() {
@@ -80,7 +80,11 @@ function initializeFirebase(serviceAccountPath, projectId) {
 }
 
 function buildCancellationEvent(index) {
-  const driver = weightedPick(DRIVER_PROFILES);
+  const user = weightedPick(USER_PROFILES);
+  const activeRole = weightedPick([
+    { value: "driver", weight: 7 },
+    { value: "passenger", weight: 3 },
+  ]).value;
   const cancellationType = weightedPick([
     { value: "late", weight: 5 },
     { value: "normal", weight: 3 },
@@ -91,11 +95,11 @@ function buildCancellationEvent(index) {
   const cancelledAt = Timestamp.fromDate(cancelledAtDate);
 
   return {
-    userId: driver.userId,
+    userId: user.userId,
     rideId: `seed-ride-${Date.now()}-${index}-${randomInt(1000, 9999)}`,
-    role: "driver",
-    driverName: driver.driverName,
-    driverEmail: driver.driverEmail,
+    activeRole,
+    driverName: user.fullName,
+    driverEmail: user.email,
     cancellationType,
     cancellationHour: extractHourInBogota(cancelledAtDate),
     cancellationDayOfWeek: extractIsoDayOfWeekInBogota(cancelledAtDate),

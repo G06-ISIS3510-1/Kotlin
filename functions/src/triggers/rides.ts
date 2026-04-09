@@ -102,7 +102,7 @@ export const onRideCanceled = onDocumentUpdated(
         eventId,
         rideId: event.params.rideId,
         userId: after.driverId,
-        role: "driver",
+        activeRole: "driver",
         departureAt,
         canceledAt: after.canceledAt,
       });

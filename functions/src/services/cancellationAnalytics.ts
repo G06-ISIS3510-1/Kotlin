@@ -38,11 +38,11 @@ export async function recordRideCancellationAnalytics(params: {
   eventId: string;
   rideId: string;
   userId: string;
-  role: "driver" | "passenger";
+  activeRole: "driver" | "passenger";
   departureAt: Timestamp;
   canceledAt: Timestamp;
 }): Promise<void> {
-  const { db, eventId, rideId, userId, role, departureAt, canceledAt } = params;
+  const { db, eventId, rideId, userId, activeRole, departureAt, canceledAt } = params;
   const hoursBeforeDeparture = calculateHoursBeforeDeparture({
     departureAt,
     canceledAt,
@@ -52,7 +52,7 @@ export async function recordRideCancellationAnalytics(params: {
   const analyticsDoc: RideCancellationAnalyticsDocument = {
     userId,
     rideId,
-    role,
+    activeRole,
     cancelledAt: FieldValue.serverTimestamp(),
     cancellationHour: extractHourInBogota(canceledAt),
     cancellationDayOfWeek: extractIsoDayOfWeekInBogota(canceledAt),
