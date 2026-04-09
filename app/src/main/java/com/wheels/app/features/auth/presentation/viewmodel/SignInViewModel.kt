@@ -2,6 +2,9 @@ package com.wheels.app.features.auth.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheels.app.core.behavior.domain.event.AppOpenSource
+import com.wheels.app.core.behavior.domain.model.AppOpenIdentity
+import com.wheels.app.core.behavior.domain.usecase.TrackAppOpenUseCase
 import com.wheels.app.core.common.Resource
 import com.wheels.app.features.auth.domain.model.SignInRequest
 import com.wheels.app.features.auth.domain.usecase.SignInUseCase
@@ -15,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SignInViewModel @Inject constructor(
-    private val signInUseCase: SignInUseCase
+    private val signInUseCase: SignInUseCase,
+    private val trackAppOpenUseCase: TrackAppOpenUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignInUiState())
@@ -47,7 +51,16 @@ class SignInViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
             when (val result = signInUseCase(SignInRequest(state.username.trim(), state.password))) {
-                is Resource.Success -> _uiState.update { it.copy(isSubmitting = false) }
+                is Resource.Success -> {
+                    trackAppOpenUseCase(
+                        identity = AppOpenIdentity(
+                            uid = result.data.uid,
+                            email = result.data.email
+                        ),
+                        source = AppOpenSource.LOGIN
+                    )
+                    _uiState.update { it.copy(isSubmitting = false) }
+                }
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(isSubmitting = false, errorMessage = result.message)

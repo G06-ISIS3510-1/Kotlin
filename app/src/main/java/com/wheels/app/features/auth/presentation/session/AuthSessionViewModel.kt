@@ -2,6 +2,9 @@ package com.wheels.app.features.auth.presentation.session
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheels.app.core.behavior.domain.event.AppOpenSource
+import com.wheels.app.core.behavior.domain.model.AppOpenIdentity
+import com.wheels.app.core.behavior.domain.usecase.TrackAppOpenUseCase
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.domain.usecase.SyncCurrentSessionMetadataUseCase
 import com.wheels.app.features.auth.domain.model.AuthUser
@@ -20,7 +23,8 @@ class AuthSessionViewModel @Inject constructor(
     private val restoreSessionUseCase: RestoreSessionUseCase,
     private val observeAuthSessionUseCase: ObserveAuthSessionUseCase,
     private val roleManager: RoleManager,
-    private val syncCurrentSessionMetadataUseCase: SyncCurrentSessionMetadataUseCase
+    private val syncCurrentSessionMetadataUseCase: SyncCurrentSessionMetadataUseCase,
+    private val trackAppOpenUseCase: TrackAppOpenUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthSessionUiState())
@@ -39,6 +43,13 @@ class AuthSessionViewModel @Inject constructor(
             )
             roleManager.syncFromAuthUser(restoredUser)
             if (restoredUser != null) {
+                trackAppOpenUseCase(
+                    identity = AppOpenIdentity(
+                        uid = restoredUser.uid,
+                        email = restoredUser.email
+                    ),
+                    source = AppOpenSource.SESSION_RESTORE
+                )
                 runCatching { syncCurrentSessionMetadataUseCase() }
             }
 
