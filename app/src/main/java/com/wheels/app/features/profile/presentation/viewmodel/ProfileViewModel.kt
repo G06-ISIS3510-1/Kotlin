@@ -3,6 +3,7 @@ package com.wheels.app.features.profile.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.common.Resource
+import com.wheels.app.core.analytics.domain.usecase.TrackRoleChangeUseCase
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
@@ -29,7 +30,8 @@ class ProfileViewModel @Inject constructor(
     private val driverTrustRepository: DriverTrustRepository,
     private val signOutUseCase: SignOutUseCase,
     private val switchActiveRoleUseCase: SwitchActiveRoleUseCase,
-    private val registerAdditionalRoleUseCase: RegisterAdditionalRoleUseCase
+    private val registerAdditionalRoleUseCase: RegisterAdditionalRoleUseCase,
+    private val trackRoleChangeUseCase: TrackRoleChangeUseCase
 ) : ViewModel() {
 
     private var observedTrustUserId: String? = null
@@ -138,11 +140,20 @@ class ProfileViewModel @Inject constructor(
 
     private fun switchRole(role: UserRole) {
         if (roleManager.hasRole(role)) {
+            val previousRole = _uiState.value.activeRole
             viewModelScope.launch {
                 _uiState.value = _uiState.value.copy(roleActionLoading = true, roleInfoMessage = null)
                 when (val result = switchActiveRoleUseCase(role)) {
                     is Resource.Success -> {
                         roleManager.syncFromAuthUser(result.data)
+                        trackRoleChangeUseCase(
+                            uid = result.data.uid,
+                            email = result.data.email,
+                            oldRole = previousRole.storageValue,
+                            newRole = role.storageValue,
+                            sourceScreen = "Profile",
+                            sourceAction = "switch_active_role"
+                        )
                         _uiState.value = _uiState.value.copy(
                             roleActionLoading = false,
                             roleInfoMessage = "You are now using Wheels as ${role.displayName.lowercase()}."
@@ -170,12 +181,21 @@ class ProfileViewModel @Inject constructor(
     private fun confirmRoleUpgrade() {
         val targetRole = _uiState.value.roleUpgradeTarget ?: return
         val password = _uiState.value.roleUpgradePassword
+        val previousRole = _uiState.value.activeRole
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(roleActionLoading = true, roleUpgradeErrorMessage = null)
             when (val result = registerAdditionalRoleUseCase(targetRole, password)) {
                 is Resource.Success -> {
                     roleManager.syncFromAuthUser(result.data)
+                    trackRoleChangeUseCase(
+                        uid = result.data.uid,
+                        email = result.data.email,
+                        oldRole = previousRole.storageValue,
+                        newRole = targetRole.storageValue,
+                        sourceScreen = "Profile",
+                        sourceAction = "register_additional_role"
+                    )
                     _uiState.value = _uiState.value.copy(
                         roleActionLoading = false,
                         roleUpgradeTarget = null,
