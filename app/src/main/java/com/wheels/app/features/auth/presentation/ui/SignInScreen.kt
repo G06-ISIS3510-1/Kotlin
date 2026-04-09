@@ -55,11 +55,12 @@ fun SignInScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val errorMessage = state.errorMessage
+    val colorScheme = MaterialTheme.colorScheme
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFFE8F0F9), WheelsSurface)))
+            .background(Brush.verticalGradient(listOf(colorScheme.surfaceVariant, colorScheme.background)))
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp)
@@ -68,7 +69,7 @@ fun SignInScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = PrimaryBlue
+                tint = colorScheme.onBackground
             )
         }
 
@@ -92,13 +93,13 @@ fun SignInScreen(
             Text(
                 text = "Welcome Back",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = PrimaryBlue
+                color = colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Sign in to continue to Wheels",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -187,8 +188,8 @@ fun SignInScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
-                        contentColor = WheelsSurface,
+                        containerColor = colorScheme.primary,
+                        contentColor = colorScheme.onPrimary,
                         disabledContainerColor = Border,
                         disabledContentColor = TextSecondary
                     )
@@ -197,7 +198,7 @@ fun SignInScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = WheelsSurface
+                            color = colorScheme.onPrimary
                         )
                     } else {
                         Text(
@@ -212,7 +213,7 @@ fun SignInScreen(
                 Text(
                     text = "Don't have an account? Sign Up",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
+                    color = colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )

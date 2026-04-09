@@ -67,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -76,11 +77,14 @@ import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
+import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
+import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
 import com.wheels.app.features.rides.presentation.model.RideLocationField
@@ -770,7 +774,7 @@ private fun DriverTabSwitcher(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFE8F0F9))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -796,10 +800,12 @@ private fun DriverTabButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Surface(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = if (selected) WheelsSurface else Color.Transparent
+        color = if (selected) colorScheme.surface else Color.Transparent
     ) {
         Box(
             modifier = Modifier.padding(vertical = 12.dp),
@@ -808,7 +814,7 @@ private fun DriverTabButton(
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = if (selected) PrimaryBlue else TextSecondary
+                color = if (selected) colorScheme.onSurface else colorScheme.onSurfaceVariant
             )
         }
     }
@@ -993,11 +999,12 @@ private fun DriverRideCard(
 
 @Composable
 private fun DriverRideStatusChip(status: DriverRideStatus) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val (label, backgroundColor, textColor) = when (status) {
-        DriverRideStatus.PENDING -> Triple("Pending", Color(0xFFFEF3C7), Color(0xFFF59E0B))
-        DriverRideStatus.ACTIVE -> Triple("Active", Color(0xFFD1FAE5), ElectricGreen)
-        DriverRideStatus.COMPLETED -> Triple("Completed", Color(0xFFE2E8F0), PrimaryBlue)
-        DriverRideStatus.CANCELLED -> Triple("Cancelled", Color(0xFFFEE2E2), Color(0xFFDC2626))
+        DriverRideStatus.PENDING -> Triple("Pending", if (isDark) Color(0xFF3A2E11) else Color(0xFFFEF3C7), Color(0xFFF59E0B))
+        DriverRideStatus.ACTIVE -> Triple("Active", if (isDark) Color(0xFF123126) else Color(0xFFD1FAE5), ElectricGreen)
+        DriverRideStatus.COMPLETED -> Triple("Completed", if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0), if (isDark) Color(0xFFBFDBFE) else PrimaryBlue)
+        DriverRideStatus.CANCELLED -> Triple("Cancelled", if (isDark) Color(0xFF3F1D1D) else Color(0xFFFEE2E2), Color(0xFFDC2626))
     }
 
     Surface(
@@ -1019,7 +1026,7 @@ private fun CreateRideHeader(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
+            .background(gradientHeaderBrush())
             .padding(horizontal = 20.dp, vertical = 18.dp)
             .padding(top = 20.dp)
     ) {
@@ -1033,13 +1040,13 @@ private fun CreateRideHeader(onBack: () -> Unit) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = WheelsSurface,
+                    tint = GradientHeaderPrimaryContent,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Back",
-                    color = WheelsSurface.copy(alpha = 0.84f),
+                    color = GradientHeaderSecondaryContent,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -1050,13 +1057,13 @@ private fun CreateRideHeader(onBack: () -> Unit) {
         Text(
             text = "Create a Ride",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = WheelsSurface
+            color = GradientHeaderPrimaryContent
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Publish your ride and earn money",
             style = MaterialTheme.typography.bodyMedium,
-            color = WheelsSurface.copy(alpha = 0.84f)
+            color = GradientHeaderSecondaryContent
         )
     }
 }
@@ -1260,7 +1267,7 @@ private fun RidesHeader(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
+            .background(gradientHeaderBrush())
             .padding(horizontal = 20.dp, vertical = 18.dp)
             .padding(top = 20.dp)
     ) {
@@ -1274,13 +1281,13 @@ private fun RidesHeader(onBack: () -> Unit) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = WheelsSurface,
+                tint = GradientHeaderPrimaryContent,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Back",
-                color = WheelsSurface.copy(alpha = 0.84f),
+                color = GradientHeaderSecondaryContent,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -1290,13 +1297,13 @@ private fun RidesHeader(onBack: () -> Unit) {
         Text(
             text = "Find a Ride",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = WheelsSurface
+            color = GradientHeaderPrimaryContent
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Available rides from your university",
             style = MaterialTheme.typography.bodyMedium,
-            color = WheelsSurface.copy(alpha = 0.82f)
+            color = GradientHeaderSecondaryContent
         )
     }
 }
