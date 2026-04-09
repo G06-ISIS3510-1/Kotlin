@@ -15,6 +15,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wheels.app.core.ui.components.WheelsBottomBar
+import com.wheels.app.core.theme.ThemeSettingsViewModel
 import com.wheels.app.features.auth.presentation.session.AuthSessionViewModel
 import com.wheels.app.features.auth.presentation.session.SessionGateScreen
 import com.wheels.app.features.auth.presentation.ui.CreateAccountScreen
@@ -44,9 +45,9 @@ import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.mockRideRequestData
 
 @Composable
-fun WheelsNavGraph() {
+fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
     val navController = rememberNavController()
-    val sessionViewModel: AuthSessionViewModel = hiltViewModel()
+        val sessionViewModel: AuthSessionViewModel = hiltViewModel()
     val sessionState by sessionViewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -231,7 +232,8 @@ fun WheelsNavGraph() {
             composable(Destinations.UiTheme.route) {
                 UiThemeScreen(
                     innerPadding = innerPadding,
-                    navController = navController
+                    navController = navController,
+                    viewModel = themeViewModel
                 )
             }
             composable(

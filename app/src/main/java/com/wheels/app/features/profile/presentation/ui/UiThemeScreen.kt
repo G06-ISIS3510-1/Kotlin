@@ -29,10 +29,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,21 +37,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
+import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
+import com.wheels.app.core.theme.ThemeSettingsViewModel
+import com.wheels.app.core.ui.theme.gradientHeaderBrush
 
 @Composable
 fun UiThemeScreen(
     innerPadding: PaddingValues,
-    navController: NavController
+    navController: NavController,
+    viewModel: ThemeSettingsViewModel
 ) {
-    var darkModeEnabled by remember { mutableStateOf(false) }
-    var adaptiveThemeEnabled by remember { mutableStateOf(false) }
-    var savedDarkModePreference by remember { mutableStateOf(false) }
+    val themeState = viewModel.uiState.collectAsStateWithLifecycle()
+    val darkModeEnabled = themeState.value.isDarkModeEnabled
+    val colorScheme = MaterialTheme.colorScheme
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF7F9FC))
+            .background(colorScheme.background)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -70,12 +72,7 @@ fun UiThemeScreen(
                         .height(200.dp)
                         .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
                         .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF1a3a5c),
-                                    Color(0xFF2d5280)
-                                )
-                            )
+                            brush = gradientHeaderBrush()
                         )
                         .padding(start = 24.dp, end = 24.dp, top = 36.dp, bottom = 20.dp)
                 ) {
@@ -89,14 +86,14 @@ fun UiThemeScreen(
                             Icon(
                                 imageVector = Icons.Outlined.ChevronLeft,
                                 contentDescription = "Back",
-                                tint = Color.White,
+                                tint = GradientHeaderPrimaryContent,
                                 modifier = Modifier
                                     .size(20.dp)
                             )
                             Text(
                                 text = "Back",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.White,
+                                color = GradientHeaderPrimaryContent,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -107,13 +104,13 @@ fun UiThemeScreen(
                             text = "UI Theme",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = GradientHeaderPrimaryContent,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         Text(
                             text = "Dark mode can reduce bright blues and may feel better for vision under low light conditions.",
                             fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = GradientHeaderSecondaryContent
                         )
                     }
                 }
@@ -125,7 +122,7 @@ fun UiThemeScreen(
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -134,17 +131,12 @@ fun UiThemeScreen(
                             title = "Dark mode",
                             subtitle = if (darkModeEnabled) "Enabled" else "Disabled",
                             checked = darkModeEnabled,
-                            enabled = !adaptiveThemeEnabled,
-                            onCheckedChange = { checked ->
-                                if (!adaptiveThemeEnabled) {
-                                    darkModeEnabled = checked
-                                    savedDarkModePreference = checked
-                                }
-                            }
+                            enabled = true,
+                            onCheckedChange = viewModel::setDarkModeEnabled
                         )
 
                         Divider(
-                            color = Color(0xFFe5e9f2),
+                            color = colorScheme.outline,
                             thickness = 1.dp,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -152,18 +144,10 @@ fun UiThemeScreen(
                         ThemeSwitchRow(
                             icon = Icons.Outlined.WbSunny,
                             title = "Adaptive UI Theme",
-                            subtitle = "The UI Theme adapts to the environmental light.",
-                            checked = adaptiveThemeEnabled,
-                            enabled = true,
-                            onCheckedChange = { checked ->
-                                if (checked) {
-                                    savedDarkModePreference = darkModeEnabled
-                                    darkModeEnabled = false
-                                } else {
-                                    darkModeEnabled = savedDarkModePreference
-                                }
-                                adaptiveThemeEnabled = checked
-                            }
+                            subtitle = "Coming soon. Dark mode is manual for now.",
+                            checked = false,
+                            enabled = false,
+                            onCheckedChange = {}
                         )
                     }
                 }
@@ -181,6 +165,8 @@ private fun ThemeSwitchRow(
     enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -192,13 +178,13 @@ private fun ThemeSwitchRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(if (enabled) Color(0xFFe8f0f9) else Color(0xFFEEF2F7)),
+                .background(if (enabled) colorScheme.surfaceVariant else colorScheme.outline.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = if (enabled) Color(0xFF5b89c8) else Color(0xFF9AA9BC),
+                tint = if (enabled) colorScheme.primary else colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -211,12 +197,12 @@ private fun ThemeSwitchRow(
                 text = title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (enabled) Color(0xFF1a3a5c) else Color(0xFF8FA1B6)
+                color = if (enabled) colorScheme.onSurface else colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
             )
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
-                color = if (enabled) Color(0xFF64748b) else Color(0xFFA0AEC0)
+                color = if (enabled) colorScheme.onSurfaceVariant else colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
             )
         }
 
@@ -225,17 +211,17 @@ private fun ThemeSwitchRow(
             onCheckedChange = onCheckedChange,
             enabled = enabled,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                uncheckedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF5b89c8),
-                uncheckedTrackColor = Color(0xFFD7E0EC),
-                uncheckedBorderColor = Color(0xFFD7E0EC),
-                disabledCheckedThumbColor = Color(0xFFE2E8F0),
-                disabledUncheckedThumbColor = Color(0xFFE2E8F0),
-                disabledCheckedTrackColor = Color(0xFFC8D3E2),
-                disabledUncheckedTrackColor = Color(0xFFDEE6F0),
-                disabledUncheckedBorderColor = Color(0xFFDEE6F0),
-                disabledCheckedBorderColor = Color(0xFFC8D3E2)
+                checkedThumbColor = colorScheme.onPrimary,
+                uncheckedThumbColor = colorScheme.surface,
+                checkedTrackColor = colorScheme.primary,
+                uncheckedTrackColor = colorScheme.outline.copy(alpha = 0.35f),
+                uncheckedBorderColor = colorScheme.outline,
+                disabledCheckedThumbColor = colorScheme.surface,
+                disabledUncheckedThumbColor = colorScheme.surface,
+                disabledCheckedTrackColor = colorScheme.outline.copy(alpha = 0.5f),
+                disabledUncheckedTrackColor = colorScheme.outline.copy(alpha = 0.25f),
+                disabledUncheckedBorderColor = colorScheme.outline.copy(alpha = 0.7f),
+                disabledCheckedBorderColor = colorScheme.outline.copy(alpha = 0.7f)
             )
         )
     }

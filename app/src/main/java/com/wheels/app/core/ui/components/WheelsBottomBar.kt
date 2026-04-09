@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,10 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wheels.app.core.navigation.BottomNavItem
-import com.wheels.app.core.ui.theme.Border
-import com.wheels.app.core.ui.theme.PrimaryBlue
-import com.wheels.app.core.ui.theme.TextSecondary
-import com.wheels.app.core.ui.theme.WheelsSurface
 
 @Composable
 fun WheelsBottomBar(
@@ -41,15 +38,17 @@ fun WheelsBottomBar(
     onItemSelected: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = WheelsSurface,
+        color = colorScheme.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column {
             Divider(
                 modifier = Modifier.fillMaxWidth(),
-                color = Border,
+                color = colorScheme.outline,
                 thickness = 1.dp
             )
             Row(
@@ -78,6 +77,8 @@ private fun BottomBarItem(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(18.dp))
@@ -94,7 +95,7 @@ private fun BottomBarItem(
 
         Text(
             text = item.label,
-            color = if (selected) PrimaryBlue else TextSecondary,
+            color = if (selected) colorScheme.primary else colorScheme.onSurfaceVariant,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             fontSize = 11.sp
         )
@@ -103,10 +104,12 @@ private fun BottomBarItem(
 
 @Composable
 private fun SelectedIconBubble(item: BottomNavItem) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Surface(
         modifier = Modifier.size(32.dp),
         shape = CircleShape,
-        color = PrimaryBlue
+        color = colorScheme.primary
     ) {
         Box(contentAlignment = Alignment.Center) {
             BadgedIcon(item = item, selected = true)
@@ -123,17 +126,19 @@ private fun InactiveIconBubble(item: BottomNavItem) {
 
 @Composable
 private fun ProfileBubble(selected: Boolean) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Surface(
         modifier = Modifier.size(32.dp),
         shape = CircleShape,
-        color = if (selected) PrimaryBlue else Color.Transparent,
-        border = if (selected) null else BorderStroke(1.dp, Border)
+        color = if (selected) colorScheme.primary else Color.Transparent,
+        border = if (selected) null else BorderStroke(1.dp, colorScheme.outline)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = Icons.Outlined.PersonOutline,
                 contentDescription = "Profile",
-                tint = if (selected) Color.White else TextSecondary
+                tint = if (selected) colorScheme.onPrimary else colorScheme.onSurfaceVariant
             )
         }
     }
@@ -141,7 +146,7 @@ private fun ProfileBubble(selected: Boolean) {
 
 @Composable
 private fun BadgedIcon(item: BottomNavItem, selected: Boolean) {
-    val iconTint = if (selected) Color.White else TextSecondary
+    val iconTint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
 
     if ((item.badgeCount ?: 0) > 0) {
         BadgedBox(

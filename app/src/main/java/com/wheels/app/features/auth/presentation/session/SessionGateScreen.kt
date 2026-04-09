@@ -14,18 +14,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.wheels.app.core.ui.theme.PrimaryBlue
-import com.wheels.app.core.ui.theme.WheelsSurface
 
 @Composable
 fun SessionGateScreen(innerPadding: PaddingValues) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFFE8F0F9), WheelsSurface)))
+            .background(Brush.verticalGradient(listOf(colorScheme.surfaceVariant, colorScheme.background)))
             .padding(innerPadding),
         contentAlignment = Alignment.Center
     ) {
@@ -33,11 +32,11 @@ fun SessionGateScreen(innerPadding: PaddingValues) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CircularProgressIndicator(color = PrimaryBlue)
+            CircularProgressIndicator(color = colorScheme.primary)
             Text(
                 text = "Restoring your session...",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                color = PrimaryBlue
+                color = colorScheme.onBackground
             )
         }
     }
