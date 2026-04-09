@@ -20,5 +20,11 @@ export interface UserUsagePatternDocument {
   peakHalfHourBucket: number | null;
   peakScore: number;
   lastOpenedAt: number | null;
+  lastPeakNotificationSentAt?: number | null;
+  lastPeakNotificationWindowKey?: string | null;
   updatedAt?: unknown;
+}
+
+export interface UserDocument {
+  fcmTokens?: string[];
 }

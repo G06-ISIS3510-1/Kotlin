@@ -1,5 +1,6 @@
 package com.wheels.app.core.behavior.data.bus
 
+import android.util.Log
 import com.wheels.app.core.behavior.domain.bus.EventBus
 import com.wheels.app.core.behavior.domain.event.AppEvent
 import com.wheels.app.core.behavior.domain.observer.AppEventSubscriber
@@ -32,8 +33,18 @@ class InMemoryEventBus @Inject constructor(
             // Every subscriber receives the same event, but each one decides
             // whether and how to react to it.
             subscribers.forEach { subscriber ->
-                subscriber.update(event)
+                runCatching {
+                    subscriber.update(event)
+                }.onFailure { error ->
+                    // Observers are best-effort. One failing subscriber should
+                    // not crash the app or prevent the other observers from running.
+                    Log.w(TAG, "App event observer failed", error)
+                }
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "InMemoryEventBus"
     }
 }

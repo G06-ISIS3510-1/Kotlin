@@ -11,7 +11,6 @@ interface UpdateUserUsagePatternParams {
 
 const HOUR_BUCKET_COUNT = 24;
 const HALF_HOUR_BUCKET_COUNT = 48;
-const NEIGHBOR_WEIGHT = 0.35;
 
 export async function updateUserUsagePattern({
   db,
@@ -76,6 +75,9 @@ function normalizeUsagePattern(
     peakHalfHourBucket: current?.peakHalfHourBucket ?? null,
     peakScore: current?.peakScore ?? 0,
     lastOpenedAt: current?.lastOpenedAt ?? null,
+    lastPeakNotificationSentAt: current?.lastPeakNotificationSentAt ?? null,
+    lastPeakNotificationWindowKey:
+      current?.lastPeakNotificationWindowKey ?? null,
     updatedAt: current?.updatedAt,
   };
 }
@@ -130,7 +132,7 @@ function calculatePeakHalfHourBucket(counts: Record<string, number>): {
   let bestScore = -1;
 
   for (let bucket = 0; bucket < HALF_HOUR_BUCKET_COUNT; bucket += 1) {
-    const score = scoreBucket(counts, bucket);
+    const score = counts[bucket.toString()] ?? 0;
 
     if (score > bestScore) {
       bestScore = score;
@@ -140,27 +142,8 @@ function calculatePeakHalfHourBucket(counts: Record<string, number>): {
 
   return {
     bucket: bestBucket,
-    score: roundScore(bestScore),
+    score: bestScore,
   };
 }
 
-function scoreBucket(counts: Record<string, number>, bucket: number): number {
-  // We smooth with the neighboring half-hour windows so a user opening at
-  // 8:25 and 8:35 contributes to the same broader habit instead of splitting it.
-  const current = counts[bucket.toString()] ?? 0;
-  const previous = counts[wrapBucket(bucket - 1).toString()] ?? 0;
-  const next = counts[wrapBucket(bucket + 1).toString()] ?? 0;
-
-  return current + previous * NEIGHBOR_WEIGHT + next * NEIGHBOR_WEIGHT;
-}
-
-function wrapBucket(bucket: number): number {
-  return (bucket + HALF_HOUR_BUCKET_COUNT) % HALF_HOUR_BUCKET_COUNT;
-}
-
-function roundScore(score: number): number {
-  return Math.round(score * 100) / 100;
-}
-
 const USER_USAGE_PATTERNS_COLLECTION = "user_usage_patterns";
-
