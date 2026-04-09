@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Schedule
@@ -60,17 +61,22 @@ import androidx.navigation.NavController
 import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
+import com.wheels.app.core.ui.theme.GradientHeaderIconContainer
+import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
+import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.home.presentation.viewmodel.ActiveRideUiModel
 import com.wheels.app.features.home.presentation.viewmodel.FrequentDestinationUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeQuickStat
 import com.wheels.app.features.home.presentation.viewmodel.HomeUpdateUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeUiState
 import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
+import com.wheels.app.features.home.presentation.viewmodel.LocationAwareCardUiModel
 import com.wheels.app.features.home.presentation.viewmodel.UpdateTone
 
 @Composable
@@ -93,6 +99,12 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 104.dp)
         ) {
             item { HeaderSection(state) }
+            item {
+                LocationAwareSection(
+                    card = state.locationAwareCard,
+                    onActionClick = { navController.navigate(Destinations.Rides.route) }
+                )
+            }
             item {
                 FrequentDestinationsSection(
                     destinations = state.destinationInsights,
@@ -136,6 +148,88 @@ fun HomeScreen(
                 .padding(end = 20.dp, bottom = 140.dp)
                 .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
         )
+    }
+}
+
+@Composable
+private fun LocationAwareSection(
+    card: LocationAwareCardUiModel,
+    onActionClick: () -> Unit
+) {
+    val gradient = if (card.isPreciseLocationAvailable) {
+        listOf(Color(0xFFE8F6FF), Color(0xFFD5EBFF))
+    } else {
+        listOf(Color(0xFFF3F6FA), Color(0xFFE8EDF4))
+    }
+    val accent = if (card.isPreciseLocationAvailable) SecondaryBlue else PrimaryBlue
+
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .background(Brush.linearGradient(gradient))
+                .padding(20.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = accent.copy(alpha = 0.14f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MyLocation,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Location-Aware System",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = accent
+                    )
+                    Text(
+                        text = card.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = PrimaryBlue
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = card.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onActionClick,
+                shape = RoundedCornerShape(999.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = accent,
+                    contentColor = WheelsSurface
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Explore,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = card.actionLabel)
+            }
+        }
     }
 }
 
@@ -230,7 +324,7 @@ private fun HeaderSection(state: HomeUiState) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
+            .background(gradientHeaderBrush())
             .padding(horizontal = 20.dp, vertical = 18.dp)
             .padding(top = 20.dp)
     ) {
@@ -240,12 +334,12 @@ private fun HeaderSection(state: HomeUiState) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = WheelsSurface.copy(alpha = 0.10f)) {
+                Surface(shape = CircleShape, color = GradientHeaderIconContainer) {
                     IconButton(onClick = {}) {
                         Icon(
                             imageVector = Icons.Default.Menu,
                             contentDescription = "Menu",
-                            tint = WheelsSurface
+                            tint = GradientHeaderPrimaryContent
                         )
                     }
                 }
@@ -254,23 +348,23 @@ private fun HeaderSection(state: HomeUiState) {
                     Text(
                         text = state.welcomeMessage,
                         style = MaterialTheme.typography.bodySmall,
-                        color = WheelsSurface.copy(alpha = 0.72f)
+                        color = GradientHeaderSecondaryContent
                     )
                     Text(
                         text = state.userName,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = WheelsSurface
+                        color = GradientHeaderPrimaryContent
                     )
                 }
             }
 
             Box(contentAlignment = Alignment.TopEnd) {
-                Surface(shape = CircleShape, color = WheelsSurface.copy(alpha = 0.10f)) {
+                Surface(shape = CircleShape, color = GradientHeaderIconContainer) {
                     IconButton(onClick = {}) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Notifications",
-                            tint = WheelsSurface
+                            tint = GradientHeaderPrimaryContent
                         )
                     }
                 }
@@ -302,25 +396,27 @@ private fun StatChip(stat: HomeQuickStat, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(WheelsSurface.copy(alpha = 0.10f))
+            .background(GradientHeaderIconContainer)
             .padding(vertical = 12.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = stat.value,
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = stat.accentColor ?: WheelsSurface
+            color = stat.accentColor ?: GradientHeaderPrimaryContent
         )
         Text(
             text = stat.label,
             style = MaterialTheme.typography.bodySmall,
-            color = WheelsSurface.copy(alpha = 0.70f)
+            color = GradientHeaderSecondaryContent
         )
     }
 }
 
 @Composable
 private fun MapSection(activeRide: ActiveRideUiModel) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -333,7 +429,7 @@ private fun MapSection(activeRide: ActiveRideUiModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(260.dp)
-                .background(Brush.linearGradient(listOf(Color(0xFFE8F0F9), WheelsBackground)))
+                .background(Brush.linearGradient(listOf(Color(0xFF102033), Color(0xFF17283E))))
         ) {
             MapGridBackground()
             RoutePath()
@@ -384,7 +480,7 @@ private fun MapSection(activeRide: ActiveRideUiModel) {
                     Icon(
                         imageVector = Icons.Outlined.MyLocation,
                         contentDescription = "Center map",
-                        tint = PrimaryBlue
+                        tint = colorScheme.onSurface
                     )
                 }
             }
@@ -395,7 +491,7 @@ private fun MapSection(activeRide: ActiveRideUiModel) {
 @Composable
 private fun MapGridBackground() {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val gridColor = SecondaryBlue.copy(alpha = 0.18f)
+        val gridColor = Color(0xFF5B89C8).copy(alpha = 0.24f)
         val verticalStops = listOf(size.width * 0.25f, size.width * 0.5f, size.width * 0.75f)
         val horizontalStops = listOf(size.height * 0.25f, size.height * 0.5f, size.height * 0.75f)
         verticalStops.forEach { x ->
@@ -411,7 +507,7 @@ private fun MapGridBackground() {
 private fun RoutePath() {
     Canvas(modifier = Modifier.fillMaxSize()) {
         drawLine(
-            color = SecondaryBlue.copy(alpha = 0.60f),
+            color = Color(0xFF60A5FA).copy(alpha = 0.82f),
             start = Offset(size.width * 0.20f, size.height * 0.78f),
             end = Offset(size.width * 0.82f, size.height * 0.22f),
             strokeWidth = 8f,

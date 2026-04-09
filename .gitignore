@@ -19,6 +19,9 @@ local.properties
 *.iml
 .vscode/
 MOCKUP-PASSENGER/
+DOCS/
+Flutter/
+Firebase-functions/
 
 # Keystore and secrets
 *.jks

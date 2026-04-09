@@ -32,11 +32,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.wheels.app.core.session.UserRole
+import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
+import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 
 @Composable
@@ -46,24 +49,25 @@ fun TrustFairnessScreen(
     viewModel: ProfileViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
-    val colors = if (state.trustFairnessDarkMode) {
+    val colorScheme = MaterialTheme.colorScheme
+    val colors = if (colorScheme.background.luminance() < 0.5f) {
         TrustFairnessPalette(
-            background = Color(0xFF0F172A),
-            surface = Color(0xFF111827),
+            background = colorScheme.background,
+            surface = colorScheme.surface,
             primary = Color(0xFFBFDBFE),
-            textPrimary = Color(0xFFF8FAFC),
-            textSecondary = Color(0xFFCBD5E1),
+            textPrimary = colorScheme.onSurface,
+            textSecondary = colorScheme.onSurfaceVariant,
             success = Color(0xFF34D399),
             warning = Color(0xFFFBBF24),
             danger = Color(0xFFF87171)
         )
     } else {
         TrustFairnessPalette(
-            background = Color(0xFFF7F9FC),
-            surface = Color.White,
+            background = colorScheme.background,
+            surface = colorScheme.surface,
             primary = Color(0xFF1A3A5C),
-            textPrimary = Color(0xFF1A3A5C),
-            textSecondary = Color(0xFF64748B),
+            textPrimary = colorScheme.onSurface,
+            textSecondary = colorScheme.onSurfaceVariant,
             success = Color(0xFF00D9A3),
             warning = Color(0xFFFFA726),
             danger = Color(0xFFEF4444)
@@ -85,26 +89,26 @@ fun TrustFairnessScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.primary, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                        .background(Color(0xFF1A3A5C), RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
                         .padding(start = 12.dp, end = 20.dp, top = 28.dp, bottom = 24.dp)
                 ) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = colors.surface
+                            tint = GradientHeaderPrimaryContent
                         )
                     }
                     Text(
                         text = "Trust & Fairness",
-                        color = colors.surface,
+                        color = GradientHeaderPrimaryContent,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Current contract for reliability score, cancellations and community accountability.",
-                        color = colors.surface.copy(alpha = 0.85f),
+                        color = GradientHeaderSecondaryContent,
                         fontSize = 12.sp
                     )
                 }

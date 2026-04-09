@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Logout
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -64,11 +65,12 @@ fun ProfileScreen(
     navController: NavController
 ) {
     val state by viewModel.uiState.collectAsState()
+    val colorScheme = MaterialTheme.colorScheme
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF7F9FC))
+            .background(colorScheme.background)
     ) {
         LazyColumn(
             modifier = Modifier
@@ -123,7 +125,7 @@ fun ProfileScreen(
                             ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.12f)
                         )
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White)
+                        .background(colorScheme.surface)
                         .padding(24.dp)
                 ) {
                     Column {
@@ -171,7 +173,7 @@ fun ProfileScreen(
                                     text = state.name,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1a3a5c),
+                                    color = colorScheme.onSurface,
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
 
@@ -197,7 +199,7 @@ fun ProfileScreen(
                                 Text(
                                     text = state.memberSinceLabel,
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748b)
+                                    color = colorScheme.onSurfaceVariant
                                 )
 
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -231,7 +233,7 @@ fun ProfileScreen(
                                     Text(
                                         text = roleInfoMessage,
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748b)
+                                        color = colorScheme.onSurfaceVariant
                                     )
                                 }
 
@@ -242,7 +244,7 @@ fun ProfileScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(16.dp))
-                                            .background(Color(0xFFF7F9FC))
+                                            .background(colorScheme.surfaceVariant)
                                             .padding(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
@@ -250,12 +252,12 @@ fun ProfileScreen(
                                             text = "Enable ${roleUpgradeTarget.displayName} role",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF1a3a5c)
+                                            color = colorScheme.onSurface
                                         )
                                         Text(
                                             text = "Confirm your password and we'll add this role to your account.",
                                             fontSize = 12.sp,
-                                            color = Color(0xFF64748b)
+                                            color = colorScheme.onSurfaceVariant
                                         )
                                         OutlinedTextField(
                                             value = state.roleUpgradePassword,
@@ -334,7 +336,7 @@ fun ProfileScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(Color(0xFFF7F9FC))
+                                        .background(colorScheme.surfaceVariant)
                                         .padding(12.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -348,7 +350,7 @@ fun ProfileScreen(
                                         Text(
                                             text = label,
                                             fontSize = 10.sp,
-                                            color = Color(0xFF64748b)
+                                            color = colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -366,7 +368,7 @@ fun ProfileScreen(
                     text = "Contact Information",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF64748b),
+                    color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -379,7 +381,7 @@ fun ProfileScreen(
                             ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
                         )
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White)
+                        .background(colorScheme.surface)
                         .padding(20.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -391,7 +393,7 @@ fun ProfileScreen(
                         )
 
                         Divider(
-                            color = Color(0xFFe5e9f2),
+                            color = colorScheme.outline,
                             thickness = 1.dp,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -414,7 +416,7 @@ fun ProfileScreen(
                     text = "Account",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF64748b),
+                    color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -427,7 +429,7 @@ fun ProfileScreen(
                             ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
                         )
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White)
+                        .background(colorScheme.surface)
                         .padding(20.dp)
                 ) {
                     Column {
@@ -437,41 +439,6 @@ fun ProfileScreen(
                             subtitle = "View your reliability metrics",
                             onClick = { navController.navigate(Destinations.TrustFairness.route) },
                             showDivider = true
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp, bottom = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Trust & Fairness Theme",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF1a3a5c)
-                                )
-                                Text(
-                                    text = if (state.trustFairnessDarkMode) "Dark mode enabled" else "Light mode enabled",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFF64748b)
-                                )
-                            }
-                            TextButton(
-                                onClick = { viewModel.onEvent(ProfileEvent.ToggleTrustFairnessDarkMode) }
-                            ) {
-                                Text(
-                                    text = if (state.trustFairnessDarkMode) "Use Light" else "Use Dark",
-                                    color = Color(0xFF1a3a5c),
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                        Divider(
-                            color = Color(0xFFe5e9f2),
-                            thickness = 1.dp,
-                            modifier = Modifier.fillMaxWidth()
                         )
                         MenuItemRow(
                             icon = Icons.Outlined.CreditCard,
@@ -497,7 +464,7 @@ fun ProfileScreen(
                     text = "Settings",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF64748b),
+                    color = colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
 
@@ -510,10 +477,17 @@ fun ProfileScreen(
                             ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
                         )
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White)
+                        .background(colorScheme.surface)
                         .padding(20.dp)
                 ) {
                     Column {
+                        MenuItemRow(
+                            icon = Icons.Outlined.Palette,
+                            title = "UI Theme",
+                            subtitle = "Adjust dark mode and adaptive appearance",
+                            onClick = { navController.navigate(Destinations.UiTheme.route) },
+                            showDivider = true
+                        )
                         MenuItemRow(
                             icon = Icons.Outlined.Notifications,
                             title = "Notifications",
@@ -548,8 +522,8 @@ fun ProfileScreen(
                         shape = RoundedCornerShape(20.dp),
                         ambientColor = Color(0xFF1a3a5c).copy(alpha = 0.08f)
                     )
-                    .border(2.dp, Color(0xFFe5e9f2), RoundedCornerShape(20.dp))
-                    .background(Color.White, RoundedCornerShape(20.dp))
+                    .border(2.dp, colorScheme.outline, RoundedCornerShape(20.dp))
+                    .background(colorScheme.surface, RoundedCornerShape(20.dp))
                     .clickable { viewModel.onEvent(ProfileEvent.LogOut) }
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
@@ -590,15 +564,17 @@ private fun RoleSwitchButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(
-                if (selected) Color(0xFF1a3a5c) else if (enabled) Color(0xFFF7F9FC) else Color(0xFFF1F5F9)
+                if (selected) colorScheme.primary else if (enabled) colorScheme.surfaceVariant else colorScheme.outline.copy(alpha = 0.2f)
             )
             .border(
                 width = 1.5.dp,
-                color = if (selected) Color(0xFF1a3a5c) else Color(0xFFE2E8F0),
+                color = if (selected) colorScheme.primary else colorScheme.outline,
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable(onClick = onClick)
@@ -609,7 +585,7 @@ private fun RoleSwitchButton(
             text = label,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (selected) Color.White else if (enabled) Color(0xFF64748b) else Color(0xFF94A3B8)
+            color = if (selected) colorScheme.onPrimary else if (enabled) colorScheme.onSurfaceVariant else colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
         )
     }
 }
@@ -620,6 +596,8 @@ fun ContactInfoRow(
     label: String,
     value: String
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -629,13 +607,13 @@ fun ContactInfoRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFe8f0f9)),
+                .background(colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = Color(0xFF5b89c8),
+                tint = colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -648,20 +626,20 @@ fun ContactInfoRow(
             Text(
                 text = label,
                 fontSize = 10.sp,
-                color = Color(0xFF64748b)
+                color = colorScheme.onSurfaceVariant
             )
             Text(
                 text = value,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF1a3a5c)
+                color = colorScheme.onSurface
             )
         }
 
         Icon(
             imageVector = Icons.Outlined.ChevronRight,
             contentDescription = "Navigate",
-            tint = Color(0xFF64748b),
+            tint = colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -675,6 +653,8 @@ fun MenuItemRow(
     onClick: () -> Unit = {},
     showDivider: Boolean = false
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Column {
         Row(
             modifier = Modifier
@@ -688,13 +668,13 @@ fun MenuItemRow(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFe8f0f9)),
+                    .background(colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = Color(0xFF5b89c8),
+                    tint = colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -708,26 +688,26 @@ fun MenuItemRow(
                     text = title,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1a3a5c)
+                    color = colorScheme.onSurface
                 )
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
-                    color = Color(0xFF64748b)
+                    color = colorScheme.onSurfaceVariant
                 )
             }
 
             Icon(
                 imageVector = Icons.Outlined.ChevronRight,
                 contentDescription = "Navigate",
-                tint = Color(0xFF64748b),
+                tint = colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
         }
 
         if (showDivider) {
             Divider(
-                color = Color(0xFFe5e9f2),
+                color = colorScheme.outline,
                 thickness = 1.dp,
                 modifier = Modifier.fillMaxWidth()
             )

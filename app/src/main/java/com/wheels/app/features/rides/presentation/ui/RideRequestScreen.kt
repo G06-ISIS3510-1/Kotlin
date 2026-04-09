@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.Dialog
@@ -64,12 +65,15 @@ import androidx.navigation.NavController
 import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
+import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
+import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.Warning
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestEvent
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestUiState
@@ -190,7 +194,7 @@ private fun RideRequestHeader(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
+            .background(gradientHeaderBrush())
             .padding(horizontal = 20.dp, vertical = 18.dp)
             .padding(top = 20.dp)
     ) {
@@ -201,13 +205,13 @@ private fun RideRequestHeader(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back to rides",
-                tint = WheelsSurface,
+                tint = GradientHeaderPrimaryContent,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Back to rides",
-                color = WheelsSurface.copy(alpha = 0.82f),
+                color = GradientHeaderSecondaryContent,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -217,12 +221,12 @@ private fun RideRequestHeader(
         Text(
             text = "Ride Details",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = WheelsSurface
+            color = GradientHeaderPrimaryContent
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "${ride.departureDate} at ${ride.departureTime}",
-            color = WheelsSurface.copy(alpha = 0.82f),
+            color = GradientHeaderSecondaryContent,
             style = MaterialTheme.typography.bodyMedium
         )
     }
@@ -230,6 +234,8 @@ private fun RideRequestHeader(
 
 @Composable
 private fun MapPreviewCard(ride: RideRequestUiModel) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -242,10 +248,10 @@ private fun MapPreviewCard(ride: RideRequestUiModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(192.dp)
-                .background(Brush.linearGradient(listOf(Color(0xFFE8F0F9), WheelsBackground)))
+                .background(Brush.linearGradient(listOf(Color(0xFF102033), Color(0xFF17283E))))
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val gridColor = SecondaryBlue.copy(alpha = 0.18f)
+                val gridColor = Color(0xFF5B89C8).copy(alpha = 0.24f)
                 val verticalStops = listOf(size.width * 0.25f, size.width * 0.5f, size.width * 0.75f)
                 val horizontalStops = listOf(size.height * 0.25f, size.height * 0.5f, size.height * 0.75f)
                 verticalStops.forEach { x ->
@@ -256,7 +262,7 @@ private fun MapPreviewCard(ride: RideRequestUiModel) {
                 }
 
                 drawLine(
-                    color = SecondaryBlue.copy(alpha = 0.8f),
+                    color = Color(0xFF60A5FA).copy(alpha = 0.85f),
                     start = Offset(size.width * 0.20f, size.height * 0.82f),
                     end = Offset(size.width * 0.80f, size.height * 0.20f),
                     strokeWidth = 8f,
@@ -295,7 +301,7 @@ private fun MapPreviewCard(ride: RideRequestUiModel) {
             ) {
                 Text(
                     text = ride.distance,
-                    color = PrimaryBlue,
+                    color = colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                 )
@@ -479,6 +485,8 @@ private fun SeatSelectionCard(
     totalPrice: Int,
     onSeatSelected: (Int) -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     InfoCard(title = "Select Seats", trailingLabel = "${ride.availableSeats} available") {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             (1..ride.availableSeats).forEach { seat ->
@@ -508,7 +516,7 @@ private fun SeatSelectionCard(
 
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFE8F0F9)
+            color = colorScheme.surfaceVariant
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 SummaryRow("Price per seat", "$${ride.price}")
@@ -525,6 +533,8 @@ private fun SeatSelectionCard(
 
 @Composable
 private fun RideInformationCard(ride: RideRequestUiModel) {
+    val colorScheme = MaterialTheme.colorScheme
+
     InfoCard(title = "Ride Information") {
         if (ride.amenities.isNotEmpty()) {
             Text(
@@ -537,11 +547,11 @@ private fun RideInformationCard(ride: RideRequestUiModel) {
                 ride.amenities.forEach { amenity ->
                     Surface(
                         shape = RoundedCornerShape(999.dp),
-                        color = Color(0xFFE8F0F9)
+                        color = colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = amenity,
-                            color = SecondaryBlue,
+                            color = if (colorScheme.background.luminance() < 0.5f) colorScheme.onSurface else SecondaryBlue,
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
@@ -575,10 +585,12 @@ private fun RideInformationCard(ride: RideRequestUiModel) {
 
 @Composable
 private fun SafetyNoteCard() {
+    val colorScheme = MaterialTheme.colorScheme
+
     Surface(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(20.dp),
-        color = Color(0xFFE8F0F9)
+        color = colorScheme.surfaceVariant
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
             Icon(
@@ -875,7 +887,7 @@ private fun SmallAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     contentDescription: String
 ) {
-    Surface(shape = CircleShape, color = Color(0xFFE8F0F9)) {
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
         IconButton(onClick = {}) {
             Icon(
                 imageVector = icon,
@@ -920,6 +932,8 @@ private fun SummaryRow(
     value: String,
     emphasized: Boolean = false
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -927,7 +941,7 @@ private fun SummaryRow(
     ) {
         Text(
             text = label,
-            color = if (emphasized) PrimaryBlue else TextSecondary,
+            color = if (emphasized) colorScheme.onSurface else colorScheme.onSurfaceVariant,
             style = if (emphasized) {
                 MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
             } else {
@@ -936,7 +950,7 @@ private fun SummaryRow(
         )
         Text(
             text = value,
-            color = PrimaryBlue,
+            color = colorScheme.onSurface,
             style = if (emphasized) {
                 MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             } else {

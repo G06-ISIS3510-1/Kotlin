@@ -52,18 +52,19 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
+import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
+import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.payments.presentation.viewmodel.PaymentsViewModel
 import java.text.NumberFormat
 import java.util.Locale
 
 private val SelectionBlue = Color(0xFF5B89C8)
-private val SelectionBackground = Color(0xFFE8F0F9)
-
 data class PaymentMethod(
     val id: String,
     val name: String,
@@ -171,7 +172,7 @@ private fun HeaderSection(navController: NavController) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
+            .background(gradientHeaderBrush())
                 .padding(horizontal = 20.dp, vertical = 30.dp)
     ) {
         Row(
@@ -188,7 +189,7 @@ private fun HeaderSection(navController: NavController) {
                 Icon(
                     imageVector = Icons.Outlined.ChevronLeft,
                     contentDescription = "Back",
-                    tint = WheelsSurface,
+                    tint = GradientHeaderPrimaryContent,
                     modifier = Modifier
                         .width(20.dp)
                         .height(20.dp)
@@ -196,7 +197,7 @@ private fun HeaderSection(navController: NavController) {
                 Text(
                     text = "Back",
                     style = MaterialTheme.typography.bodySmall,
-                    color = WheelsSurface,
+                    color = GradientHeaderPrimaryContent,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -208,12 +209,12 @@ private fun HeaderSection(navController: NavController) {
             Text(
                 text = "Quick Payment",
                 style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                color = WheelsSurface
+                color = GradientHeaderPrimaryContent
             )
             Text(
                 text = "Fast and secure ride payment",
                 style = MaterialTheme.typography.bodySmall,
-                color = WheelsSurface.copy(alpha = 0.8f)
+                color = GradientHeaderSecondaryContent
             )
         }
 
@@ -411,6 +412,8 @@ private fun PaymentMethodCard(
     onSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
@@ -420,7 +423,7 @@ private fun PaymentMethodCard(
                 color = if (isSelected) SelectionBlue else Border,
                 shape = RoundedCornerShape(20.dp)
             ),
-        color = if (isSelected) SelectionBackground else WheelsSurface,
+        color = if (isSelected) colorScheme.surfaceVariant else WheelsSurface,
         shape = RoundedCornerShape(20.dp)
     ) {
         Row(
@@ -436,7 +439,7 @@ private fun PaymentMethodCard(
                     .height(48.dp)
                     .clip(CircleShape)
                     .background(
-                        if (isSelected) SelectionBlue else WheelsBackground
+                        if (isSelected) SelectionBlue else colorScheme.surfaceVariant
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -454,13 +457,13 @@ private fun PaymentMethodCard(
                 Text(
                     text = method.name,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = PrimaryBlue
+                    color = colorScheme.onSurface
                 )
                 if (method.details != null) {
                     Text(
                         text = method.details,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (method.id == "wallet") ElectricGreen else TextSecondary
+                        color = if (method.id == "wallet") ElectricGreen else colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -475,7 +478,7 @@ private fun PaymentMethodCard(
                         color = if (isSelected) SelectionBlue else Border,
                         shape = CircleShape
                     )
-                    .background(if (isSelected) SelectionBlue else WheelsSurface),
+                    .background(if (isSelected) SelectionBlue else colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {

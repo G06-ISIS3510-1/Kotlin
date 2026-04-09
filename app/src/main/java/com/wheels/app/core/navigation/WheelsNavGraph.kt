@@ -15,6 +15,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.wheels.app.core.ui.components.WheelsBottomBar
+import com.wheels.app.core.theme.ThemeSettingsViewModel
 import com.wheels.app.features.auth.presentation.session.AuthSessionViewModel
 import com.wheels.app.features.auth.presentation.session.SessionGateScreen
 import com.wheels.app.features.auth.presentation.ui.CreateAccountScreen
@@ -32,6 +33,7 @@ import com.wheels.app.features.payments.presentation.ui.QuickPaymentScreen
 import com.wheels.app.features.payments.presentation.viewmodel.PaymentsViewModel
 import com.wheels.app.features.profile.presentation.ui.ProfileScreen
 import com.wheels.app.features.profile.presentation.ui.TrustFairnessScreen
+import com.wheels.app.features.profile.presentation.ui.UiThemeScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
 import com.wheels.app.features.rides.presentation.ui.ActiveRideManagementScreen
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
@@ -43,9 +45,9 @@ import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.mockRideRequestData
 
 @Composable
-fun WheelsNavGraph() {
+fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
     val navController = rememberNavController()
-    val sessionViewModel: AuthSessionViewModel = hiltViewModel()
+        val sessionViewModel: AuthSessionViewModel = hiltViewModel()
     val sessionState by sessionViewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -225,6 +227,13 @@ fun WheelsNavGraph() {
                     innerPadding = innerPadding,
                     navController = navController,
                     viewModel = viewModel
+                )
+            }
+            composable(Destinations.UiTheme.route) {
+                UiThemeScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = themeViewModel
                 )
             }
             composable(
