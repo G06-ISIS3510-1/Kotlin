@@ -4,6 +4,7 @@ import com.google.android.gms.tasks.Task
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.QuerySnapshot
 import com.wheels.app.features.rides.domain.model.Booking
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
@@ -17,7 +18,7 @@ import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 @Singleton
@@ -25,19 +26,75 @@ class RideRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : RideRepository {
 
-    override fun getAvailableRides(): Flow<List<Ride>> = flowOf(
-        listOf(
-            Ride(
-                id = "r_001",
-                driverId = "u_001",
-                origin = "Universidad de los Andes",
-                destination = "Chapinero",
-                departureTime = Instant.now().plusSeconds(3600),
-                availableSeats = 3,
-                pricePerSeat = 8000.0
-            )
-        )
-    )
+    override fun getAvailableRides(): Flow<List<Ride>> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                launch {
+                    val rides = snapshot
+                        ?.toAvailableRides()
+                        .orEmpty()
+                        .filter { ride ->
+                            ride.status.equals(RIDE_STATUS_PUBLISHED, ignoreCase = true)
+                        }
+                        .filter { it.availableSeats > 0 }
+
+                    val reliabilityScores = fetchReliabilityScores(
+                        driverIds = rides.map { it.driverId }.distinct()
+                    )
+
+                    val enrichedRides = rides
+                        .map { ride ->
+                            ride.copy(
+                                reliabilityScore = reliabilityScores[ride.driverId]
+                                    ?: ride.reliabilityScore
+                            )
+                        }
+                        .sortedWith(
+                            compareByDescending<Ride> { it.reliabilityScore }
+                                .thenBy { it.departureTime }
+                        )
+
+                    trySend(enrichedRides)
+                }
+            }
+
+        awaitClose { registration.remove() }
+    }
+
+    override fun observeRide(rideId: String): Flow<Ride?> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .document(rideId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                launch {
+                    val baseRide = snapshot?.toAvailableRide()
+                    if (baseRide == null) {
+                        trySend(null)
+                        return@launch
+                    }
+
+                    val reliabilityScore = fetchReliabilityScore(baseRide.driverId)
+                    trySend(
+                        baseRide.copy(
+                            reliabilityScore = reliabilityScore ?: baseRide.reliabilityScore
+                        )
+                    )
+                }
+            }
+
+        awaitClose { registration.remove() }
+    }
 
     override fun observeDriverRides(driverId: String): Flow<List<DriverRideRecord>> {
         return callbackFlow {
@@ -110,6 +167,56 @@ class RideRepositoryImpl @Inject constructor(
             status = "PENDING"
         )
 
+    private suspend fun QuerySnapshot.toAvailableRides(): List<Ride> {
+        return documents.mapNotNull { document -> document.toAvailableRide() }
+    }
+
+    private fun com.google.firebase.firestore.DocumentSnapshot.toAvailableRide(): Ride? {
+        val departureTime = (getTimestamp("departureAt") ?: getTimestamp("scheduledStartAt"))
+            ?.toDate()
+            ?.toInstant()
+            ?: return null
+
+        val destination = getString("destination").orEmpty()
+        val totalSeats = getLong("totalSeats")?.toInt() ?: 0
+        val availableSeats = getLong("availableSeats")?.toInt() ?: totalSeats
+        val estimatedDurationMinutes = getLong("estimatedDurationMinutes")?.toInt()
+            ?: DEFAULT_RIDE_DURATION_MINUTES
+        val driverRating = getDouble("driverRating")
+            ?: getLong("driverRating")?.toDouble()
+            ?: DEFAULT_DRIVER_RATING
+        val reviewCount = getLong("reviewCount")?.toInt() ?: 0
+        val punctualityRate = getLong("onTimeRate")?.toInt() ?: DEFAULT_PUNCTUALITY_RATE
+        val pricePerSeat = getLong("pricePerSeat")?.toDouble()
+            ?: getDouble("pricePerSeat")
+            ?: 0.0
+
+        return Ride(
+            id = id,
+            driverId = getString("driverId").orEmpty(),
+            driverName = getString("driverName").orEmpty(),
+            driverEmail = getString("driverEmail").orEmpty(),
+            driverRating = driverRating,
+            reviewCount = reviewCount,
+            reliabilityScore = DEFAULT_RELIABILITY_SCORE,
+            status = getString("status").orEmpty().ifBlank { RIDE_STATUS_PUBLISHED },
+            origin = getString("origin").orEmpty(),
+            destination = destination,
+            destinationArea = destination.substringAfterLast(",").trim().ifBlank { destination },
+            departureTime = departureTime,
+            estimatedDurationMinutes = estimatedDurationMinutes,
+            availableSeats = availableSeats,
+            totalSeats = totalSeats,
+            pricePerSeat = pricePerSeat,
+            punctualityRate = punctualityRate,
+            isHabitRide = false,
+            carModel = getString("carModel").orEmpty(),
+            licensePlate = getString("licensePlate").orEmpty(),
+            notes = getString("notes") ?: getString("description").orEmpty(),
+            verifiedByUniversity = getBoolean("verifiedByUniversity") ?: false
+        )
+    }
+
     private fun com.google.firebase.firestore.DocumentSnapshot.toDriverRideRecord(): DriverRideRecord? {
         val status = getString("status").orEmpty().ifBlank { RIDE_STATUS_PUBLISHED }
         val departureAt = (getTimestamp("departureAt") ?: getTimestamp("scheduledStartAt"))
@@ -152,10 +259,32 @@ class RideRepositoryImpl @Inject constructor(
         }
     }
 
+    private suspend fun fetchReliabilityScores(driverIds: List<String>): Map<String, Int> {
+        return driverIds.associateWith { driverId ->
+            fetchReliabilityScore(driverId) ?: DEFAULT_RELIABILITY_SCORE
+        }
+    }
+
+    private suspend fun fetchReliabilityScore(driverId: String): Int? {
+        if (driverId.isBlank()) return null
+
+        val snapshot = firestore
+            .collection(TRUST_SCORES_COLLECTION)
+            .document(driverId)
+            .get()
+            .awaitResult()
+
+        return snapshot.getLong("reliabilityScore")?.toInt()
+    }
+
     private companion object {
         const val RIDES_COLLECTION = "rides"
+        const val TRUST_SCORES_COLLECTION = "trustScores"
         const val RIDE_STATUS_PUBLISHED = "published"
         const val RIDE_STATUS_CANCELED = "canceled"
         const val DEFAULT_RIDE_DURATION_MINUTES = 30
+        const val DEFAULT_RELIABILITY_SCORE = 100
+        const val DEFAULT_PUNCTUALITY_RATE = 100
+        const val DEFAULT_DRIVER_RATING = 5.0
     }
 }

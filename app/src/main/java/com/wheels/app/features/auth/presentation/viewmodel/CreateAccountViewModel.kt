@@ -43,11 +43,11 @@ class CreateAccountViewModel @Inject constructor(
     ) {
         _uiState.update {
             it.copy(
-                fullName = fullName,
-                username = username,
-                password = password,
-                confirmPassword = confirmPassword,
-                phone = phone,
+                fullName = fullName.take(FULL_NAME_MAX_LENGTH),
+                username = username.take(USERNAME_MAX_LENGTH),
+                password = password.take(PASSWORD_MAX_LENGTH),
+                confirmPassword = confirmPassword.take(PASSWORD_MAX_LENGTH),
+                phone = phone.take(PHONE_MAX_LENGTH),
                 errorMessage = null
             )
         }
@@ -112,6 +112,13 @@ class CreateAccountViewModel @Inject constructor(
         if (state.password.length < 8) return "Password must be at least 8 characters."
         if (state.password != state.confirmPassword) return "Passwords do not match."
         return null
+    }
+
+    private companion object {
+        const val FULL_NAME_MAX_LENGTH = 80
+        const val USERNAME_MAX_LENGTH = 64
+        const val PHONE_MAX_LENGTH = 20
+        const val PASSWORD_MAX_LENGTH = 128
     }
 }
 

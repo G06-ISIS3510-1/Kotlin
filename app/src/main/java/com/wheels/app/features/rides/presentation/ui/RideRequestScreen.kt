@@ -88,6 +88,23 @@ fun RideRequestScreen(
     val state by viewModel.uiState.collectAsState()
     val ride = state.ride
 
+    if (state.isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(WheelsBackground)
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Loading ride details...",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+        return
+    }
+
     if (ride == null) {
         Box(
             modifier = Modifier

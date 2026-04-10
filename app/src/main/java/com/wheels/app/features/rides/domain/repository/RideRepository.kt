@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface RideRepository {
     fun getAvailableRides(): Flow<List<Ride>>
+    fun observeRide(rideId: String): Flow<Ride?>
     fun observeDriverRides(driverId: String): Flow<List<DriverRideRecord>>
     suspend fun publishRide(request: PublishRideRequest): String
     suspend fun deleteDriverRide(rideId: String)

@@ -122,6 +122,7 @@ fun SignInScreen(
                     onValueChange = { viewModel.onEvent(SignInEvent.UsernameChanged(it)) },
                     label = "Uniandes Username",
                     placeholder = "Enter your Uniandes username (without @uniandes.edu.co)",
+                    maxLength = 64,
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -140,6 +141,7 @@ fun SignInScreen(
                     onValueChange = { viewModel.onEvent(SignInEvent.PasswordChanged(it)) },
                     label = "Password",
                     placeholder = "Enter your password",
+                    maxLength = 128,
                     keyboardType = KeyboardType.Password,
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = {

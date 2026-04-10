@@ -182,14 +182,18 @@ fun RidesScreen(
                 onAreaSelected = { viewModel.onEvent(RidesEvent.AreaSelected(it)) },
                 onPriceChanged = { viewModel.onEvent(RidesEvent.MaxPriceChanged(it)) },
                 onRatingSelected = { viewModel.onEvent(RidesEvent.MinRatingSelected(it)) },
-                onClearRating = { viewModel.onEvent(RidesEvent.ClearRatingFilter) }
+                onClearRating = { viewModel.onEvent(RidesEvent.ClearRatingFilter) },
+                onClearFilters = { viewModel.onEvent(RidesEvent.ClearPassengerFilters) }
             )
         }
 
         item {
-            SmartSuggestionCard(
-                onClick = { viewModel.onEvent(RidesEvent.ApplySuggestedDestination) }
-            )
+            state.smartSuggestion?.let { suggestion ->
+                SmartSuggestionCard(
+                    message = suggestion.message,
+                    onClick = { viewModel.onEvent(RidesEvent.ApplySuggestedDestination) }
+                )
+            }
         }
 
         item {
@@ -213,22 +217,46 @@ fun RidesScreen(
             }
         }
 
-        items(state.filteredRides, key = { it.id }) { ride ->
-            RideCard(
-                ride = ride,
-                onRequest = {
-                    navController.navigate(Destinations.RideRequest.createRoute(ride.id))
-                },
-                onOpenReviews = {
-                    navController.navigate(
-                        Destinations.ReviewsRatings.createRoute(
-                            driverName = ride.driver,
-                            origin = Destinations.Rides.route
-                        )
+        when {
+            state.isLoading -> {
+                item {
+                    Text(
+                        text = "Loading available rides...",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
                     )
-                },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
+                }
+            }
+            state.filteredRides.isEmpty() -> {
+                item {
+                    Text(
+                        text = "No published rides match these filters right now.",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                }
+            }
+            else -> {
+                items(state.filteredRides, key = { it.id }) { ride ->
+                    RideCard(
+                        ride = ride,
+                        onRequest = {
+                            navController.navigate(Destinations.RideRequest.createRoute(ride.id))
+                        },
+                        onOpenReviews = {
+                            navController.navigate(
+                                Destinations.ReviewsRatings.createRoute(
+                                    driverName = ride.driver,
+                                    origin = Destinations.Rides.route
+                                )
+                            )
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -396,6 +424,7 @@ private fun DriverCreateRideScreen(
                                 placeholder = "YYYY-MM-DD",
                                 leadingIcon = Icons.Default.CalendarMonth,
                                 readOnly = true,
+                                maxLength = 10,
                                 onClick = {
                                     val calendar = Calendar.getInstance()
                                     val datePickerDialog = DatePickerDialog(
@@ -425,6 +454,7 @@ private fun DriverCreateRideScreen(
                                 placeholder = "HH:MM",
                                 leadingIcon = Icons.Default.Schedule,
                                 readOnly = true,
+                                maxLength = 5,
                                 onClick = {
                                     val calendar = Calendar.getInstance()
                                     val selectedDateIsToday = state.date == String.format(
@@ -522,7 +552,8 @@ private fun DriverCreateRideScreen(
                                     placeholder = "3500",
                                     leadingIcon = Icons.Default.Info,
                                     prefix = "$",
-                                    keyboardType = KeyboardType.Number
+                                    keyboardType = KeyboardType.Number,
+                                    maxLength = 6
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -552,14 +583,16 @@ private fun DriverCreateRideScreen(
                                 onValueChange = onCarModelChanged,
                                 label = "Car Model",
                                 placeholder = "e.g., Toyota Corolla 2020",
-                                leadingIcon = Icons.Default.DirectionsCar
+                                leadingIcon = Icons.Default.DirectionsCar,
+                                maxLength = 60
                             )
                             FormTextField(
                                 value = state.licensePlate,
                                 onValueChange = onLicensePlateChanged,
                                 label = "License Plate",
                                 placeholder = "ABC-123",
-                                leadingIcon = Icons.Default.VerifiedUser
+                                leadingIcon = Icons.Default.VerifiedUser,
+                                maxLength = 10
                             )
                         }
                     }
@@ -576,7 +609,15 @@ private fun DriverCreateRideScreen(
                             },
                             shape = RoundedCornerShape(16.dp),
                             minLines = 4,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                            supportingText = {
+                                Text(
+                                    text = "${state.description.length}/180",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
                         )
                     }
                 }
@@ -1188,7 +1229,8 @@ private fun FormTextField(
     prefix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     readOnly: Boolean = false,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    maxLength: Int? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     
@@ -1223,7 +1265,17 @@ private fun FormTextField(
                 singleLine = true,
                 readOnly = readOnly,
                 enabled = true,
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                supportingText = {
+                    maxLength?.let {
+                        Text(
+                            text = "${value.length}/$it",
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
             )
             
             if (onClick != null) {
@@ -1316,7 +1368,8 @@ private fun SearchAndFiltersSection(
     onAreaSelected: (String) -> Unit,
     onPriceChanged: (Float) -> Unit,
     onRatingSelected: (Double) -> Unit,
-    onClearRating: () -> Unit
+    onClearRating: () -> Unit,
+    onClearFilters: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -1378,7 +1431,8 @@ private fun SearchAndFiltersSection(
                 onAreaSelected = onAreaSelected,
                 onPriceChanged = onPriceChanged,
                 onRatingSelected = (onRatingSelected),
-                onClearRating = onClearRating
+                onClearRating = onClearRating,
+                onClearFilters = onClearFilters
             )
         }
     }
@@ -1390,7 +1444,8 @@ private fun FilterPanel(
     onAreaSelected: (String) -> Unit,
     onPriceChanged: (Float) -> Unit,
     onRatingSelected: (Double) -> Unit,
-    onClearRating: () -> Unit
+    onClearRating: () -> Unit,
+    onClearFilters: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -1469,6 +1524,16 @@ private fun FilterPanel(
                 modifier = Modifier.clickable(onClick = onClearRating)
             )
         }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        OutlinedButton(
+            onClick = onClearFilters,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Clear filters")
+        }
     }
 }
 
@@ -1499,7 +1564,10 @@ private fun FilterChip(
 }
 
 @Composable
-private fun SmartSuggestionCard(onClick: () -> Unit) {
+private fun SmartSuggestionCard(
+    message: String,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -1535,7 +1603,7 @@ private fun SmartSuggestionCard(onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Based on your schedule, you usually go to Centro around 2:30 PM",
+                    text = message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = WheelsSurface.copy(alpha = 0.92f)
                 )
@@ -1572,6 +1640,24 @@ private fun RideCard(
         border = BorderStroke(2.dp, Color.Transparent)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            if (ride.isRecommendedByTrustScore) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        tint = SecondaryBlue,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Recommended by trust score",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = SecondaryBlue
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             if (ride.isHabitRide) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(

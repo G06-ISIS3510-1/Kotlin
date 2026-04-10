@@ -16,6 +16,7 @@ import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.domain.model.CancellationBehaviorMetrics
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
+import com.wheels.app.features.rides.domain.model.Ride
 import com.wheels.app.features.rides.domain.repository.RideRepository
 import com.wheels.app.features.rides.presentation.mock.OriginAutocompleteMocks
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
@@ -35,6 +36,14 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 import java.util.UUID
 import javax.inject.Inject
+
+private const val DEFAULT_MAX_PRICE_FILTER = 20000f
+private const val ORIGIN_MAX_LENGTH = 120
+private const val DESTINATION_MAX_LENGTH = 120
+private const val PRICE_MAX_LENGTH = 6
+private const val CAR_MODEL_MAX_LENGTH = 60
+private const val LICENSE_PLATE_MAX_LENGTH = 10
+private const val DESCRIPTION_MAX_LENGTH = 180
 
 @HiltViewModel
 class RidesViewModel @Inject constructor(
@@ -57,60 +66,6 @@ class RidesViewModel @Inject constructor(
     private var observedDriverRidesUserId: String? = null
 
     private fun newBackendRideId(prefix: String = "ride"): String = "$prefix-${UUID.randomUUID()}"
-
-    private val mockRides = listOf(
-        RideCardUiModel(
-            id = "1",
-            driver = "Carlos Mendez",
-            rating = 4.8,
-            ridesCount = 124,
-            reliabilityScore = 98,
-            origin = "Campus Uniandes",
-            destination = "Centro Comercial Andino",
-            destinationArea = "Chapinero",
-            departureTime = "14:30",
-            estimatedDuration = "30 min",
-            price = 3500,
-            availableSeats = 3,
-            totalSeats = 4,
-            isHabitRide = true,
-            punctualityRate = 96
-        ),
-        RideCardUiModel(
-            id = "2",
-            driver = "Maria Sanchez",
-            rating = 4.9,
-            ridesCount = 89,
-            reliabilityScore = 99,
-            origin = "Campus Uniandes",
-            destination = "Usaquen",
-            destinationArea = "Usaquen",
-            departureTime = "15:00",
-            estimatedDuration = "35 min",
-            price = 4000,
-            availableSeats = 2,
-            totalSeats = 3,
-            isHabitRide = false,
-            punctualityRate = 98
-        ),
-        RideCardUiModel(
-            id = "3",
-            driver = "Juan Pablo",
-            rating = 4.7,
-            ridesCount = 67,
-            reliabilityScore = 94,
-            origin = "Campus Uniandes",
-            destination = "Suba",
-            destinationArea = "Suba",
-            departureTime = "15:30",
-            estimatedDuration = "45 min",
-            price = 5000,
-            availableSeats = 1,
-            totalSeats = 4,
-            isHabitRide = false,
-            punctualityRate = 92
-        )
-    )
 
     private val seedDriverRides = listOf(
         DriverRideUiModel(
@@ -166,8 +121,8 @@ class RidesViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(
         RidesUiState(
-            allRides = mockRides,
-            filteredRides = mockRides,
+            allRides = emptyList(),
+            filteredRides = emptyList(),
             driverRides = emptyList()
         )
     )
@@ -175,6 +130,7 @@ class RidesViewModel @Inject constructor(
     val activeRole: StateFlow<UserRole> = roleManager.activeRole
 
     init {
+        observeAvailableRides()
         observeCurrentDriver()
     }
 
@@ -188,8 +144,9 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.AreaSelected -> updateFilters(selectedArea = event.area)
             is RidesEvent.MaxPriceChanged -> updateFilters(maxPrice = event.value)
             is RidesEvent.MinRatingSelected -> updateFilters(selectedMinRating = event.rating)
-            RidesEvent.ApplySuggestedDestination -> updateFilters(searchQuery = "Centro")
+            RidesEvent.ApplySuggestedDestination -> applySmartSuggestion()
             RidesEvent.ClearRatingFilter -> updateFilters(selectedMinRating = null)
+            RidesEvent.ClearPassengerFilters -> clearPassengerFilters()
             is RidesEvent.DriverLocationQueryChanged -> updateLocationQuery(event.field, event.value)
             is RidesEvent.DriverLocationFieldFocused -> showLocationSuggestions(event.field)
             is RidesEvent.DriverLocationSuggestionSelected -> selectLocationSuggestion(
@@ -272,6 +229,42 @@ class RidesViewModel @Inject constructor(
         }
     }
 
+    private fun observeAvailableRides() {
+        viewModelScope.launch {
+            _uiState.update { state -> state.copy(isLoading = true) }
+            getAvailableRidesUseCase()
+                .catch {
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            allRides = emptyList(),
+                            filteredRides = emptyList(),
+                            availableAreas = listOf("All Areas")
+                        )
+                    }
+                }
+                .collect { rides ->
+                    val rideCards = rides.toRideCards()
+                    val availableAreas = buildAvailableAreas(rideCards)
+                    val selectedArea = _uiState.value.selectedArea
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            allRides = rideCards,
+                            availableAreas = availableAreas,
+                            selectedArea = if (selectedArea in availableAreas) {
+                                selectedArea
+                            } else {
+                                "All Areas"
+                            },
+                            smartSuggestion = buildSmartSuggestion(rideCards)
+                        )
+                    }
+                    applyPassengerFilters()
+                }
+        }
+    }
+
     private fun observeTrustScore(userId: String) {
         viewModelScope.launch {
             driverTrustRepository.observeDriverTrustScore(userId)
@@ -337,28 +330,74 @@ class RidesViewModel @Inject constructor(
         maxPrice: Float = _uiState.value.maxPrice,
         selectedMinRating: Double? = _uiState.value.selectedMinRating
     ) {
-        val filtered = mockRides.filter { ride ->
-            val matchesSearch = searchQuery.isBlank() ||
-                ride.destination.contains(searchQuery, ignoreCase = true) ||
-                ride.origin.contains(searchQuery, ignoreCase = true) ||
-                ride.driver.contains(searchQuery, ignoreCase = true)
-
-            val matchesArea = selectedArea == "All Areas" || ride.destinationArea == selectedArea
-            val matchesPrice = ride.price <= maxPrice.toInt()
-            val matchesRating = selectedMinRating == null || ride.rating >= selectedMinRating
-
-            matchesSearch && matchesArea && matchesPrice && matchesRating
-        }
-
         _uiState.update {
             it.copy(
                 searchQuery = searchQuery,
                 selectedArea = selectedArea,
                 maxPrice = maxPrice,
-                selectedMinRating = selectedMinRating,
-                filteredRides = filtered
+                selectedMinRating = selectedMinRating
             )
         }
+        applyPassengerFilters()
+    }
+
+    private fun applyPassengerFilters() {
+        val currentState = _uiState.value
+        val filtered = currentState.allRides.filter { ride ->
+            val matchesSearch = currentState.searchQuery.isBlank() ||
+                ride.destination.contains(currentState.searchQuery, ignoreCase = true) ||
+                ride.origin.contains(currentState.searchQuery, ignoreCase = true) ||
+                ride.driver.contains(currentState.searchQuery, ignoreCase = true)
+
+            val matchesArea = currentState.selectedArea == "All Areas" ||
+                ride.destinationArea.equals(currentState.selectedArea, ignoreCase = true)
+            val matchesPrice = ride.price <= currentState.maxPrice.toInt()
+            val matchesRating = currentState.selectedMinRating == null ||
+                ride.rating >= currentState.selectedMinRating
+
+            matchesSearch && matchesArea && matchesPrice && matchesRating
+        }
+            .sortedWith(
+                compareByDescending<RideCardUiModel> { it.reliabilityScore }
+                    .thenBy { it.departureTimestamp }
+            )
+            .mapIndexed { index, ride ->
+                ride.copy(isRecommendedByTrustScore = index < TRUST_RECOMMENDATION_COUNT)
+            }
+
+        _uiState.update {
+            it.copy(filteredRides = filtered)
+        }
+    }
+
+    private fun buildAvailableAreas(rides: List<RideCardUiModel>): List<String> {
+        val dynamicAreas = rides
+            .map { it.destinationArea.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+
+        return listOf("All Areas") + dynamicAreas
+    }
+
+    private fun applySmartSuggestion() {
+        val suggestion = _uiState.value.smartSuggestion ?: return
+        updateFilters(
+            searchQuery = suggestion.query,
+            selectedArea = "All Areas"
+        )
+    }
+
+    private fun clearPassengerFilters() {
+        _uiState.update {
+            it.copy(
+                searchQuery = "",
+                selectedArea = "All Areas",
+                maxPrice = DEFAULT_MAX_PRICE_FILTER,
+                selectedMinRating = null
+            )
+        }
+        applyPassengerFilters()
     }
 
     private fun updateDriverForm(
@@ -374,15 +413,15 @@ class RidesViewModel @Inject constructor(
     ) {
         _uiState.update {
             it.copy(
-                origin = origin,
-                destination = destination,
+                origin = origin.take(ORIGIN_MAX_LENGTH),
+                destination = destination.take(DESTINATION_MAX_LENGTH),
                 date = date,
                 time = time,
                 totalSeats = totalSeats,
-                pricePerSeat = pricePerSeat,
-                carModel = carModel,
-                licensePlate = licensePlate,
-                description = description,
+                pricePerSeat = pricePerSeat.take(PRICE_MAX_LENGTH),
+                carModel = carModel.take(CAR_MODEL_MAX_LENGTH),
+                licensePlate = licensePlate.take(LICENSE_PLATE_MAX_LENGTH),
+                description = description.take(DESCRIPTION_MAX_LENGTH),
                 publishRideErrorMessage = null
             )
         }
@@ -404,23 +443,27 @@ class RidesViewModel @Inject constructor(
     }
 
     private fun updateLocationQuery(field: RideLocationField, value: String) {
-        val filteredSuggestions = filterLocationSuggestions(value)
+        val sanitizedValue = when (field) {
+            RideLocationField.ORIGIN -> value.take(ORIGIN_MAX_LENGTH)
+            RideLocationField.DESTINATION -> value.take(DESTINATION_MAX_LENGTH)
+        }
+        val filteredSuggestions = filterLocationSuggestions(sanitizedValue)
         _uiState.update { state ->
             when (field) {
                 RideLocationField.ORIGIN -> state.copy(
-                    origin = value,
+                    origin = sanitizedValue,
                     selectedOrigin = null,
                     originSuggestions = filteredSuggestions,
                     showOriginSuggestions = true,
-                    originNoResults = value.isNotBlank() && filteredSuggestions.isEmpty(),
+                    originNoResults = sanitizedValue.isNotBlank() && filteredSuggestions.isEmpty(),
                     originLocationError = null
                 )
                 RideLocationField.DESTINATION -> state.copy(
-                    destination = value,
+                    destination = sanitizedValue,
                     selectedDestination = null,
                     destinationSuggestions = filteredSuggestions,
                     showDestinationSuggestions = true,
-                    destinationNoResults = value.isNotBlank() && filteredSuggestions.isEmpty(),
+                    destinationNoResults = sanitizedValue.isNotBlank() && filteredSuggestions.isEmpty(),
                     destinationLocationError = null
                 )
             }
@@ -793,6 +836,7 @@ class RidesViewModel @Inject constructor(
     }
 
     private companion object {
+        const val TRUST_RECOMMENDATION_COUNT = 3
         val defaultPassengers = listOf(
             DriverPassengerUiModel(
                 id = "passenger-1",
@@ -826,6 +870,7 @@ sealed interface RidesEvent {
     data object LoadRides : RidesEvent
     data object ApplySuggestedDestination : RidesEvent
     data object ClearRatingFilter : RidesEvent
+    data object ClearPassengerFilters : RidesEvent
     data object DriverIncreaseSeats : RidesEvent
     data object DriverDecreaseSeats : RidesEvent
     data object PublishRide : RidesEvent
@@ -860,12 +905,13 @@ data class RidesUiState(
     val searchQuery: String = "",
     val showFilters: Boolean = false,
     val selectedArea: String = "All Areas",
-    val maxPrice: Float = 5000f,
+    val maxPrice: Float = DEFAULT_MAX_PRICE_FILTER,
     val selectedMinRating: Double? = null,
     val availableAreas: List<String> = listOf("All Areas", "Chapinero", "Usaquen", "Suba", "Kennedy"),
     val availableRatings: List<Double> = listOf(4.0, 4.5, 4.7, 4.9),
     val allRides: List<RideCardUiModel> = emptyList(),
     val filteredRides: List<RideCardUiModel> = emptyList(),
+    val smartSuggestion: PassengerSmartSuggestion? = null,
     val origin: String = "",
     val selectedOrigin: LocationSuggestion? = null,
     val originSuggestions: List<LocationSuggestion> = emptyList(),
@@ -1080,11 +1126,13 @@ data class RideCardUiModel(
     val destinationArea: String,
     val departureTime: String,
     val estimatedDuration: String,
+    val departureTimestamp: Long,
     val price: Int,
     val availableSeats: Int,
     val totalSeats: Int,
     val isHabitRide: Boolean,
-    val punctualityRate: Int
+    val punctualityRate: Int,
+    val isRecommendedByTrustScore: Boolean = false
 ) {
     val initials: String
         get() = driver.split(" ")
@@ -1094,4 +1142,46 @@ data class RideCardUiModel(
 
     val compactPrice: String
         get() = "$" + String.format("%.1fk", price / 1000f)
+}
+
+data class PassengerSmartSuggestion(
+    val query: String,
+    val message: String
+)
+
+private fun buildSmartSuggestion(rides: List<RideCardUiModel>): PassengerSmartSuggestion? {
+    val suggestedRide = rides.maxWithOrNull(
+        compareBy<RideCardUiModel> { it.reliabilityScore }
+            .thenByDescending { it.availableSeats }
+    ) ?: return null
+
+    val suggestedQuery = suggestedRide.destinationArea.ifBlank { suggestedRide.destination }
+    return PassengerSmartSuggestion(
+        query = suggestedQuery,
+        message = "Highest-trust rides available right now are heading to $suggestedQuery."
+    )
+}
+
+private fun List<Ride>.toRideCards(): List<RideCardUiModel> {
+    return map { ride ->
+        val departure = ride.departureTime.atZone(java.time.ZoneId.systemDefault())
+        RideCardUiModel(
+            id = ride.id,
+            driver = ride.driverName.ifBlank { "Uniandes driver" },
+            rating = ride.driverRating,
+            ridesCount = ride.reviewCount,
+            reliabilityScore = ride.reliabilityScore,
+            origin = ride.origin,
+            destination = ride.destination,
+            destinationArea = ride.destinationArea.ifBlank { ride.destination },
+            departureTime = departure.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
+            estimatedDuration = "${ride.estimatedDurationMinutes} min",
+            departureTimestamp = ride.departureTime.toEpochMilli(),
+            price = ride.pricePerSeat.roundToInt(),
+            availableSeats = ride.availableSeats,
+            totalSeats = ride.totalSeats,
+            isHabitRide = ride.isHabitRide,
+            punctualityRate = ride.punctualityRate
+        )
+    }
 }

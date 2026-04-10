@@ -42,7 +42,6 @@ import com.wheels.app.features.rides.presentation.ui.ReviewsRatingsScreen
 import com.wheels.app.features.rides.presentation.ui.RidesScreen
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
-import com.wheels.app.features.rides.presentation.viewmodel.mockRideRequestData
 
 @Composable
 fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
@@ -204,13 +203,15 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
                     navArgument("seats") { type = NavType.IntType }
                 )
             ) { backStackEntry ->
-                val rideId = backStackEntry.arguments?.getString("rideId").orEmpty()
                 val seats = backStackEntry.arguments?.getInt("seats") ?: 1
+                val viewModel: RideRequestViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsState()
                 BookingConfirmationScreen(
                     innerPadding = innerPadding,
                     navController = navController,
-                    ride = mockRideRequestData[rideId],
-                    selectedSeats = seats
+                    ride = state.ride,
+                    selectedSeats = seats,
+                    isLoading = state.isLoading
                 )
             }
             composable(Destinations.Profile.route) {
