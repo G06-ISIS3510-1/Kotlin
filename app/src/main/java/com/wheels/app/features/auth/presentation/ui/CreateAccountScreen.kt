@@ -142,6 +142,7 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.FullNameChanged(it)) },
                     label = "Full Name",
                     placeholder = "Your full name",
+                    maxLength = 80,
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Person,
@@ -156,6 +157,7 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.UsernameChanged(it)) },
                     label = "Uniandes Username",
                     placeholder = "your.username",
+                    maxLength = 64,
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -208,6 +210,7 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.PhoneChanged(it)) },
                     label = "Phone Number",
                     placeholder = "Your phone number",
+                    maxLength = 20,
                     keyboardType = KeyboardType.Phone,
                     leadingIcon = {
                         Icon(
@@ -223,6 +226,7 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.PasswordChanged(it)) },
                     label = "Password",
                     placeholder = "At least 8 characters",
+                    maxLength = 128,
                     keyboardType = KeyboardType.Password,
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = {
@@ -239,6 +243,7 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.ConfirmPasswordChanged(it)) },
                     label = "Confirm Password",
                     placeholder = "Repeat your password",
+                    maxLength = 128,
                     keyboardType = KeyboardType.Password,
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = {

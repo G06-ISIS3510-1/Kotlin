@@ -28,10 +28,16 @@ class SignInViewModel @Inject constructor(
     fun onEvent(event: SignInEvent) {
         when (event) {
             is SignInEvent.UsernameChanged -> _uiState.update {
-                it.copy(username = event.value, errorMessage = null)
+                it.copy(
+                    username = event.value.take(USERNAME_MAX_LENGTH),
+                    errorMessage = null
+                )
             }
             is SignInEvent.PasswordChanged -> _uiState.update {
-                it.copy(password = event.value, errorMessage = null)
+                it.copy(
+                    password = event.value.take(PASSWORD_MAX_LENGTH),
+                    errorMessage = null
+                )
             }
             SignInEvent.Submit -> submit()
         }
@@ -70,6 +76,11 @@ class SignInViewModel @Inject constructor(
                 Resource.Loading -> Unit
             }
         }
+    }
+
+    private companion object {
+        const val USERNAME_MAX_LENGTH = 64
+        const val PASSWORD_MAX_LENGTH = 128
     }
 }
 

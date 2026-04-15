@@ -21,6 +21,7 @@ fun WheelsInputField(
     label: String,
     placeholder: String,
     leadingIcon: @Composable () -> Unit,
+    maxLength: Int? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
@@ -44,6 +45,16 @@ fun WheelsInputField(
             leadingIcon = leadingIcon,
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = visualTransformation,
+            supportingText = {
+                maxLength?.let {
+                    Text(
+                        text = "${value.length}/$it",
+                        modifier = Modifier.fillMaxWidth(),
+                        color = colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = colorScheme.onSurface,
                 unfocusedTextColor = colorScheme.onSurface,
@@ -60,4 +71,3 @@ fun WheelsInputField(
         )
     }
 }
-

@@ -83,14 +83,25 @@ class FusedCurrentLocationProvider @Inject constructor(
         }.getOrNull()
 
         return if (address != null) {
+            val specificTitle = listOfNotNull(
+                address.thoroughfare?.takeIf { it.isNotBlank() },
+                address.subThoroughfare?.takeIf { it.isNotBlank() }
+            ).joinToString(" ").ifBlank { null }
+
+            val areaFallback = listOfNotNull(
+                address.subLocality?.takeIf { it.isNotBlank() },
+                address.locality?.takeIf { it.isNotBlank() }
+            ).joinToString(", ").ifBlank { null }
+
             CurrentLocationLabel(
-                title = address.locality
-                    ?: address.subLocality
+                title = specificTitle
                     ?: address.featureName
                     ?: address.getAddressLine(0)
+                    ?: areaFallback
                     ?: fallbackLocationLabel(location).title,
                 subtitle = listOfNotNull(
-                    address.thoroughfare,
+                    address.subLocality,
+                    address.locality,
                     address.subAdminArea
                 ).joinToString(", ").ifBlank { null }
             )

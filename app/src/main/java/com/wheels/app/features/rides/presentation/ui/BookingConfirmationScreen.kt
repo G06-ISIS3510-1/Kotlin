@@ -63,8 +63,22 @@ fun BookingConfirmationScreen(
     innerPadding: PaddingValues,
     navController: NavController,
     ride: RideRequestUiModel?,
-    selectedSeats: Int
+    selectedSeats: Int,
+    isLoading: Boolean = false
 ) {
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(WheelsBackground)
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Loading booking...", color = TextSecondary)
+        }
+        return
+    }
+
     if (ride == null) {
         Box(
             modifier = Modifier
