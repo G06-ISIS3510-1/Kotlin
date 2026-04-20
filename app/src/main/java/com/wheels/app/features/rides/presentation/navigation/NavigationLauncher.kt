@@ -1,6 +1,7 @@
 package com.wheels.app.features.rides.presentation.navigation
 
 import android.content.Context
+import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.data.adapter.GoogleMapsNavigationAdapter
 import com.wheels.app.features.rides.data.adapter.WazeNavigationAdapter
 import com.wheels.app.features.rides.domain.model.RouteDestination
@@ -11,6 +12,7 @@ class NavigationLauncherService {
     fun openDrivingDirections(
         context: Context,
         destination: String,
+        destinationCoordinates: Coordinates? = null,
         origin: String? = null,
         providerName: String = GOOGLE_MAPS_PROVIDER
     ): Boolean {
@@ -21,7 +23,10 @@ class NavigationLauncherService {
 
         return selectProvider(providerName).openRoute(
             context = context,
-            destination = RouteDestination(address = cleanedDestination),
+            destination = RouteDestination(
+                address = cleanedDestination,
+                coordinates = destinationCoordinates
+            ),
             origin = origin?.trim()?.takeIf { it.isNotEmpty() }
         )
     }

@@ -16,12 +16,14 @@ import com.wheels.app.features.rides.domain.repository.CancellationBehaviorRepos
 import com.wheels.app.features.rides.domain.usecase.ShouldShowBehavioralNudgeUseCase
 import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.domain.model.CancellationBehaviorMetrics
+import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
 import com.wheels.app.features.rides.domain.model.Ride
 import com.wheels.app.features.rides.domain.repository.RideRepository
 import com.wheels.app.features.rides.presentation.mock.OriginAutocompleteMocks
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
+import com.wheels.app.features.rides.presentation.model.LocationSuggestionType
 import com.wheels.app.features.rides.presentation.model.RideLocationField
 import com.wheels.app.features.rides.domain.usecase.GetAvailableRidesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -517,6 +519,13 @@ class RidesViewModel @Inject constructor(
         currentCoordinates: CurrentCoordinates,
         ride: RideCardUiModel
     ): Double? {
+        ride.originCoordinates?.let { originCoordinates ->
+            return calculateDistanceKm(
+                start = currentCoordinates,
+                end = originCoordinates.toCurrentCoordinates()
+            )
+        }
+
         val normalizedOrigin = ride.origin.trim()
         if (normalizedOrigin.isBlank()) {
             return null
@@ -532,6 +541,20 @@ class RidesViewModel @Inject constructor(
             start = currentCoordinates,
             end = originCoordinates
         )
+    }
+
+    private suspend fun resolveCoordinatesForPublish(
+        typedValue: String,
+        selectedSuggestion: LocationSuggestion?
+    ): Coordinates? {
+        selectedSuggestion?.coordinates?.let { return it }
+
+        val normalizedValue = typedValue.trim()
+        if (normalizedValue.isBlank()) {
+            return null
+        }
+
+        return currentLocationProvider.geocodeAddress(normalizedValue)?.toRideCoordinates()
     }
 
     private fun calculateDistanceKm(
@@ -675,14 +698,19 @@ class RidesViewModel @Inject constructor(
                 )
             }
 
-            runCatching { currentLocationProvider.getCurrentLocationLabel() }
-                .onSuccess { currentLocation ->
+            runCatching {
+                val currentLocation = currentLocationProvider.getCurrentLocationLabel()
+                val currentCoordinates = currentLocationProvider.getCurrentCoordinates().toRideCoordinates()
+                currentLocation to currentCoordinates
+            }.onSuccess { (currentLocation, currentCoordinates) ->
                     selectLocationSuggestion(
                         field = field,
                         suggestion = LocationSuggestion(
                             id = "${field.name.lowercase()}-current-location",
                             title = currentLocation.title,
-                            subtitle = currentLocation.subtitle
+                            subtitle = currentLocation.subtitle,
+                            coordinates = currentCoordinates,
+                            type = LocationSuggestionType.CURRENT_LOCATION
                         )
                     )
                     _uiState.update { state -> state.copy(currentLocationLoadingField = null) }
@@ -717,6 +745,15 @@ class RidesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { state -> state.copy(isPublishingRide = true) }
             runCatching {
+                val originCoordinates = resolveCoordinatesForPublish(
+                    typedValue = currentState.origin,
+                    selectedSuggestion = currentState.selectedOrigin
+                )
+                val destinationCoordinates = resolveCoordinatesForPublish(
+                    typedValue = currentState.destination,
+                    selectedSuggestion = currentState.selectedDestination
+                )
+
                 rideRepository.publishRide(
                     PublishRideRequest(
                         driverId = driverId,
@@ -724,8 +761,10 @@ class RidesViewModel @Inject constructor(
                         driverEmail = currentDriverEmail,
                         origin = currentState.origin,
                         originSearch = normalizeSearchValue(currentState.origin),
+                        originCoordinates = originCoordinates,
                         destination = currentState.destination,
                         destinationSearch = normalizeSearchValue(currentState.destination),
+                        destinationCoordinates = destinationCoordinates,
                         departureAt = departureAt,
                         estimatedDurationMinutes = estimatedDurationMinutes,
                         totalSeats = currentState.totalSeats,
@@ -1132,6 +1171,7 @@ data class DriverRideUiModel(
     val backendRideId: String,
     val origin: String,
     val destination: String,
+    val destinationCoordinates: Coordinates? = null,
     val date: String,
     val time: String,
     val estimatedArrival: String,
@@ -1198,6 +1238,7 @@ private fun DriverRideRecord.toUiModel(): DriverRideUiModel {
         backendRideId = id,
         origin = origin,
         destination = destination,
+        destinationCoordinates = destinationCoordinates,
         date = dateTime.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE),
         time = dateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
         estimatedArrival = arrivalDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
@@ -1282,6 +1323,7 @@ data class RideCardUiModel(
     val ridesCount: Int,
     val reliabilityScore: Int,
     val origin: String,
+    val originCoordinates: Coordinates? = null,
     val destination: String,
     val destinationArea: String,
     val departureTime: String,
@@ -1342,6 +1384,7 @@ private fun List<Ride>.toRideCards(): List<RideCardUiModel> {
             ridesCount = ride.reviewCount,
             reliabilityScore = ride.reliabilityScore,
             origin = ride.origin,
+            originCoordinates = ride.originCoordinates,
             destination = ride.destination,
             destinationArea = ride.destinationArea.ifBlank { ride.destination },
             departureTime = departure.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
@@ -1354,4 +1397,18 @@ private fun List<Ride>.toRideCards(): List<RideCardUiModel> {
             punctualityRate = ride.punctualityRate
         )
     }
+}
+
+private fun CurrentCoordinates.toRideCoordinates(): Coordinates {
+    return Coordinates(
+        lat = latitude,
+        lng = longitude
+    )
+}
+
+private fun Coordinates.toCurrentCoordinates(): CurrentCoordinates {
+    return CurrentCoordinates(
+        latitude = lat,
+        longitude = lng
+    )
 }
