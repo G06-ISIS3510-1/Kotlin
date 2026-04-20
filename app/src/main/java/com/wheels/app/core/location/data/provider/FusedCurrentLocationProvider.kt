@@ -13,6 +13,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.gms.tasks.Task
+import com.wheels.app.core.location.domain.model.CurrentCoordinates
 import com.wheels.app.core.location.domain.model.CurrentLocationLabel
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -21,6 +22,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -34,21 +36,46 @@ class FusedCurrentLocationProvider @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override suspend fun getCurrentLocationLabel(): CurrentLocationLabel = withContext(ioDispatcher) {
-        if (!hasLocationPermission()) {
-            throw IllegalStateException("Location permission is required to use current location.")
+        val location = getCurrentLocation()
+        reverseGeocode(location)
+    }
+
+    @SuppressLint("MissingPermission")
+    override suspend fun getCurrentCoordinates(): CurrentCoordinates = withContext(ioDispatcher) {
+        val location = getCurrentLocation()
+        CurrentCoordinates(
+            latitude = location.latitude,
+            longitude = location.longitude
+        )
+    }
+
+    override suspend fun geocodeAddress(address: String): CurrentCoordinates? = withContext(ioDispatcher) {
+        val normalizedAddress = address.trim()
+        if (normalizedAddress.isBlank() || !Geocoder.isPresent()) {
+            return@withContext null
         }
 
-        val client = LocationServices.getFusedLocationProviderClient(context)
-        val cancellationTokenSource = CancellationTokenSource()
+        geocodedAddressCache[normalizedAddress.lowercase(Locale.ROOT)]?.let { cachedCoordinates ->
+            return@withContext cachedCoordinates
+        }
 
-        val location = client.lastLocation.awaitNullable()
-            ?: client.getCurrentLocation(
-                Priority.PRIORITY_HIGH_ACCURACY,
-                cancellationTokenSource.token
-            ).awaitNullable()
-            ?: throw IllegalStateException("We could not determine your current location.")
+        val geocoder = Geocoder(context, Locale.getDefault())
+        val resolvedAddress = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                geocoder.getFromLocationNameSuspend(normalizedAddress)
+            } else {
+                @Suppress("DEPRECATION")
+                geocoder.getFromLocationName(normalizedAddress, 1)
+                    ?.firstOrNull()
+            }
+        }.getOrNull() ?: return@withContext null
 
-        reverseGeocode(location)
+        val coordinates = CurrentCoordinates(
+            latitude = resolvedAddress.latitude,
+            longitude = resolvedAddress.longitude
+        )
+        geocodedAddressCache[normalizedAddress.lowercase(Locale.ROOT)] = coordinates
+        coordinates
     }
 
     private fun hasLocationPermission(): Boolean {
@@ -63,6 +90,23 @@ class FusedCurrentLocationProvider @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
 
         return fineGranted || coarseGranted
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun getCurrentLocation(): Location {
+        if (!hasLocationPermission()) {
+            throw IllegalStateException("Location permission is required to use current location.")
+        }
+
+        val client = LocationServices.getFusedLocationProviderClient(context)
+        val cancellationTokenSource = CancellationTokenSource()
+
+        return client.lastLocation.awaitNullable()
+            ?: client.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                cancellationTokenSource.token
+            ).awaitNullable()
+            ?: throw IllegalStateException("We could not determine your current location.")
     }
 
     private suspend fun reverseGeocode(location: Location): CurrentLocationLabel {
@@ -140,5 +184,23 @@ class FusedCurrentLocationProvider @Inject constructor(
                 continuation.resumeWithException(exception)
             }
         }
+    }
+
+    private suspend fun Geocoder.getFromLocationNameSuspend(query: String): Address? {
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                getFromLocationName(query, 1) { addresses ->
+                    continuation.resume(addresses.firstOrNull())
+                }
+            } catch (exception: IOException) {
+                continuation.resumeWithException(exception)
+            } catch (exception: IllegalArgumentException) {
+                continuation.resumeWithException(exception)
+            }
+        }
+    }
+
+    private companion object {
+        val geocodedAddressCache = ConcurrentHashMap<String, CurrentCoordinates>()
     }
 }

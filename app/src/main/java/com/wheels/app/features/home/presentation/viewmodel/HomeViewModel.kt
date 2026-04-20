@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
 import com.wheels.app.core.location.domain.model.CurrentLocationLabel
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
+import com.wheels.app.core.session.RoleManager
+import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
@@ -19,11 +21,13 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val userDestinationInsightsRepository: UserDestinationInsightsRepository,
-    private val currentLocationProvider: CurrentLocationProvider
+    private val currentLocationProvider: CurrentLocationProvider,
+    roleManager: RoleManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    val activeRole: StateFlow<UserRole> = roleManager.activeRole
     private var observedInsightsUserId: String? = null
 
     init {

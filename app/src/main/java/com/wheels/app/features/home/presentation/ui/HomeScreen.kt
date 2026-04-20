@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.wheels.app.core.navigation.Destinations
+import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
 import com.wheels.app.core.ui.theme.GradientHeaderIconContainer
@@ -86,6 +87,7 @@ fun HomeScreen(
     navController: NavController
 ) {
     val state by viewModel.uiState.collectAsState()
+    val activeRole by viewModel.activeRole.collectAsState()
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -99,11 +101,26 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 104.dp)
         ) {
             item { HeaderSection(state) }
-            item {
-                LocationAwareSection(
-                    card = state.locationAwareCard,
-                    onActionClick = { navController.navigate(Destinations.Rides.route) }
-                )
+            if (activeRole == UserRole.PASSENGER) {
+                item {
+                    LocationAwareSection(
+                        card = state.locationAwareCard,
+                        onActionClick = {
+                            if (state.locationAwareCard.isPreciseLocationAvailable) {
+                                navController.currentBackStackEntry
+                                    ?.savedStateHandle
+                                    ?.set(Destinations.RIDES_NEARBY_REQUESTED_KEY, true)
+                                navController.currentBackStackEntry
+                                    ?.savedStateHandle
+                                    ?.set(
+                                        Destinations.RIDES_NEARBY_LOCATION_NAME_KEY,
+                                        state.currentLocation?.title
+                                    )
+                            }
+                            navController.navigate(Destinations.Rides.route)
+                        }
+                    )
+                }
             }
             item {
                 FrequentDestinationsSection(
