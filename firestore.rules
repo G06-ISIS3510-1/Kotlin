@@ -56,5 +56,14 @@ service cloud.firestore {
     match /user_usage_patterns/{userId} {
       allow read, write: if false;
     }
+
+    // Demo analytics stream for role changes. The app only appends events for
+    // the authenticated user, and BigQuery / Looker Studio can read the stream
+    // through Firebase exports without the client needing read access.
+    match /role_change_events/{eventId} {
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if false;
+    }
   }
 }
