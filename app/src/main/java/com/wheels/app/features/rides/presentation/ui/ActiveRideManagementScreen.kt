@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -35,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -58,12 +61,14 @@ import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.features.rides.presentation.navigation.NavigationLauncherService
 import com.wheels.app.features.rides.presentation.viewmodel.DriverPassengerUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideStatus
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.PaymentStatusState
 import com.wheels.app.features.rides.presentation.viewmodel.RidesEvent
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun ActiveRideManagementScreen(
@@ -74,10 +79,42 @@ fun ActiveRideManagementScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val ride = state.driverRides.firstOrNull { it.id == rideId }
+    val context = LocalContext.current
+    val navigationLauncher = remember { NavigationLauncherService() }
     var showEndConfirmation by remember { mutableStateOf(false) }
     var showCancelConfirmation by remember { mutableStateOf(false) }
     val isActionInProgress = state.actionInProgressRideId == rideId
     val trustNotice = state.trustNotice
+
+    if (ride == null && state.shouldPopAfterTrustNotice) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(WheelsBackground)
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Ride deleted",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = PrimaryBlue
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "We removed it from My Rides.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            }
+        }
+        LaunchedEffect(rideId, state.shouldPopAfterTrustNotice) {
+            delay(900)
+            viewModel.onEvent(RidesEvent.DismissTrustNotice)
+            navController.popBackStack()
+        }
+        return
+    }
 
     if (ride == null) {
         Box(
@@ -104,11 +141,40 @@ fun ActiveRideManagementScreen(
         return
     }
 
+    if (ride.status == DriverRideStatus.CANCELLED) {
+        ArchivedRideContent(
+            innerPadding = innerPadding,
+            navController = navController,
+            ride = ride,
+            title = "Ride Cancelled",
+            description = "This ride was cancelled and will stay here until you decide to remove it from your list.",
+            primaryActionLabel = if (isActionInProgress) "Deleting..." else "Delete from My Rides",
+            primaryActionEnabled = !isActionInProgress,
+            onPrimaryAction = { viewModel.onEvent(RidesEvent.DeleteDriverRide(ride.id)) },
+            showEarningsSummary = false
+        )
+        if (trustNotice != null) {
+            TrustNoticeDialog(
+                notice = trustNotice,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterTrustNotice
+                    viewModel.onEvent(RidesEvent.DismissTrustNotice)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+        return
+    }
+
     if (ride.status == DriverRideStatus.COMPLETED) {
         CompletedRideContent(
             innerPadding = innerPadding,
             navController = navController,
-            ride = ride
+            ride = ride,
+            isDeleting = isActionInProgress,
+            onDelete = { viewModel.onEvent(RidesEvent.DeleteDriverRide(ride.id)) }
         )
         if (trustNotice != null) {
             TrustNoticeDialog(
@@ -141,9 +207,6 @@ fun ActiveRideManagementScreen(
             }
             item {
                 CurrentRideCard(ride = ride)
-            }
-            item {
-                LiveRouteCard()
             }
             item {
                 PassengersCard(
@@ -229,6 +292,41 @@ fun ActiveRideManagementScreen(
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                                 color = SecondaryBlue
                             )
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                navigationLauncher.openDrivingDirections(
+                                    context = context,
+                                    destination = ride.destination,
+                                    destinationCoordinates = ride.destinationCoordinates,
+                                    origin = ride.origin
+                                )
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFE8F0F9),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, Border)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                imageVector = Icons.Default.Navigation,
+                                contentDescription = null,
+                                tint = SecondaryBlue
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Open Drive Navigation",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = SecondaryBlue
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -396,27 +494,6 @@ private fun CurrentRideCard(ride: DriverRideUiModel) {
                     modifier = Modifier.weight(1f)
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun LiveRouteCard() {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "[ LIVE ROUTE TRACKING ]",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                color = TextSecondary
-            )
         }
     }
 }
@@ -651,6 +728,7 @@ private fun RideStatusBadge(status: DriverRideStatus) {
         DriverRideStatus.PENDING -> "Pending" to Color(0xFFF59E0B)
         DriverRideStatus.ACTIVE -> "Active" to ElectricGreen
         DriverRideStatus.COMPLETED -> "Completed" to PrimaryBlue
+        DriverRideStatus.CANCELLED -> "Cancelled" to Color(0xFFDC2626)
     }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -920,7 +998,57 @@ private fun TrustNoticeDialog(
 private fun CompletedRideContent(
     innerPadding: PaddingValues,
     navController: NavController,
-    ride: DriverRideUiModel
+    ride: DriverRideUiModel,
+    isDeleting: Boolean,
+    onDelete: () -> Unit
+) {
+    ArchivedRideContent(
+        innerPadding = innerPadding,
+        navController = navController,
+        ride = ride,
+        title = "Ride Completed",
+        description = "Passenger payments may now be paid or still pending while the settlement finishes.",
+        primaryActionLabel = if (isDeleting) "Deleting..." else "Delete from My Rides",
+        primaryActionEnabled = !isDeleting,
+        onPrimaryAction = onDelete,
+        extraContent = {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Passengers",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = PrimaryBlue
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        ride.passengers.forEach { passenger ->
+                            CompletedPassengerRow(passenger = passenger)
+                        }
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun ArchivedRideContent(
+    innerPadding: PaddingValues,
+    navController: NavController,
+    ride: DriverRideUiModel,
+    title: String,
+    description: String,
+    primaryActionLabel: String,
+    primaryActionEnabled: Boolean,
+    onPrimaryAction: () -> Unit,
+    showEarningsSummary: Boolean = true,
+    extraContent: @Composable (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -960,66 +1088,49 @@ private fun CompletedRideContent(
                     }
                     Spacer(modifier = Modifier.height(18.dp))
                     Text(
-                        text = "Ride Completed",
+                        text = title,
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         color = PrimaryBlue
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Passenger payments may now be paid or still pending while the settlement finishes.",
+                        text = description,
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = WheelsBackground)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            EarningsRow(label = "Earnings", value = "$${ride.totalEarnings}")
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "${ride.passengers.size} passengers × $${ride.pricePerSeat}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
+                    if (showEarningsSummary) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = WheelsBackground)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                EarningsRow(label = "Earnings", value = "$${ride.totalEarnings}")
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "${ride.passengers.size} passengers × $${ride.pricePerSeat}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = WheelsSurface)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Passengers",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = PrimaryBlue
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        ride.passengers.forEach { passenger ->
-                            CompletedPassengerRow(passenger = passenger)
-                        }
-                    }
-                }
-            }
+            extraContent?.invoke()
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { },
+                onClick = onPrimaryAction,
+                enabled = primaryActionEnabled,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
                 Text(
-                    text = "Rate Passengers",
+                    text = primaryActionLabel,
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                 )
             }

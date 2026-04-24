@@ -13,15 +13,16 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.gms.tasks.Task
+import com.wheels.app.core.location.domain.model.CurrentCoordinates
 import com.wheels.app.core.location.domain.model.CurrentLocationLabel
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
-import com.wheels.app.features.rides.domain.model.Coordinates
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -40,12 +41,55 @@ class FusedCurrentLocationProvider @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    override suspend fun getCurrentCoordinates(): Coordinates = withContext(ioDispatcher) {
+    override suspend fun getCurrentCoordinates(): CurrentCoordinates = withContext(ioDispatcher) {
         val location = getCurrentLocation()
-        Coordinates(
-            lat = location.latitude,
-            lng = location.longitude
+        CurrentCoordinates(
+            latitude = location.latitude,
+            longitude = location.longitude
         )
+    }
+
+    override suspend fun geocodeAddress(address: String): CurrentCoordinates? = withContext(ioDispatcher) {
+        val normalizedAddress = address.trim()
+        if (normalizedAddress.isBlank() || !Geocoder.isPresent()) {
+            return@withContext null
+        }
+
+        geocodedAddressCache[normalizedAddress.lowercase(Locale.ROOT)]?.let { cachedCoordinates ->
+            return@withContext cachedCoordinates
+        }
+
+        val geocoder = Geocoder(context, Locale.getDefault())
+        val resolvedAddress = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                geocoder.getFromLocationNameSuspend(normalizedAddress)
+            } else {
+                @Suppress("DEPRECATION")
+                geocoder.getFromLocationName(normalizedAddress, 1)
+                    ?.firstOrNull()
+            }
+        }.getOrNull() ?: return@withContext null
+
+        val coordinates = CurrentCoordinates(
+            latitude = resolvedAddress.latitude,
+            longitude = resolvedAddress.longitude
+        )
+        geocodedAddressCache[normalizedAddress.lowercase(Locale.ROOT)] = coordinates
+        coordinates
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        val fineGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val coarseGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        return fineGranted || coarseGranted
     }
 
     @SuppressLint("MissingPermission")
@@ -63,20 +107,6 @@ class FusedCurrentLocationProvider @Inject constructor(
                 cancellationTokenSource.token
             ).awaitNullable()
             ?: throw IllegalStateException("We could not determine your current location.")
-    }
-
-    private fun hasLocationPermission(): Boolean {
-        val fineGranted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        val coarseGranted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        return fineGranted || coarseGranted
     }
 
     private suspend fun reverseGeocode(location: Location): CurrentLocationLabel {
@@ -154,5 +184,23 @@ class FusedCurrentLocationProvider @Inject constructor(
                 continuation.resumeWithException(exception)
             }
         }
+    }
+
+    private suspend fun Geocoder.getFromLocationNameSuspend(query: String): Address? {
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                getFromLocationName(query, 1) { addresses ->
+                    continuation.resume(addresses.firstOrNull())
+                }
+            } catch (exception: IOException) {
+                continuation.resumeWithException(exception)
+            } catch (exception: IllegalArgumentException) {
+                continuation.resumeWithException(exception)
+            }
+        }
+    }
+
+    private companion object {
+        val geocodedAddressCache = ConcurrentHashMap<String, CurrentCoordinates>()
     }
 }

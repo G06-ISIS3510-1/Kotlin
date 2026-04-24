@@ -27,4 +27,10 @@ sealed class Destinations(val route: String) {
     }
     data object Profile : Destinations("profile")
     data object TrustFairness : Destinations("trust_fairness")
+    data object UiTheme : Destinations("ui_theme")
+
+    companion object {
+        const val RIDES_NEARBY_REQUESTED_KEY = "rides_nearby_requested"
+        const val RIDES_NEARBY_LOCATION_NAME_KEY = "rides_nearby_location_name"
+    }
 }

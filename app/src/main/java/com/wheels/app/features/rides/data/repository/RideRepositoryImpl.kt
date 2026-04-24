@@ -4,8 +4,10 @@ import com.google.android.gms.tasks.Task
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.QuerySnapshot
 import com.wheels.app.features.rides.domain.model.Booking
+import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.NearRidesQuery
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
@@ -183,8 +185,10 @@ class RideRepositoryImpl @Inject constructor(
                 "driverEmail" to request.driverEmail,
                 "origin" to request.origin,
                 "originSearch" to request.originSearch,
+                "originCoordinates" to request.originCoordinates?.toGeoPoint(),
                 "destination" to request.destination,
                 "destinationSearch" to request.destinationSearch,
+                "destinationCoordinates" to request.destinationCoordinates?.toGeoPoint(),
                 "departureAt" to Timestamp(request.departureAt.epochSecond, request.departureAt.nano),
                 "estimatedDurationMinutes" to request.estimatedDurationMinutes,
                 "totalSeats" to request.totalSeats,
@@ -254,7 +258,9 @@ class RideRepositoryImpl @Inject constructor(
             reliabilityScore = DEFAULT_RELIABILITY_SCORE,
             status = getString("status").orEmpty().ifBlank { RIDE_STATUS_PUBLISHED },
             origin = getString("origin").orEmpty(),
+            originCoordinates = getCoordinates("originCoordinates"),
             destination = destination,
+            destinationCoordinates = getCoordinates("destinationCoordinates"),
             destinationArea = destination.substringAfterLast(",").trim().ifBlank { destination },
             departureTime = departureTime,
             estimatedDurationMinutes = estimatedDurationMinutes,
@@ -290,7 +296,9 @@ class RideRepositoryImpl @Inject constructor(
             id = id,
             driverId = getString("driverId").orEmpty(),
             origin = getString("origin").orEmpty(),
+            originCoordinates = getCoordinates("originCoordinates"),
             destination = getString("destination").orEmpty(),
+            destinationCoordinates = getCoordinates("destinationCoordinates"),
             departureAt = departureAt,
             estimatedDurationMinutes = estimatedDurationMinutes,
             availableSeats = getLong("availableSeats")?.toInt() ?: 0,
@@ -328,6 +336,39 @@ class RideRepositoryImpl @Inject constructor(
             .awaitResult()
 
         return snapshot.getLong("reliabilityScore")?.toInt()
+    }
+
+    private fun com.google.firebase.firestore.DocumentSnapshot.getCoordinates(field: String): Coordinates? {
+        getGeoPoint(field)?.let { geoPoint ->
+            return geoPoint.toCoordinates()
+        }
+
+        val coordinateMap = get(field)
+        if (coordinateMap !is Map<*, *>) {
+            return null
+        }
+
+        val latitude = (coordinateMap["lat"] as? Number)?.toDouble()
+            ?: (coordinateMap["latitude"] as? Number)?.toDouble()
+        val longitude = (coordinateMap["lng"] as? Number)?.toDouble()
+            ?: (coordinateMap["longitude"] as? Number)?.toDouble()
+
+        return if (latitude != null && longitude != null) {
+            Coordinates(lat = latitude, lng = longitude)
+        } else {
+            null
+        }
+    }
+
+    private fun Coordinates.toGeoPoint(): GeoPoint {
+        return GeoPoint(lat, lng)
+    }
+
+    private fun GeoPoint.toCoordinates(): Coordinates {
+        return Coordinates(
+            lat = latitude,
+            lng = longitude
+        )
     }
 
     private companion object {

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.common.Resource
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
+import com.wheels.app.core.location.domain.model.CurrentCoordinates
 import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.NearRidesQuery
 import com.wheels.app.features.rides.domain.usecase.GetNearRidesUseCase
@@ -29,7 +30,7 @@ class NearRidesViewModel @Inject constructor(
     val uiState: StateFlow<NearRidesUiState> = _uiState.asStateFlow()
 
     private var loadNearRidesJob: Job? = null
-    private var lastKnownCoordinates: Coordinates? = null
+    private var lastKnownCoordinates: CurrentCoordinates? = null
 
     fun loadNearRides(destinationQuery: String = _uiState.value.destinationQuery) {
         loadNearRidesJob?.cancel()
@@ -71,7 +72,7 @@ class NearRidesViewModel @Inject constructor(
             }
 
             val query = NearRidesQuery(
-                coordinates = coordinates,
+                coordinates = Coordinates(lat = coordinates.latitude, lng = coordinates.longitude),
                 destinationQuery = destinationQuery
             )
 

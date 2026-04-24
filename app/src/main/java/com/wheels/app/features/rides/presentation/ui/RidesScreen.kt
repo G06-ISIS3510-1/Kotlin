@@ -57,10 +57,12 @@ import androidx.compose.material3.Text
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -106,6 +108,32 @@ fun RidesScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val activeRole by viewModel.activeRole.collectAsState()
+
+    LaunchedEffect(navController, activeRole) {
+        if (activeRole != UserRole.PASSENGER) {
+            viewModel.onEvent(RidesEvent.ClearNearbyRides)
+            return@LaunchedEffect
+        }
+
+        val homeBackStackEntry = runCatching {
+            navController.getBackStackEntry(Destinations.Home.route)
+        }.getOrNull() ?: return@LaunchedEffect
+
+        val savedStateHandle = homeBackStackEntry.savedStateHandle
+        val nearbyRequested = savedStateHandle.get<Boolean>(Destinations.RIDES_NEARBY_REQUESTED_KEY) == true
+        if (!nearbyRequested) {
+            viewModel.onEvent(RidesEvent.ClearNearbyRides)
+            return@LaunchedEffect
+        }
+
+        viewModel.onEvent(
+            RidesEvent.ApplyNearbyRides(
+                savedStateHandle.get<String>(Destinations.RIDES_NEARBY_LOCATION_NAME_KEY)
+            )
+        )
+        savedStateHandle.remove<Boolean>(Destinations.RIDES_NEARBY_REQUESTED_KEY)
+        savedStateHandle.remove<String>(Destinations.RIDES_NEARBY_LOCATION_NAME_KEY)
+    }
 
     if (activeRole == UserRole.DRIVER) {
         DriverCreateRideScreen(
@@ -185,6 +213,15 @@ fun RidesScreen(
                 onClearRating = { viewModel.onEvent(RidesEvent.ClearRatingFilter) },
                 onClearFilters = { viewModel.onEvent(RidesEvent.ClearPassengerFilters) }
             )
+        }
+
+        item {
+            if (state.nearbyRides.isLoading || state.nearbyRides.isActive || state.nearbyRides.errorMessage != null) {
+                NearbyRidesBanner(
+                    state = state,
+                    onClear = { viewModel.onEvent(RidesEvent.ClearNearbyRides) }
+                )
+            }
         }
 
         item {
@@ -1564,6 +1601,64 @@ private fun FilterChip(
 }
 
 @Composable
+private fun NearbyRidesBanner(
+    state: RidesUiState,
+    onClear: () -> Unit
+) {
+    val nearbyState = state.nearbyRides
+    val description = when {
+        nearbyState.isLoading -> "Finding the rides closest to your current location..."
+        nearbyState.errorMessage != null -> nearbyState.errorMessage
+        nearbyState.isActive -> {
+            val locationLabel = nearbyState.locationName?.takeIf { it.isNotBlank() } ?: "your location"
+            if (nearbyState.nearbyRideCount > 0) {
+                "Showing rides closest to $locationLabel. ${nearbyState.nearbyRideCount} ride(s) are within 5 km."
+            } else {
+                "Showing the closest available rides to $locationLabel."
+            }
+        }
+        else -> null
+    } ?: return
+
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (nearbyState.errorMessage == null) Color(0xFFDFF7EA) else Color(0xFFFFF1F0)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (nearbyState.errorMessage == null) Icons.Default.LocationOn else Icons.Default.Info,
+                contentDescription = null,
+                tint = if (nearbyState.errorMessage == null) ElectricGreen else Color(0xFFD14343)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue,
+                modifier = Modifier.weight(1f)
+            )
+            if (!nearbyState.isLoading) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Clear",
+                    color = SecondaryBlue,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.clickable(onClick = onClear)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SmartSuggestionCard(
     message: String,
     onClick: () -> Unit
@@ -1669,6 +1764,24 @@ internal fun RideCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Matches your usual schedule",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = ElectricGreen
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            ride.distanceFromCurrentLocationLabel?.let { distanceLabel ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = ElectricGreen,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = distanceLabel,
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                         color = ElectricGreen
                     )
