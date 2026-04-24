@@ -6,9 +6,14 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.QuerySnapshot
+import com.wheels.app.core.common.Resource
+import com.wheels.app.core.network.NetworkMonitor
+import com.wheels.app.features.rides.data.local.NearRidesLocalCache
+import com.wheels.app.features.rides.data.remote.NearRidesRemoteDataSource
 import com.wheels.app.features.rides.domain.model.Booking
 import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
+import com.wheels.app.features.rides.domain.model.NearRidesQuery
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
 import com.wheels.app.features.rides.domain.model.Ride
 import com.wheels.app.features.rides.domain.repository.RideRepository
@@ -17,15 +22,22 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 
 @Singleton
 class RideRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val nearRidesRemoteDataSource: NearRidesRemoteDataSource,
+    private val nearRidesLocalCache: NearRidesLocalCache,
+    private val networkMonitor: NetworkMonitor,
+    private val ioDispatcher: CoroutineDispatcher
 ) : RideRepository {
 
     override fun getAvailableRides(): Flow<List<Ride>> = callbackFlow {
@@ -67,6 +79,47 @@ class RideRepositoryImpl @Inject constructor(
             }
 
         awaitClose { registration.remove() }
+    }
+
+    override fun getNearRides(query: NearRidesQuery): Flow<Resource<List<Ride>>> = flow {
+        val cached = withContext(ioDispatcher) {
+            nearRidesLocalCache.get(query)
+        }
+
+        if (cached != null) {
+            emit(Resource.Success(cached.rides))
+        } else {
+            emit(Resource.Loading)
+        }
+
+        val isOnline = withContext(ioDispatcher) {
+            networkMonitor.isOnline()
+        }
+
+        if (!isOnline) {
+            if (cached == null) {
+                emit(Resource.Error("No connection. Connect to the internet to find nearby rides."))
+            }
+            return@flow
+        }
+
+        runCatching {
+            nearRidesRemoteDataSource.fetchNearRides(query)
+        }.onSuccess { freshRides ->
+            withContext(ioDispatcher) {
+                nearRidesLocalCache.put(query, freshRides)
+            }
+            emit(Resource.Success(freshRides))
+        }.onFailure { throwable ->
+            if (cached == null) {
+                emit(
+                    Resource.Error(
+                        message = throwable.message ?: "Near rides are unavailable right now.",
+                        throwable = throwable
+                    )
+                )
+            }
+        }
     }
 
     override fun observeRide(rideId: String): Flow<Ride?> = callbackFlow {

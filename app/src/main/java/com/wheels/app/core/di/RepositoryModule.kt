@@ -6,6 +6,8 @@ import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRe
 import com.wheels.app.core.analytics.domain.repository.RoleChangeEventRepository
 import com.wheels.app.core.location.data.provider.FusedCurrentLocationProvider
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
+import com.wheels.app.core.network.AndroidNetworkMonitor
+import com.wheels.app.core.network.NetworkMonitor
 import com.wheels.app.core.session.data.repository.FirebaseUserSessionMetadataRepository
 import com.wheels.app.core.session.domain.repository.UserSessionMetadataRepository
 import com.wheels.app.core.trust.data.repository.FirebaseDriverTrustRepository
@@ -65,6 +67,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCurrentLocationProvider(impl: FusedCurrentLocationProvider): CurrentLocationProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindNetworkMonitor(impl: AndroidNetworkMonitor): NetworkMonitor
 
     @Binds
     @Singleton
