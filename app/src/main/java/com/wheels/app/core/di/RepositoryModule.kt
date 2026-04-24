@@ -2,6 +2,10 @@ package com.wheels.app.core.di
 
 import com.wheels.app.core.analytics.data.repository.FirebaseUserDestinationInsightsRepository
 import com.wheels.app.core.analytics.data.repository.FirebaseRoleChangeEventRepository
+import com.wheels.app.core.analytics.bq13.data.connectivity.AndroidConnectivityChecker
+import com.wheels.app.core.analytics.bq13.data.repository.BQ13RepositoryImpl
+import com.wheels.app.core.analytics.bq13.domain.connectivity.ConnectivityChecker
+import com.wheels.app.core.analytics.bq13.domain.repository.BQ13Repository
 import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
 import com.wheels.app.core.analytics.domain.repository.RoleChangeEventRepository
 import com.wheels.app.core.location.data.provider.FusedCurrentLocationProvider
@@ -35,6 +39,14 @@ abstract class RepositoryModule {
     abstract fun bindUserDestinationInsightsRepository(
         impl: FirebaseUserDestinationInsightsRepository
     ): UserDestinationInsightsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBQ13Repository(impl: BQ13RepositoryImpl): BQ13Repository
+
+    @Binds
+    @Singleton
+    abstract fun bindBQ13ConnectivityChecker(impl: AndroidConnectivityChecker): ConnectivityChecker
 
     @Binds
     @Singleton
