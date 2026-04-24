@@ -1,7 +1,9 @@
 package com.wheels.app.features.rides.presentation.viewmodel
 
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wheels.app.core.location.domain.model.CurrentCoordinates
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
@@ -14,12 +16,14 @@ import com.wheels.app.features.rides.domain.repository.CancellationBehaviorRepos
 import com.wheels.app.features.rides.domain.usecase.ShouldShowBehavioralNudgeUseCase
 import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.domain.model.CancellationBehaviorMetrics
+import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
 import com.wheels.app.features.rides.domain.model.Ride
 import com.wheels.app.features.rides.domain.repository.RideRepository
 import com.wheels.app.features.rides.presentation.mock.OriginAutocompleteMocks
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
+import com.wheels.app.features.rides.presentation.model.LocationSuggestionType
 import com.wheels.app.features.rides.presentation.model.RideLocationField
 import com.wheels.app.features.rides.domain.usecase.GetAvailableRidesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,9 +37,10 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import kotlin.math.roundToInt
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.math.roundToInt
 
 private const val DEFAULT_MAX_PRICE_FILTER = 20000f
 private const val ORIGIN_MAX_LENGTH = 120
@@ -44,6 +49,7 @@ private const val PRICE_MAX_LENGTH = 6
 private const val CAR_MODEL_MAX_LENGTH = 60
 private const val LICENSE_PLATE_MAX_LENGTH = 10
 private const val DESCRIPTION_MAX_LENGTH = 180
+private const val NEARBY_DISTANCE_KM_THRESHOLD = 5.0
 
 @HiltViewModel
 class RidesViewModel @Inject constructor(
@@ -64,6 +70,8 @@ class RidesViewModel @Inject constructor(
     private var observedTrustUserId: String? = null
     private var observedCancellationMetricsUserId: String? = null
     private var observedDriverRidesUserId: String? = null
+    private val rideOriginCoordinatesCache = mutableMapOf<String, CurrentCoordinates>()
+    private var rideDistanceKmById: Map<String, Double> = emptyMap()
 
     private fun newBackendRideId(prefix: String = "ride"): String = "$prefix-${UUID.randomUUID()}"
 
@@ -141,6 +149,8 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.FiltersExpandedChanged -> {
                 _uiState.update { it.copy(showFilters = event.expanded) }
             }
+            is RidesEvent.ApplyNearbyRides -> applyNearbyRides(event.locationNameHint)
+            RidesEvent.ClearNearbyRides -> clearNearbyRides()
             is RidesEvent.AreaSelected -> updateFilters(selectedArea = event.area)
             is RidesEvent.MaxPriceChanged -> updateFilters(maxPrice = event.value)
             is RidesEvent.MinRatingSelected -> updateFilters(selectedMinRating = event.rating)
@@ -247,6 +257,9 @@ class RidesViewModel @Inject constructor(
                     val rideCards = rides.toRideCards()
                     val availableAreas = buildAvailableAreas(rideCards)
                     val selectedArea = _uiState.value.selectedArea
+                    val nearbyLocationName = _uiState.value.nearbyRides.locationName
+                    val nearbyModeRequested = _uiState.value.nearbyRides.isActive ||
+                        _uiState.value.nearbyRides.isLoading
                     _uiState.update { state ->
                         state.copy(
                             isLoading = false,
@@ -260,7 +273,11 @@ class RidesViewModel @Inject constructor(
                             smartSuggestion = buildSmartSuggestion(rideCards)
                         )
                     }
-                    applyPassengerFilters()
+                    if (nearbyModeRequested) {
+                        applyNearbyRides(nearbyLocationName)
+                    } else {
+                        applyPassengerFilters()
+                    }
                 }
         }
     }
@@ -343,26 +360,39 @@ class RidesViewModel @Inject constructor(
 
     private fun applyPassengerFilters() {
         val currentState = _uiState.value
-        val filtered = currentState.allRides.filter { ride ->
-            val matchesSearch = currentState.searchQuery.isBlank() ||
-                ride.destination.contains(currentState.searchQuery, ignoreCase = true) ||
-                ride.origin.contains(currentState.searchQuery, ignoreCase = true) ||
-                ride.driver.contains(currentState.searchQuery, ignoreCase = true)
+        val filtered = currentState.allRides
+            .filter { ride ->
+                val matchesSearch = currentState.searchQuery.isBlank() ||
+                    ride.destination.contains(currentState.searchQuery, ignoreCase = true) ||
+                    ride.origin.contains(currentState.searchQuery, ignoreCase = true) ||
+                    ride.driver.contains(currentState.searchQuery, ignoreCase = true)
 
-            val matchesArea = currentState.selectedArea == "All Areas" ||
-                ride.destinationArea.equals(currentState.selectedArea, ignoreCase = true)
-            val matchesPrice = ride.price <= currentState.maxPrice.toInt()
-            val matchesRating = currentState.selectedMinRating == null ||
-                ride.rating >= currentState.selectedMinRating
+                val matchesArea = currentState.selectedArea == "All Areas" ||
+                    ride.destinationArea.equals(currentState.selectedArea, ignoreCase = true)
+                val matchesPrice = ride.price <= currentState.maxPrice.toInt()
+                val matchesRating = currentState.selectedMinRating == null ||
+                    ride.rating >= currentState.selectedMinRating
 
-            matchesSearch && matchesArea && matchesPrice && matchesRating
-        }
+                matchesSearch && matchesArea && matchesPrice && matchesRating
+            }
+            .map { ride ->
+                ride.copy(distanceFromCurrentLocationKm = rideDistanceKmById[ride.id])
+            }
             .sortedWith(
-                compareByDescending<RideCardUiModel> { it.reliabilityScore }
-                    .thenBy { it.departureTimestamp }
+                if (currentState.nearbyRides.isActive) {
+                    compareBy<RideCardUiModel> { it.distanceFromCurrentLocationKm ?: Double.MAX_VALUE }
+                        .thenByDescending { it.reliabilityScore }
+                        .thenBy { it.departureTimestamp }
+                } else {
+                    compareByDescending<RideCardUiModel> { it.reliabilityScore }
+                        .thenBy { it.departureTimestamp }
+                }
             )
             .mapIndexed { index, ride ->
-                ride.copy(isRecommendedByTrustScore = index < TRUST_RECOMMENDATION_COUNT)
+                ride.copy(
+                    isRecommendedByTrustScore = !currentState.nearbyRides.isActive &&
+                        index < TRUST_RECOMMENDATION_COUNT
+                )
             }
 
         _uiState.update {
@@ -389,15 +419,157 @@ class RidesViewModel @Inject constructor(
     }
 
     private fun clearPassengerFilters() {
+        rideDistanceKmById = emptyMap()
         _uiState.update {
             it.copy(
                 searchQuery = "",
                 selectedArea = "All Areas",
                 maxPrice = DEFAULT_MAX_PRICE_FILTER,
-                selectedMinRating = null
+                selectedMinRating = null,
+                nearbyRides = NearbyRidesUiState()
             )
         }
         applyPassengerFilters()
+    }
+
+    private fun clearNearbyRides() {
+        rideDistanceKmById = emptyMap()
+        _uiState.update { state ->
+            state.copy(nearbyRides = NearbyRidesUiState())
+        }
+        applyPassengerFilters()
+    }
+
+    private fun applyNearbyRides(locationNameHint: String?) {
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(
+                    searchQuery = "",
+                    selectedArea = "All Areas",
+                    maxPrice = DEFAULT_MAX_PRICE_FILTER,
+                    selectedMinRating = null,
+                    nearbyRides = state.nearbyRides.copy(
+                        isLoading = true,
+                        isActive = false,
+                        locationName = locationNameHint ?: state.nearbyRides.locationName,
+                        errorMessage = null
+                    )
+                )
+            }
+            applyPassengerFilters()
+
+            if (_uiState.value.allRides.isEmpty() && _uiState.value.isLoading) {
+                return@launch
+            }
+
+            runCatching {
+                val currentCoordinates = currentLocationProvider.getCurrentCoordinates()
+                resolveRideDistances(currentCoordinates)
+            }.onSuccess { distancesByRideId ->
+                rideDistanceKmById = distancesByRideId
+                val nearbyRideCount = distancesByRideId.values.count { it <= NEARBY_DISTANCE_KM_THRESHOLD }
+
+                _uiState.update { state ->
+                    state.copy(
+                        nearbyRides = NearbyRidesUiState(
+                            isActive = distancesByRideId.isNotEmpty(),
+                            isLoading = false,
+                            locationName = locationNameHint ?: state.nearbyRides.locationName,
+                            nearbyRideCount = nearbyRideCount,
+                            errorMessage = if (distancesByRideId.isEmpty()) {
+                                "We could not resolve ride origins near your current area."
+                            } else {
+                                null
+                            }
+                        )
+                    )
+                }
+                applyPassengerFilters()
+            }.onFailure { throwable ->
+                rideDistanceKmById = emptyMap()
+                _uiState.update { state ->
+                    state.copy(
+                        nearbyRides = NearbyRidesUiState(
+                            isActive = false,
+                            isLoading = false,
+                            locationName = locationNameHint ?: state.nearbyRides.locationName,
+                            nearbyRideCount = 0,
+                            errorMessage = throwable.message ?: "We could not load nearby rides right now."
+                        )
+                    )
+                }
+                applyPassengerFilters()
+            }
+        }
+    }
+
+    private suspend fun resolveRideDistances(currentCoordinates: CurrentCoordinates): Map<String, Double> {
+        val rides = _uiState.value.allRides
+        return rides.mapNotNull { ride ->
+            val distanceKm = resolveRideDistanceKm(
+                currentCoordinates = currentCoordinates,
+                ride = ride
+            ) ?: return@mapNotNull null
+
+            ride.id to distanceKm
+        }.toMap()
+    }
+
+    private suspend fun resolveRideDistanceKm(
+        currentCoordinates: CurrentCoordinates,
+        ride: RideCardUiModel
+    ): Double? {
+        ride.originCoordinates?.let { originCoordinates ->
+            return calculateDistanceKm(
+                start = currentCoordinates,
+                end = originCoordinates.toCurrentCoordinates()
+            )
+        }
+
+        val normalizedOrigin = ride.origin.trim()
+        if (normalizedOrigin.isBlank()) {
+            return null
+        }
+
+        val originCoordinates = rideOriginCoordinatesCache[normalizedOrigin]
+            ?: currentLocationProvider.geocodeAddress(normalizedOrigin)?.also { resolvedCoordinates ->
+                rideOriginCoordinatesCache[normalizedOrigin] = resolvedCoordinates
+            }
+            ?: return null
+
+        return calculateDistanceKm(
+            start = currentCoordinates,
+            end = originCoordinates
+        )
+    }
+
+    private suspend fun resolveCoordinatesForPublish(
+        typedValue: String,
+        selectedSuggestion: LocationSuggestion?
+    ): Coordinates? {
+        selectedSuggestion?.coordinates?.let { return it }
+
+        val normalizedValue = typedValue.trim()
+        if (normalizedValue.isBlank()) {
+            return null
+        }
+
+        return currentLocationProvider.geocodeAddress(normalizedValue)?.toRideCoordinates()
+    }
+
+    private fun calculateDistanceKm(
+        start: CurrentCoordinates,
+        end: CurrentCoordinates
+    ): Double {
+        val result = FloatArray(1)
+        Location.distanceBetween(
+            start.latitude,
+            start.longitude,
+            end.latitude,
+            end.longitude,
+            result
+        )
+        return result.firstOrNull()?.div(1000.0) ?: Double.MAX_VALUE
     }
 
     private fun updateDriverForm(
@@ -526,14 +698,19 @@ class RidesViewModel @Inject constructor(
                 )
             }
 
-            runCatching { currentLocationProvider.getCurrentLocationLabel() }
-                .onSuccess { currentLocation ->
+            runCatching {
+                val currentLocation = currentLocationProvider.getCurrentLocationLabel()
+                val currentCoordinates = currentLocationProvider.getCurrentCoordinates().toRideCoordinates()
+                currentLocation to currentCoordinates
+            }.onSuccess { (currentLocation, currentCoordinates) ->
                     selectLocationSuggestion(
                         field = field,
                         suggestion = LocationSuggestion(
                             id = "${field.name.lowercase()}-current-location",
                             title = currentLocation.title,
-                            subtitle = currentLocation.subtitle
+                            subtitle = currentLocation.subtitle,
+                            coordinates = currentCoordinates,
+                            type = LocationSuggestionType.CURRENT_LOCATION
                         )
                     )
                     _uiState.update { state -> state.copy(currentLocationLoadingField = null) }
@@ -568,6 +745,15 @@ class RidesViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { state -> state.copy(isPublishingRide = true) }
             runCatching {
+                val originCoordinates = resolveCoordinatesForPublish(
+                    typedValue = currentState.origin,
+                    selectedSuggestion = currentState.selectedOrigin
+                )
+                val destinationCoordinates = resolveCoordinatesForPublish(
+                    typedValue = currentState.destination,
+                    selectedSuggestion = currentState.selectedDestination
+                )
+
                 rideRepository.publishRide(
                     PublishRideRequest(
                         driverId = driverId,
@@ -575,8 +761,10 @@ class RidesViewModel @Inject constructor(
                         driverEmail = currentDriverEmail,
                         origin = currentState.origin,
                         originSearch = normalizeSearchValue(currentState.origin),
+                        originCoordinates = originCoordinates,
                         destination = currentState.destination,
                         destinationSearch = normalizeSearchValue(currentState.destination),
+                        destinationCoordinates = destinationCoordinates,
                         departureAt = departureAt,
                         estimatedDurationMinutes = estimatedDurationMinutes,
                         totalSeats = currentState.totalSeats,
@@ -869,6 +1057,8 @@ class RidesViewModel @Inject constructor(
 sealed interface RidesEvent {
     data object LoadRides : RidesEvent
     data object ApplySuggestedDestination : RidesEvent
+    data class ApplyNearbyRides(val locationNameHint: String?) : RidesEvent
+    data object ClearNearbyRides : RidesEvent
     data object ClearRatingFilter : RidesEvent
     data object ClearPassengerFilters : RidesEvent
     data object DriverIncreaseSeats : RidesEvent
@@ -911,6 +1101,7 @@ data class RidesUiState(
     val availableRatings: List<Double> = listOf(4.0, 4.5, 4.7, 4.9),
     val allRides: List<RideCardUiModel> = emptyList(),
     val filteredRides: List<RideCardUiModel> = emptyList(),
+    val nearbyRides: NearbyRidesUiState = NearbyRidesUiState(),
     val smartSuggestion: PassengerSmartSuggestion? = null,
     val origin: String = "",
     val selectedOrigin: LocationSuggestion? = null,
@@ -962,6 +1153,14 @@ data class RidesUiState(
             !isPublishingRide
 }
 
+data class NearbyRidesUiState(
+    val isActive: Boolean = false,
+    val isLoading: Boolean = false,
+    val locationName: String? = null,
+    val nearbyRideCount: Int = 0,
+    val errorMessage: String? = null
+)
+
 enum class DriverRidesTab {
     CREATE_RIDE,
     MY_RIDES
@@ -972,6 +1171,7 @@ data class DriverRideUiModel(
     val backendRideId: String,
     val origin: String,
     val destination: String,
+    val destinationCoordinates: Coordinates? = null,
     val date: String,
     val time: String,
     val estimatedArrival: String,
@@ -1038,6 +1238,7 @@ private fun DriverRideRecord.toUiModel(): DriverRideUiModel {
         backendRideId = id,
         origin = origin,
         destination = destination,
+        destinationCoordinates = destinationCoordinates,
         date = dateTime.toLocalDate().format(DateTimeFormatter.ISO_LOCAL_DATE),
         time = dateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
         estimatedArrival = arrivalDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
@@ -1122,6 +1323,7 @@ data class RideCardUiModel(
     val ridesCount: Int,
     val reliabilityScore: Int,
     val origin: String,
+    val originCoordinates: Coordinates? = null,
     val destination: String,
     val destinationArea: String,
     val departureTime: String,
@@ -1132,6 +1334,7 @@ data class RideCardUiModel(
     val totalSeats: Int,
     val isHabitRide: Boolean,
     val punctualityRate: Int,
+    val distanceFromCurrentLocationKm: Double? = null,
     val isRecommendedByTrustScore: Boolean = false
 ) {
     val initials: String
@@ -1142,6 +1345,15 @@ data class RideCardUiModel(
 
     val compactPrice: String
         get() = "$" + String.format("%.1fk", price / 1000f)
+
+    val distanceFromCurrentLocationLabel: String?
+        get() = distanceFromCurrentLocationKm?.let { distanceKm ->
+            if (distanceKm < 1) {
+                "${(distanceKm * 1000).roundToInt()} m away"
+            } else {
+                String.format(Locale.US, "%.1f km away", distanceKm)
+            }
+        }
 }
 
 data class PassengerSmartSuggestion(
@@ -1172,6 +1384,7 @@ private fun List<Ride>.toRideCards(): List<RideCardUiModel> {
             ridesCount = ride.reviewCount,
             reliabilityScore = ride.reliabilityScore,
             origin = ride.origin,
+            originCoordinates = ride.originCoordinates,
             destination = ride.destination,
             destinationArea = ride.destinationArea.ifBlank { ride.destination },
             departureTime = departure.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),
@@ -1184,4 +1397,18 @@ private fun List<Ride>.toRideCards(): List<RideCardUiModel> {
             punctualityRate = ride.punctualityRate
         )
     }
+}
+
+private fun CurrentCoordinates.toRideCoordinates(): Coordinates {
+    return Coordinates(
+        lat = latitude,
+        lng = longitude
+    )
+}
+
+private fun Coordinates.toCurrentCoordinates(): CurrentCoordinates {
+    return CurrentCoordinates(
+        latitude = lat,
+        longitude = lng
+    )
 }

@@ -301,6 +301,7 @@ fun ActiveRideManagementScreen(
                                 navigationLauncher.openDrivingDirections(
                                     context = context,
                                     destination = ride.destination,
+                                    destinationCoordinates = ride.destinationCoordinates,
                                     origin = ride.origin
                                 )
                             },
