@@ -4,8 +4,8 @@ import com.wheels.app.core.session.UserRole
 
 data class CreateAccountRequest(
     val fullName: String,
-    val username: String,
+    val email: String,
     val password: String,
     val phone: String,
-    val roles: Set<UserRole> = setOf(UserRole.PASSENGER)
+    val role: UserRole = UserRole.PASSENGER
 )

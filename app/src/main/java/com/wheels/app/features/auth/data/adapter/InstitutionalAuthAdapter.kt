@@ -12,7 +12,7 @@ class InstitutionalAuthAdapter @Inject constructor(
     private val sessionManager: SessionManager
 ) : AuthService {
 
-    // Adapter isolates the app from provider-specific authentication details. miau
+    // Adapter isolates the app from provider-specific authentication details.
     override suspend fun loginWithInstitutionalEmail(email: String, password: String): AuthUser {
         TODO("Pending authentication integration and mapping from AuthClient response into AuthUser.")
     }

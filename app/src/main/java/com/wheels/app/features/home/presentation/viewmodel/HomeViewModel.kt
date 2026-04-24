@@ -2,122 +2,21 @@ package com.wheels.app.features.home.presentation.viewmodel
 
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
-import com.wheels.app.core.location.domain.model.CurrentLocationLabel
-import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
-import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
-    private val getUserProfileUseCase: GetUserProfileUseCase,
-    private val userDestinationInsightsRepository: UserDestinationInsightsRepository,
-    private val currentLocationProvider: CurrentLocationProvider
-) : ViewModel() {
+class HomeViewModel @Inject constructor() : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-    private var observedInsightsUserId: String? = null
-
-    init {
-        loadCurrentLocation()
-        observeCurrentUser()
-    }
 
     fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.Refresh -> Unit
-        }
-    }
-
-    private fun observeCurrentUser() {
-        viewModelScope.launch {
-            getUserProfileUseCase()
-                .catch { /* Keep fallback name if profile loading fails */ }
-                .collect { user ->
-                    _uiState.value = _uiState.value.copy(
-                        userName = user
-                            ?.fullName
-                            ?.substringBefore(" ")
-                            ?.ifBlank { user.fullName }
-                            ?: "User"
-                    )
-
-                    if (user == null) {
-                        observedInsightsUserId = null
-                        _uiState.value = _uiState.value.copy(
-                            destinationInsights = emptyList(),
-                            trackedDestinationBookings = 0
-                        )
-                    } else if (observedInsightsUserId != user.id) {
-                        observedInsightsUserId = user.id
-                        observeDestinationInsights(user.id)
-                    }
-                }
-        }
-    }
-
-    private fun observeDestinationInsights(userId: String) {
-        viewModelScope.launch {
-            userDestinationInsightsRepository.observeUserDestinationInsights(userId)
-                .catch {
-                    _uiState.value = _uiState.value.copy(
-                        destinationInsights = emptyList(),
-                        trackedDestinationBookings = 0
-                    )
-                }
-                .collect { insights ->
-                    _uiState.value = _uiState.value.copy(
-                        destinationInsights = insights?.topDestinations.orEmpty().map {
-                            FrequentDestinationUiModel(
-                                destinationName = it.destinationName,
-                                bookingCount = it.bookingCount,
-                                rank = it.rank
-                            )
-                        },
-                        trackedDestinationBookings = insights?.totalBookingsTracked ?: 0
-                    )
-                }
-        }
-    }
-
-    private fun loadCurrentLocation() {
-        viewModelScope.launch {
-            val currentLocation = runCatching { currentLocationProvider.getCurrentLocationLabel() }.getOrNull()
-            _uiState.value = _uiState.value.copy(
-                currentLocation = currentLocation,
-                locationAwareCard = buildLocationAwareCard(currentLocation)
-            )
-        }
-    }
-
-    private fun buildLocationAwareCard(currentLocation: CurrentLocationLabel?): LocationAwareCardUiModel {
-        val locationName = currentLocation?.title?.takeIf { it.isNotBlank() }
-        val locationSubtitle = currentLocation?.subtitle?.takeIf { it.isNotBlank() }
-
-        return if (locationName != null) {
-            LocationAwareCardUiModel(
-                title = "Rides near $locationName",
-                description = locationSubtitle
-                    ?.let { "Your location suggests nearby pickup opportunities around $locationName, $it." }
-                    ?: "Your current location suggests nearby pickup opportunities around $locationName.",
-                actionLabel = "Explore nearby rides",
-                isPreciseLocationAvailable = true
-            )
-        } else {
-            LocationAwareCardUiModel(
-                title = "Use your location to find rides faster",
-                description = "Once location is available, Wheels can highlight rides closer to your pickup area.",
-                actionLabel = "Open rides",
-                isPreciseLocationAvailable = false
-            )
         }
     }
 }
@@ -128,18 +27,14 @@ sealed interface HomeEvent {
 
 data class HomeUiState(
     val isLoading: Boolean = false,
-    val userName: String = "User",
+    val userName: String = "Maria",
     val welcomeMessage: String = "Welcome back",
-    val currentLocation: CurrentLocationLabel? = null,
-    val locationAwareCard: LocationAwareCardUiModel = LocationAwareCardUiModel(),
     val quickStats: List<HomeQuickStat> = listOf(
         HomeQuickStat(label = "Rides", value = "12"),
         HomeQuickStat(label = "Reliability", value = "98%", accentColor = Color(0xFF10B981)),
         HomeQuickStat(label = "Rating", value = "5.0")
     ),
     val activeRide: ActiveRideUiModel = ActiveRideUiModel(),
-    val destinationInsights: List<FrequentDestinationUiModel> = emptyList(),
-    val trackedDestinationBookings: Int = 0,
     val updates: List<HomeUpdateUiModel> = listOf(
         HomeUpdateUiModel(
             title = "Driver arriving soon",
@@ -154,19 +49,6 @@ data class HomeUiState(
             tone = UpdateTone.Info
         )
     )
-)
-
-data class FrequentDestinationUiModel(
-    val destinationName: String,
-    val bookingCount: Int,
-    val rank: Int
-)
-
-data class LocationAwareCardUiModel(
-    val title: String = "Location-aware suggestions",
-    val description: String = "Wheels can adapt ride suggestions using your current area.",
-    val actionLabel: String = "Open rides",
-    val isPreciseLocationAvailable: Boolean = false
 )
 
 data class HomeQuickStat(

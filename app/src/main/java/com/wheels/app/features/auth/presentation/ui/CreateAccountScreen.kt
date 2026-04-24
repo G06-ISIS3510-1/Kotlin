@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +25,6 @@ import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +34,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -50,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.wheels.app.core.navigation.Destinations
-import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
@@ -66,12 +64,20 @@ fun CreateAccountScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val errorMessage = state.errorMessage
-    val colorScheme = MaterialTheme.colorScheme
+
+    LaunchedEffect(state.accountCreated) {
+        if (state.accountCreated) {
+            navController.navigate(Destinations.Home.route) {
+                popUpTo(Destinations.CreateAccount.route) { inclusive = true }
+            }
+            viewModel.onEvent(CreateAccountEvent.ConsumeNavigation)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(colorScheme.surfaceVariant, colorScheme.background)))
+            .background(Brush.verticalGradient(listOf(Color(0xFFE8F0F9), WheelsSurface)))
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp)
@@ -79,7 +85,7 @@ fun CreateAccountScreen(
         IconButton(
             onClick = {
                 if (!navController.popBackStack()) {
-                    navController.navigate(Destinations.SignIn.route) {
+                    navController.navigate(Destinations.Home.route) {
                         popUpTo(Destinations.CreateAccount.route) { inclusive = true }
                     }
                 }
@@ -88,7 +94,7 @@ fun CreateAccountScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = colorScheme.onBackground
+                tint = PrimaryBlue
             )
         }
 
@@ -112,13 +118,13 @@ fun CreateAccountScreen(
             Text(
                 text = "Create Account",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = colorScheme.onBackground
+                color = PrimaryBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Create your Wheels profile and start moving around campus.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.onSurfaceVariant,
+                color = TextSecondary,
                 textAlign = TextAlign.Center
             )
         }
@@ -142,7 +148,6 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.FullNameChanged(it)) },
                     label = "Full Name",
                     placeholder = "Your full name",
-                    maxLength = 80,
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Person,
@@ -153,11 +158,10 @@ fun CreateAccountScreen(
                 )
 
                 WheelsInputField(
-                    value = state.username,
-                    onValueChange = { viewModel.onEvent(CreateAccountEvent.UsernameChanged(it)) },
-                    label = "Uniandes Username",
-                    placeholder = "your.username",
-                    maxLength = 64,
+                    value = state.email,
+                    onValueChange = { viewModel.onEvent(CreateAccountEvent.EmailChanged(it)) },
+                    label = "University Email",
+                    placeholder = "student@university.edu",
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -168,49 +172,11 @@ fun CreateAccountScreen(
                     }
                 )
 
-                Text(
-                    text = "Your account email will be ${state.username.ifBlank { "your.username" }}@uniandes.edu.co",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Choose your role(s)",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = colorScheme.onSurface
-                    )
-                    Text(
-                        text = "You can register as passenger, driver, or both. If you choose both, Wheels will start in passenger mode first.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onSurfaceVariant
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        RoleSelectionChip(
-                            label = UserRole.PASSENGER.displayName,
-                            selected = UserRole.PASSENGER in state.selectedRoles,
-                            onClick = {
-                                viewModel.onEvent(CreateAccountEvent.RoleToggled(UserRole.PASSENGER))
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                        RoleSelectionChip(
-                            label = UserRole.DRIVER.displayName,
-                            selected = UserRole.DRIVER in state.selectedRoles,
-                            onClick = {
-                                viewModel.onEvent(CreateAccountEvent.RoleToggled(UserRole.DRIVER))
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
                 WheelsInputField(
                     value = state.phone,
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.PhoneChanged(it)) },
                     label = "Phone Number",
                     placeholder = "Your phone number",
-                    maxLength = 20,
                     keyboardType = KeyboardType.Phone,
                     leadingIcon = {
                         Icon(
@@ -226,7 +192,6 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.PasswordChanged(it)) },
                     label = "Password",
                     placeholder = "At least 8 characters",
-                    maxLength = 128,
                     keyboardType = KeyboardType.Password,
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = {
@@ -243,7 +208,6 @@ fun CreateAccountScreen(
                     onValueChange = { viewModel.onEvent(CreateAccountEvent.ConfirmPasswordChanged(it)) },
                     label = "Confirm Password",
                     placeholder = "Repeat your password",
-                    maxLength = 128,
                     keyboardType = KeyboardType.Password,
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = {
@@ -271,8 +235,8 @@ fun CreateAccountScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colorScheme.primary,
-                        contentColor = colorScheme.onPrimary,
+                        containerColor = PrimaryBlue,
+                        contentColor = WheelsSurface,
                         disabledContainerColor = Border,
                         disabledContentColor = TextSecondary
                     )
@@ -281,7 +245,7 @@ fun CreateAccountScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = colorScheme.onPrimary
+                            color = WheelsSurface
                         )
                     } else {
                         Text(
@@ -296,7 +260,7 @@ fun CreateAccountScreen(
                 Text(
                     text = "By continuing, you accept the campus mobility rules and the Wheels community guidelines.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = colorScheme.onSurfaceVariant,
+                    color = TextSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -308,11 +272,11 @@ fun CreateAccountScreen(
         Text(
             text = "Already have an account? Sign In",
             style = MaterialTheme.typography.bodyMedium,
-            color = colorScheme.onSurfaceVariant,
+            color = TextSecondary,
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .clickable {
-                    navController.navigate(Destinations.SignIn.route) {
+                    navController.navigate(Destinations.Home.route) {
                         popUpTo(Destinations.CreateAccount.route) { inclusive = true }
                     }
                 }
@@ -321,31 +285,4 @@ fun CreateAccountScreen(
     }
 }
 
-@Composable
-private fun RoleSelectionChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colorScheme = MaterialTheme.colorScheme
 
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (selected) colorScheme.surfaceVariant else Color.Transparent,
-            contentColor = if (selected) colorScheme.onSurface else colorScheme.onSurfaceVariant
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = if (selected) colorScheme.primary else Border
-        )
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-        )
-    }
-}

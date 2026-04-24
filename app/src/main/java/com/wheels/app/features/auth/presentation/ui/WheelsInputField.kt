@@ -9,10 +9,13 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.wheels.app.core.ui.theme.PrimaryBlue
+import com.wheels.app.core.ui.theme.WheelsSurface
 
 @Composable
 fun WheelsInputField(
@@ -21,53 +24,35 @@ fun WheelsInputField(
     label: String,
     placeholder: String,
     leadingIcon: @Composable () -> Unit,
-    maxLength: Int? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = colorScheme.onSurface
+            color = PrimaryBlue
         )
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
-                Text(text = placeholder, color = colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
+                Text(text = placeholder, color = Color(0xFF94A3B8))
             },
             singleLine = true,
             shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
             leadingIcon = leadingIcon,
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = visualTransformation,
-            supportingText = {
-                maxLength?.let {
-                    Text(
-                        text = "${value.length}/$it",
-                        modifier = Modifier.fillMaxWidth(),
-                        color = colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = colorScheme.onSurface,
-                unfocusedTextColor = colorScheme.onSurface,
-                disabledTextColor = colorScheme.onSurfaceVariant,
-                focusedContainerColor = colorScheme.surface,
-                unfocusedContainerColor = colorScheme.surface,
-                disabledContainerColor = colorScheme.surface,
-                focusedBorderColor = colorScheme.primary,
-                unfocusedBorderColor = colorScheme.outline,
-                focusedLabelColor = colorScheme.primary,
-                unfocusedLabelColor = colorScheme.onSurfaceVariant,
-                cursorColor = colorScheme.primary
+                unfocusedContainerColor = WheelsSurface,
+                focusedContainerColor = WheelsSurface,
+                unfocusedBorderColor = Color(0xFFE5E9F2),
+                focusedBorderColor = Color(0xFF5B89C8),
+                cursorColor = PrimaryBlue
             )
         )
     }
 }
+

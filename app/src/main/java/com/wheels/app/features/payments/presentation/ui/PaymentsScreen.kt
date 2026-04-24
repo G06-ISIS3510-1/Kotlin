@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,26 +21,14 @@ fun PaymentsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Pagos",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Monto pendiente: COP ${state.pendingAmount}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(text = "Pagos", style = MaterialTheme.typography.headlineMedium)
+        Text(text = "Monto pendiente: COP ${state.pendingAmount}")
     }
 }

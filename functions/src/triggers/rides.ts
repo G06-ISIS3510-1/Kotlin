@@ -6,16 +6,7 @@ import {
   applyDriverLateCancellationPenalty,
 } from "../services/trustRepository.js";
 import { classifyCancellationPenalty } from "../services/reliability.js";
-import {
-  calculateHoursBeforeDeparture,
-  recordRideCancellationAnalytics,
-} from "../services/cancellationAnalytics.js";
-import { updateUserCancellationMetrics } from "../services/cancellationMetrics.js";
 import { RideDocument } from "../types/trust.js";
-
-function resolveDepartureAt(ride: RideDocument) {
-  return ride.departureAt ?? ride.scheduledStartAt;
-}
 
 export const onRideCompleted = onDocumentUpdated(
   "rides/{rideId}",
@@ -57,61 +48,24 @@ export const onRideCanceled = onDocumentUpdated(
       return;
     }
 
-    const departureAt = resolveDepartureAt(after);
-
-    if (!after.canceledAt || !departureAt) {
+    if (!after.canceledAt || !after.scheduledStartAt) {
       logger.warn("Ride cancellation missing timestamps", {
         rideId: event.params.rideId,
       });
       return;
     }
 
-    const eventId = `ride_canceled:${event.params.rideId}`;
-    const hoursBeforeRide = calculateHoursBeforeDeparture({
-      departureAt,
-      canceledAt: after.canceledAt,
-    });
+    const millisecondsUntilRide =
+      after.scheduledStartAt.toMillis() - after.canceledAt.toMillis();
+    const hoursBeforeRide = millisecondsUntilRide / (1000 * 60 * 60);
     const penalty = classifyCancellationPenalty(hoursBeforeRide);
 
     await applyDriverLateCancellationPenalty({
       db,
       userId: after.driverId,
-      eventId,
+      eventId: `ride_canceled:${event.params.rideId}`,
       bucket: penalty.bucket,
       penaltyPoints: penalty.penaltyPoints,
     });
-
-    try {
-      await updateUserCancellationMetrics({
-        db,
-        userId: after.driverId,
-        eventId,
-        hoursBeforeDeparture: hoursBeforeRide,
-      });
-    } catch (error) {
-      logger.error("Failed to update user cancellation metrics", {
-        rideId: event.params.rideId,
-        driverId: after.driverId,
-        error,
-      });
-    }
-
-    try {
-      await recordRideCancellationAnalytics({
-        db,
-        eventId,
-        rideId: event.params.rideId,
-        userId: after.driverId,
-        activeRole: "driver",
-        departureAt,
-        canceledAt: after.canceledAt,
-      });
-    } catch (error) {
-      logger.error("Failed to record ride cancellation analytics", {
-        rideId: event.params.rideId,
-        driverId: after.driverId,
-        error,
-      });
-    }
   },
 );

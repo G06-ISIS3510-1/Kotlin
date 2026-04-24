@@ -3,6 +3,7 @@ package com.wheels.app.features.auth.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.common.Resource
+import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.auth.domain.model.CreateAccountRequest
 import com.wheels.app.features.auth.domain.usecase.CreateAccountUseCase
@@ -16,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CreateAccountViewModel @Inject constructor(
-    private val createAccountUseCase: CreateAccountUseCase
+    private val createAccountUseCase: CreateAccountUseCase,
+    private val roleManager: RoleManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateAccountUiState())
@@ -25,45 +27,31 @@ class CreateAccountViewModel @Inject constructor(
     fun onEvent(event: CreateAccountEvent) {
         when (event) {
             is CreateAccountEvent.FullNameChanged -> updateState(fullName = event.value)
-            is CreateAccountEvent.UsernameChanged -> updateState(username = event.value)
+            is CreateAccountEvent.EmailChanged -> updateState(email = event.value)
             is CreateAccountEvent.PasswordChanged -> updateState(password = event.value)
             is CreateAccountEvent.ConfirmPasswordChanged -> updateState(confirmPassword = event.value)
             is CreateAccountEvent.PhoneChanged -> updateState(phone = event.value)
-            is CreateAccountEvent.RoleToggled -> toggleRole(event.role)
             CreateAccountEvent.Submit -> submit()
+            CreateAccountEvent.ConsumeNavigation -> {
+                _uiState.update { it.copy(accountCreated = false) }
+            }
         }
     }
 
     private fun updateState(
         fullName: String = _uiState.value.fullName,
-        username: String = _uiState.value.username,
+        email: String = _uiState.value.email,
         password: String = _uiState.value.password,
         confirmPassword: String = _uiState.value.confirmPassword,
         phone: String = _uiState.value.phone
     ) {
         _uiState.update {
             it.copy(
-                fullName = fullName.take(FULL_NAME_MAX_LENGTH),
-                username = username.take(USERNAME_MAX_LENGTH),
-                password = password.take(PASSWORD_MAX_LENGTH),
-                confirmPassword = confirmPassword.take(PASSWORD_MAX_LENGTH),
-                phone = phone.take(PHONE_MAX_LENGTH),
-                errorMessage = null
-            )
-        }
-    }
-
-    private fun toggleRole(role: UserRole) {
-        val currentRoles = _uiState.value.selectedRoles
-        val updatedRoles = if (role in currentRoles) {
-            currentRoles - role
-        } else {
-            currentRoles + role
-        }
-
-        _uiState.update {
-            it.copy(
-                selectedRoles = updatedRoles,
+                fullName = fullName,
+                email = email,
+                password = password,
+                confirmPassword = confirmPassword,
+                phone = phone,
                 errorMessage = null
             )
         }
@@ -82,15 +70,24 @@ class CreateAccountViewModel @Inject constructor(
             when (
                 val result = createAccountUseCase(
                     CreateAccountRequest(
-                        fullName = state.fullName.trim(),
-                        username = state.username.trim(),
-                        password = state.password,
-                        phone = state.phone.trim(),
-                        roles = state.selectedRoles
+                        state.fullName.trim(),
+                        state.email.trim(),
+                        state.password,
+                        state.phone.trim(),
+                        UserRole.PASSENGER
                     )
                 )
             ) {
-                is Resource.Success -> _uiState.update { it.copy(isSubmitting = false) }
+                is Resource.Success -> {
+                    roleManager.setRole(UserRole.PASSENGER)
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            accountCreated = true
+                        )
+                    }
+                }
+
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(
@@ -99,6 +96,7 @@ class CreateAccountViewModel @Inject constructor(
                         )
                     }
                 }
+
                 Resource.Loading -> Unit
             }
         }
@@ -106,47 +104,41 @@ class CreateAccountViewModel @Inject constructor(
 
     private fun validate(state: CreateAccountUiState): String? {
         if (state.fullName.isBlank()) return "Enter your full name."
-        if (state.username.isBlank()) return "Enter your Uniandes username."
+        if (state.email.isBlank()) return "Enter your university email."
+        if (!state.email.contains("@") || !state.email.contains(".")) {
+            return "Enter a valid email."
+        }
         if (state.phone.isBlank()) return "Enter your phone number."
-        if (state.selectedRoles.isEmpty()) return "Choose at least one role to continue."
         if (state.password.length < 8) return "Password must be at least 8 characters."
         if (state.password != state.confirmPassword) return "Passwords do not match."
         return null
-    }
-
-    private companion object {
-        const val FULL_NAME_MAX_LENGTH = 80
-        const val USERNAME_MAX_LENGTH = 64
-        const val PHONE_MAX_LENGTH = 20
-        const val PASSWORD_MAX_LENGTH = 128
     }
 }
 
 sealed interface CreateAccountEvent {
     data class FullNameChanged(val value: String) : CreateAccountEvent
-    data class UsernameChanged(val value: String) : CreateAccountEvent
+    data class EmailChanged(val value: String) : CreateAccountEvent
     data class PasswordChanged(val value: String) : CreateAccountEvent
     data class ConfirmPasswordChanged(val value: String) : CreateAccountEvent
     data class PhoneChanged(val value: String) : CreateAccountEvent
-    data class RoleToggled(val role: UserRole) : CreateAccountEvent
     data object Submit : CreateAccountEvent
+    data object ConsumeNavigation : CreateAccountEvent
 }
 
 data class CreateAccountUiState(
     val fullName: String = "",
-    val username: String = "",
+    val email: String = "",
     val password: String = "",
     val confirmPassword: String = "",
     val phone: String = "",
-    val selectedRoles: Set<UserRole> = setOf(UserRole.PASSENGER),
     val isSubmitting: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val accountCreated: Boolean = false
 ) {
     val isFormFilled: Boolean
         get() = fullName.isNotBlank() &&
-            username.isNotBlank() &&
+            email.isNotBlank() &&
             password.isNotBlank() &&
             confirmPassword.isNotBlank() &&
-            phone.isNotBlank() &&
-            selectedRoles.isNotEmpty()
+            phone.isNotBlank()
 }

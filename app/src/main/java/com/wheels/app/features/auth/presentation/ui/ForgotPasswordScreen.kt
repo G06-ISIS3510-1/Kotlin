@@ -54,12 +54,11 @@ fun ForgotPasswordScreen(
     val state by viewModel.uiState.collectAsState()
     val errorMessage = state.errorMessage
     val successMessage = state.successMessage
-    val colorScheme = MaterialTheme.colorScheme
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(colorScheme.surfaceVariant, colorScheme.background)))
+            .background(Brush.verticalGradient(listOf(Color(0xFFE8F0F9), WheelsSurface)))
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp)
@@ -68,7 +67,7 @@ fun ForgotPasswordScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = colorScheme.onBackground
+                tint = PrimaryBlue
             )
         }
 
@@ -92,13 +91,13 @@ fun ForgotPasswordScreen(
             Text(
                 text = "Forgot Password",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = colorScheme.onBackground
+                color = PrimaryBlue
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Enter your university email and we will send recovery instructions.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.onSurfaceVariant,
+                color = TextSecondary,
                 textAlign = TextAlign.Center
             )
         }
@@ -117,10 +116,10 @@ fun ForgotPasswordScreen(
                     .padding(20.dp)
             ) {
                 WheelsInputField(
-                    value = state.username,
-                    onValueChange = { viewModel.onEvent(ForgotPasswordEvent.UsernameChanged(it)) },
-                    label = "Uniandes Username",
-                    placeholder = "your.username",
+                    value = state.email,
+                    onValueChange = { viewModel.onEvent(ForgotPasswordEvent.EmailChanged(it)) },
+                    label = "University Email",
+                    placeholder = "student@university.edu",
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -129,13 +128,6 @@ fun ForgotPasswordScreen(
                             tint = TextSecondary
                         )
                     }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "We'll send recovery instructions to ${state.username.ifBlank { "your.username" }}@uniandes.edu.co",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
                 )
 
                 if (errorMessage != null) {
@@ -166,8 +158,8 @@ fun ForgotPasswordScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colorScheme.primary,
-                        contentColor = colorScheme.onPrimary,
+                        containerColor = PrimaryBlue,
+                        contentColor = WheelsSurface,
                         disabledContainerColor = Border,
                         disabledContentColor = TextSecondary
                     )
@@ -176,7 +168,7 @@ fun ForgotPasswordScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = colorScheme.onPrimary
+                            color = WheelsSurface
                         )
                     } else {
                         Text(
@@ -191,7 +183,7 @@ fun ForgotPasswordScreen(
                 Text(
                     text = "Back to Sign In",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurfaceVariant,
+                    color = TextSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()

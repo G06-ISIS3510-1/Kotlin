@@ -42,20 +42,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
-import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
-import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
-import com.wheels.app.core.ui.theme.gradientHeaderBrush
 
 private data class ReviewItem(
     val id: Int,
@@ -140,8 +136,6 @@ fun ReviewsRatingsScreen(
     navController: NavController,
     driverName: String
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -173,7 +167,7 @@ fun ReviewsRatingsScreen(
                     .clickable { },
                 shape = RoundedCornerShape(16.dp),
                 color = WheelsSurface,
-                border = androidx.compose.foundation.BorderStroke(2.dp, colorScheme.outline)
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE5E9F2))
             ) {
                 Box(
                     modifier = Modifier.padding(vertical = 12.dp),
@@ -196,7 +190,7 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(gradientHeaderBrush())
+            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
             .padding(horizontal = 20.dp, vertical = 18.dp)
             .padding(top = 20.dp)
     ) {
@@ -211,14 +205,14 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
             Icon(
                 imageVector = Icons.Outlined.ChevronLeft,
                 contentDescription = "Back",
-                tint = GradientHeaderPrimaryContent,
+                tint = WheelsSurface,
                 modifier = Modifier
                     .width(20.dp)
                     .height(20.dp)
             )
             Text(
                 text = "Back",
-                color = GradientHeaderSecondaryContent,
+                color = WheelsSurface.copy(alpha = 0.84f),
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -228,13 +222,13 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
         Text(
             text = "Reviews and Ratings",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = GradientHeaderPrimaryContent
+            color = WheelsSurface
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "$driverName profile",
             style = MaterialTheme.typography.bodyMedium,
-            color = GradientHeaderSecondaryContent
+            color = WheelsSurface.copy(alpha = 0.82f)
         )
         Spacer(modifier = Modifier.height(18.dp))
     }
@@ -242,8 +236,6 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
 
 @Composable
 private fun RatingSummaryCard(driverName: String) {
-    val colorScheme = MaterialTheme.colorScheme
-
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -300,7 +292,7 @@ private fun RatingSummaryCard(driverName: String) {
                                     .weight(1f)
                                     .height(6.dp)
                                     .clip(RoundedCornerShape(999.dp))
-                                    .background(colorScheme.surfaceVariant)
+                                    .background(Color(0xFFE8F0F9))
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -387,11 +379,9 @@ private fun MetricBox(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-
     Surface(
         modifier = modifier,
-        color = colorScheme.surfaceVariant,
+        color = WheelsBackground,
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -460,8 +450,6 @@ private fun FiltersRow() {
 
 @Composable
 private fun ReviewCard(review: ReviewItem) {
-    val colorScheme = MaterialTheme.colorScheme
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -540,11 +528,11 @@ private fun ReviewCard(review: ReviewItem) {
                 review.tags.forEach { tag ->
                     Surface(
                         shape = RoundedCornerShape(999.dp),
-                        color = colorScheme.surfaceVariant
+                        color = Color(0xFFE8F0F9)
                     ) {
                         Text(
                             text = tag,
-                            color = if (colorScheme.background.luminance() < 0.5f) colorScheme.onSurface else SecondaryBlue,
+                            color = SecondaryBlue,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )

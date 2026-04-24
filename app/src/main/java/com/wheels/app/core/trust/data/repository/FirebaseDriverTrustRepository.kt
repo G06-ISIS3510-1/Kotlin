@@ -89,15 +89,10 @@ class FirebaseDriverTrustRepository @Inject constructor(
             .awaitResult()
 
         val after = awaitUpdatedTrustScore(params.driverId, before)
-        val completionMessage = if (before?.reliabilityScore == 0 && after.reliabilityScore == 0) {
-            "You earned +1 for completing this ride, but your reliability score remains at 0 because previous cancellation penalties still exceed your current bonus."
-        } else {
-            "You earned +1 point for completing this ride. Your new reliability score is ${after.reliabilityScore}."
-        }
 
         TrustScoreNotice(
             title = "Trust score updated",
-            message = completionMessage,
+            message = "You earned +1 point for completing this ride. Your new reliability score is ${after.reliabilityScore}.",
             newScore = after.reliabilityScore,
             deltaPoints = 1
         )
@@ -142,7 +137,7 @@ class FirebaseDriverTrustRepository @Inject constructor(
         val rideSnapshot = rideRef.get().awaitResult()
         val baseFields = mapOf(
             "driverId" to params.driverId,
-            "departureAt" to Timestamp(Date(params.scheduledStartAtMillis)),
+            "scheduledStartAt" to Timestamp(Date(params.scheduledStartAtMillis)),
             "updatedAt" to FieldValue.serverTimestamp()
         )
 
