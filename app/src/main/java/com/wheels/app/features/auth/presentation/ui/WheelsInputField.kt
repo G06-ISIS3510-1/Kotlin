@@ -9,7 +9,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
@@ -38,7 +37,7 @@ fun WheelsInputField(
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
-                Text(text = placeholder, color = Color(0xFF94A3B8))
+                Text(text = placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             singleLine = true,
             shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
@@ -48,8 +47,8 @@ fun WheelsInputField(
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedContainerColor = WheelsSurface,
                 focusedContainerColor = WheelsSurface,
-                unfocusedBorderColor = Color(0xFFE5E9F2),
-                focusedBorderColor = Color(0xFF5B89C8),
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
                 cursorColor = PrimaryBlue
             )
         )
