@@ -45,12 +45,12 @@ class BQ13RemoteDataSource @Inject constructor(
             val destinationName = item["destinationName"] as? String
                 ?: item["name"] as? String
                 ?: item["destination"] as? String
-                ?: return@mapIndexedNotNull null
+                ?: return@mapNotNull null
 
             val count = (item["bookingCount"] as? Number)?.toInt()
                 ?: (item["count"] as? Number)?.toInt()
                 ?: (item["frequency"] as? Number)?.toInt()
-                ?: return@mapIndexedNotNull null
+                ?: return@mapNotNull null
 
             val geoPoint = item["coordinates"] as? GeoPoint
                 ?: item["destinationCoordinates"] as? GeoPoint

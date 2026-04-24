@@ -6,6 +6,9 @@ import com.wheels.app.core.analytics.bq13.data.connectivity.AndroidConnectivityC
 import com.wheels.app.core.analytics.bq13.data.repository.BQ13RepositoryImpl
 import com.wheels.app.core.analytics.bq13.domain.connectivity.ConnectivityChecker
 import com.wheels.app.core.analytics.bq13.domain.repository.BQ13Repository
+import com.wheels.app.core.analytics.bqt3.data.connectivity.BQT3ConnectivityChecker
+import com.wheels.app.core.analytics.bqt3.data.repository.BQT3RepositoryImpl
+import com.wheels.app.core.analytics.bqt3.domain.repository.BQT3Repository
 import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
 import com.wheels.app.core.analytics.domain.repository.RoleChangeEventRepository
 import com.wheels.app.core.location.data.provider.FusedCurrentLocationProvider
@@ -47,6 +50,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindBQ13ConnectivityChecker(impl: AndroidConnectivityChecker): ConnectivityChecker
+
+    @Binds
+    @Singleton
+    abstract fun bindBQT3Repository(impl: BQT3RepositoryImpl): BQT3Repository
+
+    @Binds
+    @Singleton
+    abstract fun bindBQT3ConnectivityChecker(
+        impl: BQT3ConnectivityChecker
+    ): com.wheels.app.core.analytics.bqt3.domain.connectivity.ConnectivityChecker
 
     @Binds
     @Singleton
