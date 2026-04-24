@@ -1626,7 +1626,7 @@ private fun SmartSuggestionCard(
 }
 
 @Composable
-private fun RideCard(
+internal fun RideCard(
     ride: RideCardUiModel,
     onRequest: () -> Unit,
     onOpenReviews: () -> Unit,

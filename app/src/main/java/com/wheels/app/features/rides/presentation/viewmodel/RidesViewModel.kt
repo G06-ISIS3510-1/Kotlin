@@ -1162,7 +1162,7 @@ private fun buildSmartSuggestion(rides: List<RideCardUiModel>): PassengerSmartSu
     )
 }
 
-private fun List<Ride>.toRideCards(): List<RideCardUiModel> {
+internal fun List<Ride>.toRideCards(): List<RideCardUiModel> {
     return map { ride ->
         val departure = ride.departureTime.atZone(java.time.ZoneId.systemDefault())
         RideCardUiModel(

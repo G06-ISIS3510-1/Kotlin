@@ -15,6 +15,7 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.gms.tasks.Task
 import com.wheels.app.core.location.domain.model.CurrentLocationLabel
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
+import com.wheels.app.features.rides.domain.model.Coordinates
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -34,6 +35,21 @@ class FusedCurrentLocationProvider @Inject constructor(
 
     @SuppressLint("MissingPermission")
     override suspend fun getCurrentLocationLabel(): CurrentLocationLabel = withContext(ioDispatcher) {
+        val location = getCurrentLocation()
+        reverseGeocode(location)
+    }
+
+    @SuppressLint("MissingPermission")
+    override suspend fun getCurrentCoordinates(): Coordinates = withContext(ioDispatcher) {
+        val location = getCurrentLocation()
+        Coordinates(
+            lat = location.latitude,
+            lng = location.longitude
+        )
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun getCurrentLocation(): Location {
         if (!hasLocationPermission()) {
             throw IllegalStateException("Location permission is required to use current location.")
         }
@@ -41,14 +57,12 @@ class FusedCurrentLocationProvider @Inject constructor(
         val client = LocationServices.getFusedLocationProviderClient(context)
         val cancellationTokenSource = CancellationTokenSource()
 
-        val location = client.lastLocation.awaitNullable()
+        return client.lastLocation.awaitNullable()
             ?: client.getCurrentLocation(
                 Priority.PRIORITY_HIGH_ACCURACY,
                 cancellationTokenSource.token
             ).awaitNullable()
             ?: throw IllegalStateException("We could not determine your current location.")
-
-        reverseGeocode(location)
     }
 
     private fun hasLocationPermission(): Boolean {
