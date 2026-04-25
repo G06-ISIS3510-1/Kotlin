@@ -1,16 +1,14 @@
 package com.wheels.app.core.theme
 
 import android.content.Context
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStoreFile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 data class ThemePreferences(
     val isDarkModeEnabled: Boolean = false,
@@ -19,35 +17,52 @@ data class ThemePreferences(
 
 @Singleton
 class ThemePreferencesRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext context: Context,
+    private val ioDispatcher: CoroutineDispatcher
 ) {
-    private val dataStore = PreferenceDataStoreFactory.create(
-        produceFile = { context.preferencesDataStoreFile("theme_preferences") }
+    private val sharedPreferences = context.getSharedPreferences(
+        THEME_PREFERENCES_NAME,
+        Context.MODE_PRIVATE
     )
 
-    val themePreferences: Flow<ThemePreferences> = dataStore.data
-        .map { preferences ->
-            ThemePreferences(
-                isDarkModeEnabled = preferences[DARK_MODE_ENABLED] ?: false,
-                isAdaptiveThemeEnabled = preferences[ADAPTIVE_THEME_ENABLED] ?: false
-            )
-        }
-        .distinctUntilChanged()
+    private val preferencesState = MutableStateFlow(readPreferences())
+
+    val themePreferences: Flow<ThemePreferences> = preferencesState.asStateFlow()
 
     suspend fun setDarkModeEnabled(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[DARK_MODE_ENABLED] = enabled
+        withContext(ioDispatcher) {
+            val didPersist = sharedPreferences.edit()
+                .putBoolean(DARK_MODE_ENABLED, enabled)
+                .commit()
+
+            if (didPersist) {
+                preferencesState.value = preferencesState.value.copy(isDarkModeEnabled = enabled)
+            }
         }
     }
 
     suspend fun setAdaptiveThemeEnabled(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[ADAPTIVE_THEME_ENABLED] = enabled
+        withContext(ioDispatcher) {
+            val didPersist = sharedPreferences.edit()
+                .putBoolean(ADAPTIVE_THEME_ENABLED, enabled)
+                .commit()
+
+            if (didPersist) {
+                preferencesState.value = preferencesState.value.copy(isAdaptiveThemeEnabled = enabled)
+            }
         }
     }
 
+    private fun readPreferences(): ThemePreferences {
+        return ThemePreferences(
+            isDarkModeEnabled = sharedPreferences.getBoolean(DARK_MODE_ENABLED, false),
+            isAdaptiveThemeEnabled = sharedPreferences.getBoolean(ADAPTIVE_THEME_ENABLED, false)
+        )
+    }
+
     private companion object {
-        val DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
-        val ADAPTIVE_THEME_ENABLED = booleanPreferencesKey("adaptive_theme_enabled")
+        const val THEME_PREFERENCES_NAME = "theme_preferences"
+        const val DARK_MODE_ENABLED = "dark_mode_enabled"
+        const val ADAPTIVE_THEME_ENABLED = "adaptive_theme_enabled"
     }
 }
