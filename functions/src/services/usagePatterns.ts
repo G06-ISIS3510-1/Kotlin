@@ -16,27 +16,45 @@ export async function updateUserUsagePattern({
   db,
   event,
 }: UpdateUserUsagePatternParams): Promise<void> {
+  // Each user has exactly one aggregate usage document.
+  // We update it in a Firestore transaction so concurrent app opens do not
+  // overwrite each other or lose increments.
   const document = db.collection(USER_USAGE_PATTERNS_COLLECTION).doc(event.uid);
 
   await db.runTransaction(async (transaction) => {
+    // Read the current aggregate state first. If the document does not exist
+    // yet, the normalizer below will seed every field with safe defaults.
     const snapshot = await transaction.get(document);
     const currentPattern = normalizeUsagePattern(
       snapshot.data() as Partial<UserUsagePatternDocument> | undefined,
       event,
     );
 
+    // Increment the bucket that corresponds to the hour when the app was
+    // opened. This is the coarse usage signal.
     const nextHourCounts = incrementHourCounts(
       currentPattern.hourCounts,
       event.hourOfDay,
     );
+
+    // Increment the half-hour bucket. This is the more precise signal used to
+    // infer the user's peak usage window.
     const nextHalfHourCounts = incrementHalfHourCounts(
       currentPattern.halfHourCounts,
       event.hourOfDay,
       event.minuteOfHour,
     );
+
+    // Keep a simple total so the backend can reason about how much data has
+    // been collected for this user.
     const nextTotalOpenCount = currentPattern.totalOpenCount + 1;
+
+    // Recalculate the peak half-hour bucket after the new event is included.
+    // In this implementation, "peak" means the bucket with the highest count.
     const nextPeak = calculatePeakHalfHourBucket(nextHalfHourCounts);
 
+    // Merge the updated aggregate back into Firestore.
+    // The document remains backend-owned; the client should not write it.
     transaction.set(
       document,
       {
@@ -50,6 +68,7 @@ export async function updateUserUsagePattern({
         peakHalfHourBucket: nextPeak.bucket,
         peakScore: nextPeak.score,
         lastOpenedAt: event.openedAt,
+        // Server timestamp keeps the backend write time authoritative.
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
@@ -61,6 +80,9 @@ function normalizeUsagePattern(
   current: Partial<UserUsagePatternDocument> | undefined,
   event: AppOpenEventDocument,
 ): UserUsagePatternDocument {
+  // Build a complete, safe in-memory version of the document before
+  // incrementing counts. This avoids having to handle missing fields in the
+  // update logic itself.
   return {
     uid: current?.uid ?? event.uid,
     email: current?.email ?? event.email,
@@ -86,6 +108,8 @@ function normalizeCountMap(
   source: Record<string, number> | undefined,
   bucketCount: number,
 ): Record<string, number> {
+  // Firestore documents may have missing buckets on first write or after old
+  // schema versions. Normalize to a dense map so every bucket is present.
   const normalized: Record<string, number> = {};
 
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
@@ -99,6 +123,7 @@ function incrementHourCounts(
   counts: Record<string, number>,
   hourOfDay: number,
 ): Record<string, number> {
+  // Hour counts give a coarse overview of the user's behavior by clock hour.
   return {
     ...counts,
     [hourOfDay.toString()]: (counts[hourOfDay.toString()] ?? 0) + 1,
@@ -110,6 +135,7 @@ function incrementHalfHourCounts(
   hourOfDay: number,
   minuteOfHour: number,
 ): Record<string, number> {
+  // Split the hour into two 30-minute windows and increment the matching one.
   const halfHourBucket = resolveHalfHourBucket(hourOfDay, minuteOfHour);
 
   return {
@@ -128,6 +154,9 @@ function calculatePeakHalfHourBucket(counts: Record<string, number>): {
   bucket: number;
   score: number;
 } {
+  // Find the bucket with the highest number of opens.
+  // If there is a tie, the earliest bucket wins because we only replace the
+  // current best when a strictly larger score is found.
   let bestBucket = 0;
   let bestScore = -1;
 
