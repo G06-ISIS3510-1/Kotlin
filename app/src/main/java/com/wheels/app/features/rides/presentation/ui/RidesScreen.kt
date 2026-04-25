@@ -57,17 +57,19 @@ import androidx.compose.material3.Text
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,11 +79,15 @@ import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
+import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
+import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.core.ui.theme.PrimaryBlue
 import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.core.ui.theme.gradientHeaderBrush
+import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
 import com.wheels.app.features.rides.presentation.model.RideLocationField
 import com.wheels.app.features.rides.presentation.ui.components.LocationAutocompleteField
@@ -102,6 +108,32 @@ fun RidesScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val activeRole by viewModel.activeRole.collectAsState()
+
+    LaunchedEffect(navController, activeRole) {
+        if (activeRole != UserRole.PASSENGER) {
+            viewModel.onEvent(RidesEvent.ClearNearbyRides)
+            return@LaunchedEffect
+        }
+
+        val homeBackStackEntry = runCatching {
+            navController.getBackStackEntry(Destinations.Home.route)
+        }.getOrNull() ?: return@LaunchedEffect
+
+        val savedStateHandle = homeBackStackEntry.savedStateHandle
+        val nearbyRequested = savedStateHandle.get<Boolean>(Destinations.RIDES_NEARBY_REQUESTED_KEY) == true
+        if (!nearbyRequested) {
+            viewModel.onEvent(RidesEvent.ClearNearbyRides)
+            return@LaunchedEffect
+        }
+
+        viewModel.onEvent(
+            RidesEvent.ApplyNearbyRides(
+                savedStateHandle.get<String>(Destinations.RIDES_NEARBY_LOCATION_NAME_KEY)
+            )
+        )
+        savedStateHandle.remove<Boolean>(Destinations.RIDES_NEARBY_REQUESTED_KEY)
+        savedStateHandle.remove<String>(Destinations.RIDES_NEARBY_LOCATION_NAME_KEY)
+    }
 
     if (activeRole == UserRole.DRIVER) {
         DriverCreateRideScreen(
@@ -178,14 +210,27 @@ fun RidesScreen(
                 onAreaSelected = { viewModel.onEvent(RidesEvent.AreaSelected(it)) },
                 onPriceChanged = { viewModel.onEvent(RidesEvent.MaxPriceChanged(it)) },
                 onRatingSelected = { viewModel.onEvent(RidesEvent.MinRatingSelected(it)) },
-                onClearRating = { viewModel.onEvent(RidesEvent.ClearRatingFilter) }
+                onClearRating = { viewModel.onEvent(RidesEvent.ClearRatingFilter) },
+                onClearFilters = { viewModel.onEvent(RidesEvent.ClearPassengerFilters) }
             )
         }
 
         item {
-            SmartSuggestionCard(
-                onClick = { viewModel.onEvent(RidesEvent.ApplySuggestedDestination) }
-            )
+            if (state.nearbyRides.isLoading || state.nearbyRides.isActive || state.nearbyRides.errorMessage != null) {
+                NearbyRidesBanner(
+                    state = state,
+                    onClear = { viewModel.onEvent(RidesEvent.ClearNearbyRides) }
+                )
+            }
+        }
+
+        item {
+            state.smartSuggestion?.let { suggestion ->
+                SmartSuggestionCard(
+                    message = suggestion.message,
+                    onClick = { viewModel.onEvent(RidesEvent.ApplySuggestedDestination) }
+                )
+            }
         }
 
         item {
@@ -209,22 +254,46 @@ fun RidesScreen(
             }
         }
 
-        items(state.filteredRides, key = { it.id }) { ride ->
-            RideCard(
-                ride = ride,
-                onRequest = {
-                    navController.navigate(Destinations.RideRequest.createRoute(ride.id))
-                },
-                onOpenReviews = {
-                    navController.navigate(
-                        Destinations.ReviewsRatings.createRoute(
-                            driverName = ride.driver,
-                            origin = Destinations.Rides.route
-                        )
+        when {
+            state.isLoading -> {
+                item {
+                    Text(
+                        text = "Loading available rides...",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
                     )
-                },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
+                }
+            }
+            state.filteredRides.isEmpty() -> {
+                item {
+                    Text(
+                        text = "No published rides match these filters right now.",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                }
+            }
+            else -> {
+                items(state.filteredRides, key = { it.id }) { ride ->
+                    RideCard(
+                        ride = ride,
+                        onRequest = {
+                            navController.navigate(Destinations.RideRequest.createRoute(ride.id))
+                        },
+                        onOpenReviews = {
+                            navController.navigate(
+                                Destinations.ReviewsRatings.createRoute(
+                                    driverName = ride.driver,
+                                    origin = Destinations.Rides.route
+                                )
+                            )
+                        },
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -324,6 +393,16 @@ private fun DriverCreateRideScreen(
                     )
                 }
 
+                state.behavioralNudge?.let { nudge ->
+                    item {
+                        BehavioralNudgeCard(
+                            nudge = nudge,
+                            averageHoursBeforeCancellation = state.cancellationBehaviorMetrics?.averageHoursBeforeCancellation,
+                            cancellationCount = state.cancellationBehaviorMetrics?.cancellationCount
+                        )
+                    }
+                }
+
                 item {
                     FormSection(title = "Route Details") {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -382,6 +461,7 @@ private fun DriverCreateRideScreen(
                                 placeholder = "YYYY-MM-DD",
                                 leadingIcon = Icons.Default.CalendarMonth,
                                 readOnly = true,
+                                maxLength = 10,
                                 onClick = {
                                     val calendar = Calendar.getInstance()
                                     val datePickerDialog = DatePickerDialog(
@@ -411,19 +491,43 @@ private fun DriverCreateRideScreen(
                                 placeholder = "HH:MM",
                                 leadingIcon = Icons.Default.Schedule,
                                 readOnly = true,
+                                maxLength = 5,
                                 onClick = {
                                     val calendar = Calendar.getInstance()
+                                    val selectedDateIsToday = state.date == String.format(
+                                        "%04d-%02d-%02d",
+                                        calendar.get(Calendar.YEAR),
+                                        calendar.get(Calendar.MONTH) + 1,
+                                        calendar.get(Calendar.DAY_OF_MONTH)
+                                    )
+                                    val initialHour = if (selectedDateIsToday) {
+                                        calendar.get(Calendar.HOUR_OF_DAY)
+                                    } else {
+                                        calendar.get(Calendar.HOUR_OF_DAY)
+                                    }
+                                    val initialMinute = if (selectedDateIsToday) {
+                                        calendar.get(Calendar.MINUTE)
+                                    } else {
+                                        calendar.get(Calendar.MINUTE)
+                                    }
                                     TimePickerDialog(
                                         context,
                                         { _, hourOfDay, minute ->
                                             onTimeChanged(String.format("%02d:%02d", hourOfDay, minute))
                                         },
-                                        calendar.get(Calendar.HOUR_OF_DAY),
-                                        calendar.get(Calendar.MINUTE),
+                                        initialHour,
+                                        initialMinute,
                                         true
                                     ).show()
                                 }
                             )
+                            state.scheduleValidationMessage?.let { validationMessage ->
+                                Text(
+                                    text = validationMessage,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
                         }
                     }
                 }
@@ -485,7 +589,8 @@ private fun DriverCreateRideScreen(
                                     placeholder = "3500",
                                     leadingIcon = Icons.Default.Info,
                                     prefix = "$",
-                                    keyboardType = KeyboardType.Number
+                                    keyboardType = KeyboardType.Number,
+                                    maxLength = 6
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -515,14 +620,16 @@ private fun DriverCreateRideScreen(
                                 onValueChange = onCarModelChanged,
                                 label = "Car Model",
                                 placeholder = "e.g., Toyota Corolla 2020",
-                                leadingIcon = Icons.Default.DirectionsCar
+                                leadingIcon = Icons.Default.DirectionsCar,
+                                maxLength = 60
                             )
                             FormTextField(
                                 value = state.licensePlate,
                                 onValueChange = onLicensePlateChanged,
                                 label = "License Plate",
                                 placeholder = "ABC-123",
-                                leadingIcon = Icons.Default.VerifiedUser
+                                leadingIcon = Icons.Default.VerifiedUser,
+                                maxLength = 10
                             )
                         }
                     }
@@ -539,7 +646,15 @@ private fun DriverCreateRideScreen(
                             },
                             shape = RoundedCornerShape(16.dp),
                             minLines = 4,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                            supportingText = {
+                                Text(
+                                    text = "${state.description.length}/180",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
                         )
                     }
                 }
@@ -602,14 +717,35 @@ private fun DriverCreateRideScreen(
                     )
                 }
 
-                items(state.driverRides, key = { it.id }) { ride ->
-                    DriverRideCard(
-                        ride = ride,
-                        onClick = {
-                            onMyRideSelected(ride.id)
-                        },
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
+                when {
+                    state.isLoadingDriverRides -> {
+                        item {
+                            Text(
+                                text = "Loading your rides...",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                    state.driverRides.isEmpty() -> {
+                        item {
+                            EmptyDriverRidesState(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                    }
+                    else -> {
+                        items(state.driverRides, key = { it.id }) { ride ->
+                            DriverRideCard(
+                                ride = ride,
+                                onClick = {
+                                    onMyRideSelected(ride.id)
+                                },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -633,7 +769,7 @@ private fun DriverCreateRideScreen(
                     contentPadding = PaddingValues(vertical = 16.dp),
                     content = {
                         Text(
-                            text = "Publish Ride",
+                            text = if (state.isPublishingRide) "Publishing..." else "Publish Ride",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -642,6 +778,64 @@ private fun DriverCreateRideScreen(
                             contentDescription = null
                         )
                     }
+                )
+                state.publishRideErrorMessage?.let { errorMessage ->
+                    Text(
+                        text = errorMessage,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFDC2626)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BehavioralNudgeCard(
+    nudge: BehavioralNudge,
+    averageHoursBeforeCancellation: Double?,
+    cancellationCount: Int?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED)),
+        border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = Color(0xFFF59E0B)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = nudge.title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = PrimaryBlue
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = nudge.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+            if (averageHoursBeforeCancellation != null &&
+                averageHoursBeforeCancellation >= 0 &&
+                cancellationCount != null
+            ) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Recent pattern: $cancellationCount cancellations, average ${String.format("%.1f", averageHoursBeforeCancellation)} hours before departure.",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                    color = PrimaryBlue
                 )
             }
         }
@@ -658,7 +852,7 @@ private fun DriverTabSwitcher(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFE8F0F9))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -684,10 +878,12 @@ private fun DriverTabButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Surface(
         modifier = modifier.clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = if (selected) WheelsSurface else Color.Transparent
+        color = if (selected) colorScheme.surface else Color.Transparent
     ) {
         Box(
             modifier = Modifier.padding(vertical = 12.dp),
@@ -696,7 +892,7 @@ private fun DriverTabButton(
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = if (selected) PrimaryBlue else TextSecondary
+                color = if (selected) colorScheme.onSurface else colorScheme.onSurfaceVariant
             )
         }
     }
@@ -733,6 +929,29 @@ private fun MyRidesSummary(
                     color = WheelsSurface
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptyDriverRidesState(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "No rides published yet",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryBlue
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Create a ride and it will appear here for this account across devices.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
         }
     }
 }
@@ -858,10 +1077,12 @@ private fun DriverRideCard(
 
 @Composable
 private fun DriverRideStatusChip(status: DriverRideStatus) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val (label, backgroundColor, textColor) = when (status) {
-        DriverRideStatus.PENDING -> Triple("Pending", Color(0xFFFEF3C7), Color(0xFFF59E0B))
-        DriverRideStatus.ACTIVE -> Triple("Active", Color(0xFFD1FAE5), ElectricGreen)
-        DriverRideStatus.COMPLETED -> Triple("Completed", Color(0xFFE2E8F0), PrimaryBlue)
+        DriverRideStatus.PENDING -> Triple("Pending", if (isDark) Color(0xFF3A2E11) else Color(0xFFFEF3C7), Color(0xFFF59E0B))
+        DriverRideStatus.ACTIVE -> Triple("Active", if (isDark) Color(0xFF123126) else Color(0xFFD1FAE5), ElectricGreen)
+        DriverRideStatus.COMPLETED -> Triple("Completed", if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0), if (isDark) Color(0xFFBFDBFE) else PrimaryBlue)
+        DriverRideStatus.CANCELLED -> Triple("Cancelled", if (isDark) Color(0xFF3F1D1D) else Color(0xFFFEE2E2), Color(0xFFDC2626))
     }
 
     Surface(
@@ -883,7 +1104,7 @@ private fun CreateRideHeader(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
+            .background(gradientHeaderBrush())
             .padding(horizontal = 20.dp, vertical = 18.dp)
             .padding(top = 20.dp)
     ) {
@@ -897,13 +1118,13 @@ private fun CreateRideHeader(onBack: () -> Unit) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = WheelsSurface,
+                    tint = GradientHeaderPrimaryContent,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Back",
-                    color = WheelsSurface.copy(alpha = 0.84f),
+                    color = GradientHeaderSecondaryContent,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -914,13 +1135,13 @@ private fun CreateRideHeader(onBack: () -> Unit) {
         Text(
             text = "Create a Ride",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = WheelsSurface
+            color = GradientHeaderPrimaryContent
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Publish your ride and earn money",
             style = MaterialTheme.typography.bodyMedium,
-            color = WheelsSurface.copy(alpha = 0.84f)
+            color = GradientHeaderSecondaryContent
         )
     }
 }
@@ -1045,7 +1266,8 @@ private fun FormTextField(
     prefix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     readOnly: Boolean = false,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    maxLength: Int? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     
@@ -1080,7 +1302,17 @@ private fun FormTextField(
                 singleLine = true,
                 readOnly = readOnly,
                 enabled = true,
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                supportingText = {
+                    maxLength?.let {
+                        Text(
+                            text = "${value.length}/$it",
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
             )
             
             if (onClick != null) {
@@ -1124,7 +1356,7 @@ private fun RidesHeader(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-            .background(Brush.linearGradient(listOf(PrimaryBlue, Color(0xFF2D5280))))
+            .background(gradientHeaderBrush())
             .padding(horizontal = 20.dp, vertical = 18.dp)
             .padding(top = 20.dp)
     ) {
@@ -1138,13 +1370,13 @@ private fun RidesHeader(onBack: () -> Unit) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = WheelsSurface,
+                tint = GradientHeaderPrimaryContent,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Back",
-                color = WheelsSurface.copy(alpha = 0.84f),
+                color = GradientHeaderSecondaryContent,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -1154,13 +1386,13 @@ private fun RidesHeader(onBack: () -> Unit) {
         Text(
             text = "Find a Ride",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = WheelsSurface
+            color = GradientHeaderPrimaryContent
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Available rides from your university",
             style = MaterialTheme.typography.bodyMedium,
-            color = WheelsSurface.copy(alpha = 0.82f)
+            color = GradientHeaderSecondaryContent
         )
     }
 }
@@ -1173,7 +1405,8 @@ private fun SearchAndFiltersSection(
     onAreaSelected: (String) -> Unit,
     onPriceChanged: (Float) -> Unit,
     onRatingSelected: (Double) -> Unit,
-    onClearRating: () -> Unit
+    onClearRating: () -> Unit,
+    onClearFilters: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -1235,7 +1468,8 @@ private fun SearchAndFiltersSection(
                 onAreaSelected = onAreaSelected,
                 onPriceChanged = onPriceChanged,
                 onRatingSelected = (onRatingSelected),
-                onClearRating = onClearRating
+                onClearRating = onClearRating,
+                onClearFilters = onClearFilters
             )
         }
     }
@@ -1247,7 +1481,8 @@ private fun FilterPanel(
     onAreaSelected: (String) -> Unit,
     onPriceChanged: (Float) -> Unit,
     onRatingSelected: (Double) -> Unit,
-    onClearRating: () -> Unit
+    onClearRating: () -> Unit,
+    onClearFilters: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -1326,6 +1561,16 @@ private fun FilterPanel(
                 modifier = Modifier.clickable(onClick = onClearRating)
             )
         }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        OutlinedButton(
+            onClick = onClearFilters,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Clear filters")
+        }
     }
 }
 
@@ -1356,7 +1601,68 @@ private fun FilterChip(
 }
 
 @Composable
-private fun SmartSuggestionCard(onClick: () -> Unit) {
+private fun NearbyRidesBanner(
+    state: RidesUiState,
+    onClear: () -> Unit
+) {
+    val nearbyState = state.nearbyRides
+    val description = when {
+        nearbyState.isLoading -> "Finding the rides closest to your current location..."
+        nearbyState.errorMessage != null -> nearbyState.errorMessage
+        nearbyState.isActive -> {
+            val locationLabel = nearbyState.locationName?.takeIf { it.isNotBlank() } ?: "your location"
+            if (nearbyState.nearbyRideCount > 0) {
+                "Showing rides closest to $locationLabel. ${nearbyState.nearbyRideCount} ride(s) are within 5 km."
+            } else {
+                "Showing the closest available rides to $locationLabel."
+            }
+        }
+        else -> null
+    } ?: return
+
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (nearbyState.errorMessage == null) Color(0xFFDFF7EA) else Color(0xFFFFF1F0)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (nearbyState.errorMessage == null) Icons.Default.LocationOn else Icons.Default.Info,
+                contentDescription = null,
+                tint = if (nearbyState.errorMessage == null) ElectricGreen else Color(0xFFD14343)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue,
+                modifier = Modifier.weight(1f)
+            )
+            if (!nearbyState.isLoading) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Clear",
+                    color = SecondaryBlue,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.clickable(onClick = onClear)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SmartSuggestionCard(
+    message: String,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -1392,7 +1698,7 @@ private fun SmartSuggestionCard(onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Based on your schedule, you usually go to Centro around 2:30 PM",
+                    text = message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = WheelsSurface.copy(alpha = 0.92f)
                 )
@@ -1429,6 +1735,24 @@ private fun RideCard(
         border = BorderStroke(2.dp, Color.Transparent)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            if (ride.isRecommendedByTrustScore) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        tint = SecondaryBlue,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Recommended by trust score",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = SecondaryBlue
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             if (ride.isHabitRide) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -1440,6 +1764,24 @@ private fun RideCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Matches your usual schedule",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = ElectricGreen
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            ride.distanceFromCurrentLocationLabel?.let { distanceLabel ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = ElectricGreen,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = distanceLabel,
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                         color = ElectricGreen
                     )
@@ -1672,7 +2014,7 @@ private fun ActionButton(
                 Icon(
                     imageVector = trailingIcon,
                     contentDescription = null,
-                    tint = WheelsSurface,
+                    tint = if (emphasized) WheelsSurface else SecondaryBlue,
                     modifier = Modifier.size(18.dp)
                 )
             }

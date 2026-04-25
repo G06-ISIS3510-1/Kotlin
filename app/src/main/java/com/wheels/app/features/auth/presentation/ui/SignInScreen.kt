@@ -26,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -56,20 +55,12 @@ fun SignInScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val errorMessage = state.errorMessage
-
-    LaunchedEffect(state.signedIn) {
-        if (state.signedIn) {
-            navController.navigate(Destinations.Home.route) {
-                popUpTo(Destinations.SignIn.route) { inclusive = true }
-            }
-            viewModel.onEvent(SignInEvent.ConsumeNavigation)
-        }
-    }
+    val colorScheme = MaterialTheme.colorScheme
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFFE8F0F9), WheelsSurface)))
+            .background(Brush.verticalGradient(listOf(colorScheme.surfaceVariant, colorScheme.background)))
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp)
@@ -78,7 +69,7 @@ fun SignInScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = PrimaryBlue
+                tint = colorScheme.onBackground
             )
         }
 
@@ -102,13 +93,13 @@ fun SignInScreen(
             Text(
                 text = "Welcome Back",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = PrimaryBlue
+                color = colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Sign in to continue to Wheels",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -127,10 +118,11 @@ fun SignInScreen(
                     .padding(20.dp)
             ) {
                 WheelsInputField(
-                    value = state.email,
-                    onValueChange = { viewModel.onEvent(SignInEvent.EmailChanged(it)) },
-                    label = "University Email",
-                    placeholder = "student@university.edu",
+                    value = state.username,
+                    onValueChange = { viewModel.onEvent(SignInEvent.UsernameChanged(it)) },
+                    label = "Uniandes Username",
+                    placeholder = "Enter your Uniandes username (without @uniandes.edu.co)",
+                    maxLength = 64,
                     keyboardType = KeyboardType.Email,
                     leadingIcon = {
                         Icon(
@@ -149,6 +141,7 @@ fun SignInScreen(
                     onValueChange = { viewModel.onEvent(SignInEvent.PasswordChanged(it)) },
                     label = "Password",
                     placeholder = "Enter your password",
+                    maxLength = 128,
                     keyboardType = KeyboardType.Password,
                     visualTransformation = PasswordVisualTransformation(),
                     leadingIcon = {
@@ -171,6 +164,13 @@ fun SignInScreen(
                         .clickable { navController.navigate(Destinations.ForgotPassword.route) }
                 )
 
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "We'll sign you in as ${state.username.ifBlank { "your.username" }}@uniandes.edu.co",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+
                 if (errorMessage != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
@@ -190,8 +190,8 @@ fun SignInScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
-                        contentColor = WheelsSurface,
+                        containerColor = colorScheme.primary,
+                        contentColor = colorScheme.onPrimary,
                         disabledContainerColor = Border,
                         disabledContentColor = TextSecondary
                     )
@@ -200,7 +200,7 @@ fun SignInScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = WheelsSurface
+                            color = colorScheme.onPrimary
                         )
                     } else {
                         Text(
@@ -215,7 +215,7 @@ fun SignInScreen(
                 Text(
                     text = "Don't have an account? Sign Up",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
+                    color = colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -233,4 +233,3 @@ fun SignInScreen(
         }
     }
 }
-

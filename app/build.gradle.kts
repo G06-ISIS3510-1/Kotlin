@@ -71,7 +71,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -85,7 +87,9 @@ dependencies {
 
     implementation("com.google.dagger:hilt-android:2.52")
     ksp("com.google.dagger:hilt-compiler:2.52")
-    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-auth:22.3.1")
+    implementation("com.google.firebase:firebase-firestore:25.1.2")
+    implementation("com.google.firebase:firebase-messaging:24.0.3")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

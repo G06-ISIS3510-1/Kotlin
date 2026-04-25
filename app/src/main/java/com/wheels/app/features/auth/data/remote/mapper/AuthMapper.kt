@@ -14,17 +14,17 @@ import com.wheels.app.features.auth.domain.model.SignInRequest
 
 fun CreateAccountRequest.toDto(): CreateAccountRequestDto = CreateAccountRequestDto(
     fullName = fullName,
-    email = email,
+    email = username,
     password = password,
     phone = phone,
-    isDriver = role.name == "DRIVER"
+    isDriver = roles.contains(com.wheels.app.core.session.UserRole.DRIVER)
 )
 
 fun SignInRequest.toDto(): SignInRequestDto = SignInRequestDto(
-    email = email,
+    email = username,
     password = password
 )
 
 fun ForgotPasswordRequest.toDto(): ForgotPasswordRequestDto = ForgotPasswordRequestDto(
-    email = email
+    email = username
 )

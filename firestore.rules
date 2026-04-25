@@ -1,6 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /passwordResetRequests/{requestId} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+
     match /trustScores/{userId} {
       allow read: if true;
       allow write: if false;
@@ -22,6 +35,35 @@ service cloud.firestore {
 
     match /rides/{rideId} {
       allow read, write: if true;
+    }
+
+    // Keep `users/{uid}` open for the demo to avoid breaking existing auth,
+    // profile, and session flows that already rely on this collection.
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Raw app-open logs. The client may only create its own event document.
+    // The backend aggregates this collection into usage patterns.
+    match /app_open_events/{eventId} {
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
+    // Aggregated peak-usage profile. Keep this backend-managed so the app
+    // cannot tamper with prediction fields or send-history metadata.
+    match /user_usage_patterns/{userId} {
+      allow read, write: if false;
+    }
+
+    // Demo analytics stream for role changes. The app only appends events for
+    // the authenticated user, and BigQuery / Looker Studio can read the stream
+    // through Firebase exports without the client needing read access.
+    match /role_change_events/{eventId} {
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if false;
     }
   }
 }
