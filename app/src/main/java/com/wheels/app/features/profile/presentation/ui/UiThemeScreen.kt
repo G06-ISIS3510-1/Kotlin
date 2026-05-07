@@ -44,13 +44,20 @@ import com.wheels.app.core.ui.theme.GradientHeaderSecondaryContent
 import com.wheels.app.core.theme.ThemeSettingsViewModel
 import com.wheels.app.core.ui.theme.gradientHeaderBrush
 
+/**
+ * Theme settings screen: displays and allows configuration of theme preferences.
+ * Saves changes to SharedPreferences and triggers app-wide theme updates.
+ */
 @Composable
 fun UiThemeScreen(
     innerPadding: PaddingValues,
     navController: NavController,
     viewModel: ThemeSettingsViewModel
 ) {
+    // Subscribe to theme state from ViewModel. Recomposes when state changes.
     val themeState = viewModel.uiState.collectAsStateWithLifecycle()
+    
+    // Extract theme settings from state for easy access
     val darkModeEnabled = themeState.value.isDarkModeEnabled
     val adaptiveThemeEnabled = themeState.value.isAdaptiveThemeEnabled
     val colorScheme = MaterialTheme.colorScheme
@@ -66,6 +73,7 @@ fun UiThemeScreen(
                 .padding(innerPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Header section with description
             item {
                 Box(
                     modifier = Modifier
@@ -117,6 +125,7 @@ fun UiThemeScreen(
                 }
             }
 
+            // Settings card with toggles
             item {
                 Card(
                     modifier = Modifier
@@ -127,12 +136,13 @@ fun UiThemeScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
+                        // Dark Mode toggle: disabled when Adaptive theme is on (sensor controls theme instead)
                         ThemeSwitchRow(
                             icon = if (darkModeEnabled) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
                             title = "Dark mode",
                             subtitle = if (darkModeEnabled) "Enabled" else "Disabled",
                             checked = darkModeEnabled,
-                            enabled = !adaptiveThemeEnabled,
+                            enabled = !adaptiveThemeEnabled,  // Disabled if adaptive theme is on
                             onCheckedChange = viewModel::setDarkModeEnabled
                         )
 
@@ -142,6 +152,7 @@ fun UiThemeScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
+                        // Adaptive Theme toggle: when ON, light sensor controls theme automatically
                         ThemeSwitchRow(
                             icon = Icons.Outlined.WbSunny,
                             title = "Adaptive UI Theme",
@@ -157,6 +168,10 @@ fun UiThemeScreen(
     }
 }
 
+/**
+ * Reusable component for displaying a theme setting toggle.
+ * When enabled: functional with normal colors. When disabled: grayed out and non-functional.
+ */
 @Composable
 private fun ThemeSwitchRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -175,21 +190,25 @@ private fun ThemeSwitchRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Icon container - gray out when disabled
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(20.dp))
+                // Gray out when disabled
                 .background(if (enabled) colorScheme.surfaceVariant else colorScheme.outline.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
+                // Muted colors when disabled
                 tint = if (enabled) colorScheme.primary else colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 modifier = Modifier.size(20.dp)
             )
         }
 
+        // Title and subtitle text
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -198,15 +217,18 @@ private fun ThemeSwitchRow(
                 text = title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
+                // Muted when disabled
                 color = if (enabled) colorScheme.onSurface else colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
             )
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
+                // Muted when disabled
                 color = if (enabled) colorScheme.onSurfaceVariant else colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
             )
         }
 
+        // Toggle switch - calls viewModel.setDarkModeEnabled() or setAdaptiveThemeEnabled()
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
