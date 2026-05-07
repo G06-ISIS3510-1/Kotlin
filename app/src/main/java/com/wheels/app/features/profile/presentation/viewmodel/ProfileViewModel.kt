@@ -6,6 +6,7 @@ import com.wheels.app.core.common.Resource
 import com.wheels.app.core.analytics.domain.usecase.TrackRoleChangeUseCase
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
+import com.wheels.app.core.network.NetworkMonitor
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
 import com.wheels.app.features.auth.domain.usecase.RegisterAdditionalRoleUseCase
 import com.wheels.app.features.auth.domain.usecase.SignOutUseCase
@@ -27,6 +28,7 @@ import java.util.Locale
 class ProfileViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val roleManager: RoleManager,
+    private val networkMonitor: NetworkMonitor,
     private val driverTrustRepository: DriverTrustRepository,
     private val signOutUseCase: SignOutUseCase,
     private val switchActiveRoleUseCase: SwitchActiveRoleUseCase,
@@ -139,6 +141,17 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun switchRole(role: UserRole) {
+        if (!networkMonitor.isOnline()) {
+            _uiState.value = _uiState.value.copy(
+                roleActionLoading = false,
+                roleUpgradeTarget = null,
+                roleUpgradePassword = "",
+                roleUpgradeErrorMessage = null,
+                roleInfoMessage = "Role changes require an active internet connection."
+            )
+            return
+        }
+
         if (roleManager.hasRole(role)) {
             val previousRole = _uiState.value.activeRole
             viewModelScope.launch {
@@ -182,6 +195,14 @@ class ProfileViewModel @Inject constructor(
         val targetRole = _uiState.value.roleUpgradeTarget ?: return
         val password = _uiState.value.roleUpgradePassword
         val previousRole = _uiState.value.activeRole
+
+        if (!networkMonitor.isOnline()) {
+            _uiState.value = _uiState.value.copy(
+                roleActionLoading = false,
+                roleUpgradeErrorMessage = "Role changes require an active internet connection."
+            )
+            return
+        }
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(roleActionLoading = true, roleUpgradeErrorMessage = null)

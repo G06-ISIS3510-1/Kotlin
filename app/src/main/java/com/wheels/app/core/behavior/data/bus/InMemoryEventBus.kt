@@ -7,6 +7,9 @@ import com.wheels.app.core.behavior.domain.observer.AppEventSubscriber
 import java.util.concurrent.CopyOnWriteArraySet
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
@@ -30,16 +33,22 @@ class InMemoryEventBus @Inject constructor(
 
     override suspend fun publish(event: AppEvent) {
         withContext(ioDispatcher) {
-            // Every subscriber receives the same event, but each one decides
-            // whether and how to react to it.
-            subscribers.forEach { subscriber ->
-                runCatching {
-                    subscriber.update(event)
-                }.onFailure { error ->
-                    // Observers are best-effort. One failing subscriber should
-                    // not crash the app or prevent the other observers from running.
-                    Log.w(TAG, "App event observer failed", error)
-                }
+            supervisorScope {
+                // Fan out the same event to each observer concurrently so
+                // tracking, analytics, and notification preparation stay
+                // isolated from one another.
+                subscribers.map { subscriber ->
+                    launch {
+                        runCatching {
+                            subscriber.update(event)
+                        }.onFailure { error ->
+                            // Observers are best-effort. One failing subscriber
+                            // should not crash the app or prevent the other
+                            // observers from running.
+                            Log.w(TAG, "App event observer failed", error)
+                        }
+                    }
+                }.joinAll()
             }
         }
     }
