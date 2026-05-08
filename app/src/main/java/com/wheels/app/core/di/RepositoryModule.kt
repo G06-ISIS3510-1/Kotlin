@@ -27,6 +27,8 @@ import com.wheels.app.features.auth.domain.repository.AuthRepository
 import com.wheels.app.features.payments.domain.repository.PaymentRepository
 import com.wheels.app.features.rides.domain.repository.CancellationBehaviorRepository
 import com.wheels.app.features.rides.domain.repository.RideRepository
+import com.wheels.app.features.profile.data.repository.FirebaseUserProfileRepository
+import com.wheels.app.features.profile.domain.repository.UserProfileRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -70,6 +72,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindUserProfileRepository(
+        impl: FirebaseUserProfileRepository
+    ): UserProfileRepository
 
     @Binds
     @Singleton
