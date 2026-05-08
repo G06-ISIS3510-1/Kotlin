@@ -7,6 +7,7 @@ import com.wheels.app.core.analytics.bqt3.domain.model.BQT3_FEATURE_NAME
 import com.wheels.app.core.analytics.bqt3.domain.model.BQT3UsageEvent
 import com.wheels.app.core.analytics.bqt3.domain.model.BQT3WeeklyUsage
 import com.wheels.app.core.analytics.bqt3.domain.repository.BQT3Repository
+import com.wheels.app.core.network.NetworkMonitor
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -15,6 +16,9 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Singleton
@@ -22,8 +26,24 @@ class BQT3RepositoryImpl @Inject constructor(
     private val remoteDataSource: BQT3RemoteDataSource,
     private val localDataSource: BQT3LocalDataSource,
     private val connectivityChecker: ConnectivityChecker,
+    private val networkMonitor: NetworkMonitor,
     private val ioDispatcher: CoroutineDispatcher
 ) : BQT3Repository {
+
+    private val repositoryScope = CoroutineScope(ioDispatcher + SupervisorJob())
+
+    init {
+        repositoryScope.launch {
+            var wasOnline = false
+            networkMonitor.observeIsOnline().collect { isOnline ->
+                if (isOnline && !wasOnline) {
+                    // Transición de offline a online: sincronizar eventos pendientes
+                    syncPendingEvents()
+                }
+                wasOnline = isOnline
+            }
+        }
+    }
 
     override suspend fun trackRidesNearMeUsage(userId: String): BQT3WeeklyUsage {
         return withContext(ioDispatcher) {
