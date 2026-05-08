@@ -37,11 +37,21 @@ export interface RideDocument {
   status: RideStatus;
   departureAt?: Timestamp;
   destination?: string;
+  usedCurrentLocationOrigin?: boolean;
+  usedCurrentLocationDestination?: boolean;
   scheduledStartAt?: Timestamp;
   completedAt?: Timestamp;
   canceledAt?: Timestamp;
   canceledByRole?: "driver" | "passenger" | "system";
   updatedAt?: Timestamp;
+}
+
+export interface CreateRideLocationUsageAnalyticsDocument {
+  rideId: string;
+  driverId: string;
+  usedCurrentLocationOrigin: boolean;
+  usedCurrentLocationDestination: boolean;
+  publishedAt: FieldValue;
 }
 
 export interface UserProfileDocument {

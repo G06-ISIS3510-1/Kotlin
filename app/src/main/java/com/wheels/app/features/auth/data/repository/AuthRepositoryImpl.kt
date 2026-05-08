@@ -10,6 +10,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.wheels.app.core.common.Resource
 import com.wheels.app.core.session.UserRole
+import com.wheels.app.features.auth.data.local.AuthSessionLocalStore
 import com.wheels.app.features.auth.data.remote.mapper.toProfileUser
 import com.wheels.app.features.auth.domain.model.AuthFailure
 import com.wheels.app.features.auth.domain.model.AuthUser
@@ -39,6 +40,7 @@ import kotlinx.coroutines.withContext
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val authSessionLocalStore: AuthSessionLocalStore,
     private val userProfileLocalDataSource: UserProfileLocalDataSource,
     private val ioDispatcher: CoroutineDispatcher
 ) : AuthRepository {
@@ -50,12 +52,23 @@ class AuthRepositoryImpl @Inject constructor(
             val listener = FirebaseAuth.AuthStateListener { auth ->
                 val user = auth.currentUser
                 if (user == null) {
+                    launch(ioDispatcher) {
+                        authSessionLocalStore.clear()
+                        userProfileLocalDataSource.clearProfile()
+                    }
                     trySend(null)
                     return@AuthStateListener
                 }
 
                 launch(ioDispatcher) {
-                    val authUser = runCatching { resolveAuthUser(user) }.getOrNull()
+                    val authUser = runCatching { resolveAuthUser(user) }
+                        .onSuccess { resolvedUser ->
+                            authSessionLocalStore.save(resolvedUser)
+                        }
+                        .getOrElse {
+                            authSessionLocalStore.get()
+                                ?.takeIf { cachedUser -> cachedUser.uid == user.uid }
+                        }
                     trySend(authUser)
                 }
             }
@@ -77,13 +90,22 @@ class AuthRepositoryImpl @Inject constructor(
         return@withContext runCatching {
             currentUser.reload().awaitResult()
             val refreshedUser = firebaseAuth.currentUser ?: return@runCatching null
-            resolveAuthUser(refreshedUser)
-        }.getOrElse {
-            resolveAuthUser(currentUser)
-        }.also { authUser ->
-            if (authUser != null) {
-                cacheProfile(authUser)
+            resolveAuthUser(refreshedUser).also {
+                authSessionLocalStore.save(it)
+                cacheProfile(it)
             }
+        }.getOrElse {
+            if (it is FirebaseNetworkException) {
+                authSessionLocalStore.get()
+                    ?.takeIf { cachedUser -> cachedUser.uid == currentUser.uid }
+            } else {
+                firebaseAuth.signOut()
+                authSessionLocalStore.clear()
+                userProfileLocalDataSource.clearProfile()
+                null
+            }
+        }?.also { authUser ->
+            cacheProfile(authUser)
         }
     }
 
@@ -134,6 +156,7 @@ class AuthRepositoryImpl @Inject constructor(
                 }
 
                 loginHistoryTimestamps.add(System.currentTimeMillis())
+                authSessionLocalStore.save(authUser)
                 cacheProfile(authUser)
                 authUser
             }.fold(
@@ -157,6 +180,8 @@ class AuthRepositoryImpl @Inject constructor(
 
                 resolveAuthUser(firebaseUser).also {
                     loginHistoryTimestamps.add(System.currentTimeMillis())
+                    authSessionLocalStore.save(it)
+                    authSessionLocalStore.save(it)
                     cacheProfile(it)
                 }
             }.fold(
@@ -225,7 +250,11 @@ class AuthRepositoryImpl @Inject constructor(
                     activeRole = role
                 )
 
-                resolveAuthUser(currentUser).also { cacheProfile(it) }
+                resolveAuthUser(currentUser).also { authSessionLocalStore.save(it) }
+                resolveAuthUser(currentUser).also {
+                    authSessionLocalStore.save(it)
+                    cacheProfile(it)
+                }
             }.fold(
                 onSuccess = { Resource.Success(it) },
                 onFailure = { Resource.Error(it.toAuthFailure().message) }
@@ -258,7 +287,11 @@ class AuthRepositoryImpl @Inject constructor(
                     activeRole = role
                 )
 
-                resolveAuthUser(currentUser).also { cacheProfile(it) }
+                resolveAuthUser(currentUser).also { authSessionLocalStore.save(it) }
+                resolveAuthUser(currentUser).also {
+                    authSessionLocalStore.save(it)
+                    cacheProfile(it)
+                }
             }.fold(
                 onSuccess = { Resource.Success(it) },
                 onFailure = { Resource.Error(it.toAuthFailure().message) }
@@ -269,6 +302,8 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signOut() {
         withContext(ioDispatcher) {
             firebaseAuth.signOut()
+            authSessionLocalStore.clear()
+            authSessionLocalStore.clear()
             userProfileLocalDataSource.clearProfile()
         }
     }

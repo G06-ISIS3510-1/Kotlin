@@ -54,6 +54,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -88,6 +89,7 @@ import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
 import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.rides.domain.model.BehavioralNudge
+import com.wheels.app.features.rides.domain.model.PendingRideActionType
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
 import com.wheels.app.features.rides.presentation.model.RideLocationField
 import com.wheels.app.features.rides.presentation.ui.components.LocationAutocompleteField
@@ -95,6 +97,7 @@ import com.wheels.app.features.rides.presentation.viewmodel.RideCardUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideStatus
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRidesTab
+import com.wheels.app.features.rides.presentation.viewmodel.RideActionInfoNotice
 import com.wheels.app.features.rides.presentation.viewmodel.RidesEvent
 import com.wheels.app.features.rides.presentation.viewmodel.RidesUiState
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
@@ -136,54 +139,72 @@ fun RidesScreen(
     }
 
     if (activeRole == UserRole.DRIVER) {
-        DriverCreateRideScreen(
-            state = state,
-            innerPadding = innerPadding,
-            onBack = { navController.navigate(Destinations.Home.route) },
-            onOriginChanged = {
-                viewModel.onEvent(RidesEvent.DriverLocationQueryChanged(RideLocationField.ORIGIN, it))
-            },
-            onOriginFieldFocused = {
-                viewModel.onEvent(RidesEvent.DriverLocationFieldFocused(RideLocationField.ORIGIN))
-            },
-            onOriginSuggestionSelected = {
-                viewModel.onEvent(
-                    RidesEvent.DriverLocationSuggestionSelected(RideLocationField.ORIGIN, it)
+        Box(modifier = Modifier.fillMaxSize()) {
+            DriverCreateRideScreen(
+                state = state,
+                innerPadding = innerPadding,
+                onBack = { navController.navigate(Destinations.Home.route) },
+                onOriginChanged = {
+                    viewModel.onEvent(RidesEvent.DriverLocationQueryChanged(RideLocationField.ORIGIN, it))
+                },
+                onOriginFieldFocused = {
+                    viewModel.onEvent(RidesEvent.DriverLocationFieldFocused(RideLocationField.ORIGIN))
+                },
+                onOriginSuggestionSelected = {
+                    viewModel.onEvent(
+                        RidesEvent.DriverLocationSuggestionSelected(RideLocationField.ORIGIN, it)
+                    )
+                },
+                onUseCurrentOriginClicked = {
+                    viewModel.onEvent(RidesEvent.DriverUseCurrentLocation(RideLocationField.ORIGIN))
+                },
+                onDestinationChanged = {
+                    viewModel.onEvent(RidesEvent.DriverLocationQueryChanged(RideLocationField.DESTINATION, it))
+                },
+                onDestinationFieldFocused = {
+                    viewModel.onEvent(RidesEvent.DriverLocationFieldFocused(RideLocationField.DESTINATION))
+                },
+                onDestinationSuggestionSelected = {
+                    viewModel.onEvent(
+                        RidesEvent.DriverLocationSuggestionSelected(RideLocationField.DESTINATION, it)
+                    )
+                },
+                onUseCurrentDestinationClicked = {
+                    viewModel.onEvent(RidesEvent.DriverUseCurrentLocation(RideLocationField.DESTINATION))
+                },
+                onDateChanged = { viewModel.onEvent(RidesEvent.DriverDateChanged(it)) },
+                onTimeChanged = { viewModel.onEvent(RidesEvent.DriverTimeChanged(it)) },
+                onIncreaseSeats = { viewModel.onEvent(RidesEvent.DriverIncreaseSeats) },
+                onDecreaseSeats = { viewModel.onEvent(RidesEvent.DriverDecreaseSeats) },
+                onPriceChanged = { viewModel.onEvent(RidesEvent.DriverPriceChanged(it)) },
+                onCarModelChanged = { viewModel.onEvent(RidesEvent.DriverCarModelChanged(it)) },
+                onLicensePlateChanged = { viewModel.onEvent(RidesEvent.DriverLicensePlateChanged(it)) },
+                onDescriptionChanged = { viewModel.onEvent(RidesEvent.DriverDescriptionChanged(it)) },
+                onDriverTabSelected = { viewModel.onEvent(RidesEvent.DriverTabChanged(it)) },
+                onMyRideSelected = { rideId ->
+                    navController.navigate(Destinations.ActiveRideManagement.createRoute(rideId))
+                },
+                onDismissPublishRideInfo = {
+                    viewModel.onEvent(RidesEvent.DismissPublishRideInfo)
+                },
+                onSeeRide = {
+                    viewModel.onEvent(RidesEvent.DriverTabChanged(DriverRidesTab.MY_RIDES))
+                    viewModel.onEvent(RidesEvent.DismissPublishRideInfo)
+                },
+                onPublishRide = {
+                    viewModel.onEvent(RidesEvent.PublishRide)
+                }
+            )
+
+            state.rideActionInfo?.let { infoNotice ->
+                RideActionInfoDialog(
+                    notice = infoNotice,
+                    onDismiss = {
+                        viewModel.onEvent(RidesEvent.DismissRideActionInfo)
+                    }
                 )
-            },
-            onUseCurrentOriginClicked = {
-                viewModel.onEvent(RidesEvent.DriverUseCurrentLocation(RideLocationField.ORIGIN))
-            },
-            onDestinationChanged = {
-                viewModel.onEvent(RidesEvent.DriverLocationQueryChanged(RideLocationField.DESTINATION, it))
-            },
-            onDestinationFieldFocused = {
-                viewModel.onEvent(RidesEvent.DriverLocationFieldFocused(RideLocationField.DESTINATION))
-            },
-            onDestinationSuggestionSelected = {
-                viewModel.onEvent(
-                    RidesEvent.DriverLocationSuggestionSelected(RideLocationField.DESTINATION, it)
-                )
-            },
-            onUseCurrentDestinationClicked = {
-                viewModel.onEvent(RidesEvent.DriverUseCurrentLocation(RideLocationField.DESTINATION))
-            },
-            onDateChanged = { viewModel.onEvent(RidesEvent.DriverDateChanged(it)) },
-            onTimeChanged = { viewModel.onEvent(RidesEvent.DriverTimeChanged(it)) },
-            onIncreaseSeats = { viewModel.onEvent(RidesEvent.DriverIncreaseSeats) },
-            onDecreaseSeats = { viewModel.onEvent(RidesEvent.DriverDecreaseSeats) },
-            onPriceChanged = { viewModel.onEvent(RidesEvent.DriverPriceChanged(it)) },
-            onCarModelChanged = { viewModel.onEvent(RidesEvent.DriverCarModelChanged(it)) },
-            onLicensePlateChanged = { viewModel.onEvent(RidesEvent.DriverLicensePlateChanged(it)) },
-            onDescriptionChanged = { viewModel.onEvent(RidesEvent.DriverDescriptionChanged(it)) },
-            onDriverTabSelected = { viewModel.onEvent(RidesEvent.DriverTabChanged(it)) },
-            onMyRideSelected = { rideId ->
-                navController.navigate(Destinations.ActiveRideManagement.createRoute(rideId))
-            },
-            onPublishRide = {
-                viewModel.onEvent(RidesEvent.PublishRide)
             }
-        )
+        }
         return
     }
 
@@ -213,6 +234,12 @@ fun RidesScreen(
                 onClearRating = { viewModel.onEvent(RidesEvent.ClearRatingFilter) },
                 onClearFilters = { viewModel.onEvent(RidesEvent.ClearPassengerFilters) }
             )
+        }
+
+        item {
+            if (!state.isCreateRideOnline && state.allRides.isNotEmpty()) {
+                OfflineAvailableRidesBanner()
+            }
         }
 
         item {
@@ -321,6 +348,8 @@ private fun DriverCreateRideScreen(
     onDescriptionChanged: (String) -> Unit,
     onDriverTabSelected: (DriverRidesTab) -> Unit,
     onMyRideSelected: (String) -> Unit,
+    onDismissPublishRideInfo: () -> Unit,
+    onSeeRide: () -> Unit,
     onPublishRide: () -> Unit
 ) {
     val context = LocalContext.current
@@ -368,6 +397,14 @@ private fun DriverCreateRideScreen(
             .background(WheelsBackground)
             .padding(innerPadding)
     ) {
+        state.publishRideInfoMessage?.let { infoMessage ->
+            PublishRideInfoDialog(
+                message = infoMessage,
+                onDismiss = onDismissPublishRideInfo,
+                onSeeRide = onSeeRide
+            )
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 132.dp)
@@ -717,6 +754,12 @@ private fun DriverCreateRideScreen(
                     )
                 }
 
+                if (state.isShowingCachedDriverRides && state.driverRides.isNotEmpty()) {
+                    item {
+                        OfflineDriverRidesBanner()
+                    }
+                }
+
                 when {
                     state.isLoadingDriverRides -> {
                         item {
@@ -759,37 +802,150 @@ private fun DriverCreateRideScreen(
                 shadowElevation = 12.dp,
                 tonalElevation = 2.dp
             ) {
-                Button(
-                    onClick = onPublishRide,
-                    enabled = state.canPublishRide,
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp),
-                    content = {
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (!state.isCreateRideOnline) {
                         Text(
-                            text = if (state.isPublishingRide) "Publishing..." else "Publish Ride",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null
+                            text = "You are offline. If you publish now, we will save this ride locally and publish it automatically when your connection returns.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
-                )
-                state.publishRideErrorMessage?.let { errorMessage ->
-                    Text(
-                        text = errorMessage,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFDC2626)
+                    Button(
+                        onClick = onPublishRide,
+                        enabled = state.canPublishRide,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(vertical = 16.dp),
+                        content = {
+                            Text(
+                                text = if (state.isPublishingRide) "Publishing..." else "Publish Ride",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null
+                            )
+                        }
                     )
+                    state.publishRideErrorMessage?.let { errorMessage ->
+                        Text(
+                            text = errorMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFDC2626)
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PublishRideInfoDialog(
+    message: String,
+    onDismiss: () -> Unit,
+    onSeeRide: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onSeeRide) {
+                Text("See ride")
+            }
+        },
+        title = {
+            Text(
+                text = "Ride update",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+        },
+        text = {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    )
+}
+
+@Composable
+private fun RideActionInfoDialog(
+    notice: RideActionInfoNotice,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("OK")
+            }
+        },
+        title = {
+            Text(
+                text = notice.title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = notice.message,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (notice.previousTrustScore != null && notice.newTrustScore != null) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = WheelsBackground
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Previous trust score",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                                Text(
+                                    text = "${notice.previousTrustScore}%",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = PrimaryBlue
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Current trust score",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                                Text(
+                                    text = "${notice.newTrustScore}%",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = ElectricGreen
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    )
 }
 
 @Composable
@@ -838,6 +994,64 @@ private fun BehavioralNudgeCard(
                     color = PrimaryBlue
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun OfflineAvailableRidesBanner() {
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+        border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Color(0xFFF59E0B)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "You are offline. We are showing the last available rides we cached from Firebase.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue
+            )
+        }
+    }
+}
+
+@Composable
+private fun OfflineDriverRidesBanner() {
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+        border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Color(0xFFF59E0B)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "You are offline. We are showing the last My Rides list we cached from Firebase.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue
+            )
         }
     }
 }
@@ -911,7 +1125,7 @@ private fun MyRidesSummary(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "Your Published Rides",
+                text = "Your Driver Rides",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = WheelsSurface
             )
@@ -942,13 +1156,13 @@ private fun EmptyDriverRidesState(modifier: Modifier = Modifier) {
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "No rides published yet",
+                text = "No driver rides yet",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = PrimaryBlue
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Create a ride and it will appear here for this account across devices.",
+                text = "Create a ride and it will appear here. Offline rides will stay as pending to publish until your connection returns.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -983,7 +1197,10 @@ private fun DriverRideCard(
                         color = PrimaryBlue
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    DriverRideStatusChip(status = ride.status)
+                    DriverRideStatusChip(
+                        status = ride.status,
+                        pendingSyncAction = ride.pendingSyncAction
+                    )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "${ride.carModel} • ${ride.licensePlate}",
@@ -1076,10 +1293,25 @@ private fun DriverRideCard(
 }
 
 @Composable
-private fun DriverRideStatusChip(status: DriverRideStatus) {
+private fun DriverRideStatusChip(
+    status: DriverRideStatus,
+    pendingSyncAction: PendingRideActionType? = null
+) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val (label, backgroundColor, textColor) = when (status) {
-        DriverRideStatus.PENDING -> Triple("Pending", if (isDark) Color(0xFF3A2E11) else Color(0xFFFEF3C7), Color(0xFFF59E0B))
+    val (label, backgroundColor, textColor) = if (pendingSyncAction != null) {
+        Triple(
+            when (pendingSyncAction) {
+                PendingRideActionType.START -> "Start Pending"
+                PendingRideActionType.COMPLETE -> "End Pending"
+                PendingRideActionType.CANCEL -> "Cancel Pending"
+                PendingRideActionType.DELETE -> "Delete Pending"
+            },
+            if (isDark) Color(0xFF3A2E11) else Color(0xFFFEF3C7),
+            Color(0xFFF59E0B)
+        )
+    } else when (status) {
+        DriverRideStatus.PUBLISHED -> Triple("Published", if (isDark) Color(0xFF0F2D3A) else Color(0xFFE0F2FE), Color(0xFF0284C7))
+        DriverRideStatus.PENDING_TO_PUBLISH -> Triple("Pending to Publish", if (isDark) Color(0xFF3A2E11) else Color(0xFFFEF3C7), Color(0xFFF59E0B))
         DriverRideStatus.ACTIVE -> Triple("Active", if (isDark) Color(0xFF123126) else Color(0xFFD1FAE5), ElectricGreen)
         DriverRideStatus.COMPLETED -> Triple("Completed", if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0), if (isDark) Color(0xFFBFDBFE) else PrimaryBlue)
         DriverRideStatus.CANCELLED -> Triple("Cancelled", if (isDark) Color(0xFF3F1D1D) else Color(0xFFFEE2E2), Color(0xFFDC2626))

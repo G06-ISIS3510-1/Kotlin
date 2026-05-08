@@ -72,7 +72,7 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
     )
     val shouldShowBottomBar = currentDestination?.route !in routesWithoutBottomBar
 
-    LaunchedEffect(sessionState.isLoading, sessionState.authUser, currentRoute) {
+    LaunchedEffect(sessionState.isLoading, sessionState.authUser, sessionState.isSigningOut, currentRoute) {
         if (sessionState.isLoading) return@LaunchedEffect
 
         val authRoutes = setOf(
@@ -81,6 +81,16 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
             Destinations.CreateAccount.route,
             Destinations.ForgotPassword.route
         )
+
+        if (sessionState.isSigningOut) {
+            if (currentRoute != Destinations.SignIn.route) {
+                navController.navigate(Destinations.SignIn.route) {
+                    popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            return@LaunchedEffect
+        }
 
         if (sessionState.authUser != null && currentRoute in authRoutes) {
             navController.navigate(Destinations.Home.route) {

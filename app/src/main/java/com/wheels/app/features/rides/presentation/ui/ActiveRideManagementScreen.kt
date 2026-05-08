@@ -1,6 +1,7 @@
 package com.wheels.app.features.rides.presentation.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -61,7 +62,9 @@ import com.wheels.app.core.ui.theme.SecondaryBlue
 import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
+import com.wheels.app.features.rides.domain.model.PendingRideActionType
 import com.wheels.app.features.rides.presentation.navigation.NavigationLauncherService
+import com.wheels.app.features.rides.presentation.viewmodel.RideActionInfoNotice
 import com.wheels.app.features.rides.presentation.viewmodel.DriverPassengerUiModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideStatus
 import com.wheels.app.features.rides.presentation.viewmodel.DriverRideUiModel
@@ -85,6 +88,7 @@ fun ActiveRideManagementScreen(
     var showCancelConfirmation by remember { mutableStateOf(false) }
     val isActionInProgress = state.actionInProgressRideId == rideId
     val trustNotice = state.trustNotice
+    val rideActionInfo = state.rideActionInfo
 
     if (ride == null && state.shouldPopAfterTrustNotice) {
         Box(
@@ -142,12 +146,67 @@ fun ActiveRideManagementScreen(
     }
 
     if (ride.status == DriverRideStatus.CANCELLED) {
+        val isQueuedCancellation = ride.pendingSyncAction == PendingRideActionType.CANCEL
+        val isQueuedDelete = ride.pendingSyncAction == PendingRideActionType.DELETE
         ArchivedRideContent(
             innerPadding = innerPadding,
             navController = navController,
             ride = ride,
-            title = "Ride Cancelled",
-            description = "This ride was cancelled and will stay here until you decide to remove it from your list.",
+            title = when {
+                isQueuedCancellation -> "Cancellation Pending Sync"
+                isQueuedDelete -> "Delete Pending Sync"
+                else -> "Ride Cancelled"
+            },
+            description = when {
+                isQueuedCancellation -> {
+                "You canceled this ride while offline. We will sync the cancellation automatically when your connection returns."
+                }
+                isQueuedDelete -> {
+                    "You asked to delete this cancelled ride while offline. We will remove it automatically when your connection returns."
+                }
+                else -> {
+                "This ride was cancelled and will stay here until you decide to remove it from your list."
+                }
+            },
+            primaryActionLabel = if (isQueuedCancellation || isQueuedDelete) "Waiting for connection..." else if (isActionInProgress) "Deleting..." else "Delete from My Rides",
+            primaryActionEnabled = !isActionInProgress && !isQueuedCancellation && !isQueuedDelete,
+            onPrimaryAction = { viewModel.onEvent(RidesEvent.DeleteDriverRide(ride.id)) },
+            showEarningsSummary = false
+        )
+        if (trustNotice != null) {
+            TrustNoticeDialog(
+                notice = trustNotice,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterTrustNotice
+                    viewModel.onEvent(RidesEvent.DismissTrustNotice)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+        if (rideActionInfo != null) {
+            RideActionInfoDialog(
+                notice = rideActionInfo,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterRideActionInfo
+                    viewModel.onEvent(RidesEvent.DismissRideActionInfo)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+        return
+    }
+
+    if (ride.status == DriverRideStatus.PENDING_TO_PUBLISH) {
+        ArchivedRideContent(
+            innerPadding = innerPadding,
+            navController = navController,
+            ride = ride,
+            title = "Pending to Publish",
+            description = "This ride was created offline and will be published automatically when your connection returns. You can also remove it from My Rides before it syncs.",
             primaryActionLabel = if (isActionInProgress) "Deleting..." else "Delete from My Rides",
             primaryActionEnabled = !isActionInProgress,
             onPrimaryAction = { viewModel.onEvent(RidesEvent.DeleteDriverRide(ride.id)) },
@@ -165,6 +224,18 @@ fun ActiveRideManagementScreen(
                 }
             )
         }
+        if (rideActionInfo != null) {
+            RideActionInfoDialog(
+                notice = rideActionInfo,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterRideActionInfo
+                    viewModel.onEvent(RidesEvent.DismissRideActionInfo)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
         return
     }
 
@@ -174,7 +245,8 @@ fun ActiveRideManagementScreen(
             navController = navController,
             ride = ride,
             isDeleting = isActionInProgress,
-            onDelete = { viewModel.onEvent(RidesEvent.DeleteDriverRide(ride.id)) }
+            onDelete = { viewModel.onEvent(RidesEvent.DeleteDriverRide(ride.id)) },
+            isDeleteEnabled = ride.pendingSyncAction == null
         )
         if (trustNotice != null) {
             TrustNoticeDialog(
@@ -182,6 +254,18 @@ fun ActiveRideManagementScreen(
                 onDismiss = {
                     val shouldPop = state.shouldPopAfterTrustNotice
                     viewModel.onEvent(RidesEvent.DismissTrustNotice)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+        if (rideActionInfo != null) {
+            RideActionInfoDialog(
+                notice = rideActionInfo,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterRideActionInfo
+                    viewModel.onEvent(RidesEvent.DismissRideActionInfo)
                     if (shouldPop) {
                         navController.popBackStack()
                     }
@@ -230,10 +314,13 @@ fun ActiveRideManagementScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (ride.status == DriverRideStatus.PENDING) {
+                if (ride.pendingSyncAction != null) {
+                    PendingRideActionBanner(actionType = ride.pendingSyncAction)
+                }
+                if (ride.status == DriverRideStatus.PUBLISHED) {
                     Button(
                         onClick = { viewModel.onEvent(RidesEvent.StartDriverRide(ride.id)) },
-                        enabled = !isActionInProgress,
+                        enabled = !isActionInProgress && ride.pendingSyncAction == null,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         contentPadding = PaddingValues(vertical = 16.dp)
@@ -246,7 +333,7 @@ fun ActiveRideManagementScreen(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = !isActionInProgress) { showCancelConfirmation = true },
+                            .clickable(enabled = !isActionInProgress && ride.pendingSyncAction == null) { showCancelConfirmation = true },
                         shape = RoundedCornerShape(16.dp),
                         color = WheelsSurface,
                         border = androidx.compose.foundation.BorderStroke(2.dp, Border)
@@ -265,7 +352,7 @@ fun ActiveRideManagementScreen(
                 } else {
                     Button(
                         onClick = { showEndConfirmation = true },
-                        enabled = !isActionInProgress,
+                        enabled = !isActionInProgress && ride.pendingSyncAction == null,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         contentPadding = PaddingValues(vertical = 16.dp)
@@ -359,6 +446,19 @@ fun ActiveRideManagementScreen(
                 onDismiss = {
                     val shouldPop = state.shouldPopAfterTrustNotice
                     viewModel.onEvent(RidesEvent.DismissTrustNotice)
+                    if (shouldPop) {
+                        navController.popBackStack()
+                    }
+                }
+            )
+        }
+
+        if (rideActionInfo != null) {
+            RideActionInfoDialog(
+                notice = rideActionInfo,
+                onDismiss = {
+                    val shouldPop = state.shouldPopAfterRideActionInfo
+                    viewModel.onEvent(RidesEvent.DismissRideActionInfo)
                     if (shouldPop) {
                         navController.popBackStack()
                     }
@@ -725,7 +825,8 @@ private fun ManagementMetricTile(
 @Composable
 private fun RideStatusBadge(status: DriverRideStatus) {
     val (label, color) = when (status) {
-        DriverRideStatus.PENDING -> "Pending" to Color(0xFFF59E0B)
+        DriverRideStatus.PUBLISHED -> "Published" to Color(0xFF0284C7)
+        DriverRideStatus.PENDING_TO_PUBLISH -> "Pending to Publish" to Color(0xFFF59E0B)
         DriverRideStatus.ACTIVE -> "Active" to ElectricGreen
         DriverRideStatus.COMPLETED -> "Completed" to PrimaryBlue
         DriverRideStatus.CANCELLED -> "Cancelled" to Color(0xFFDC2626)
@@ -995,21 +1096,158 @@ private fun TrustNoticeDialog(
 }
 
 @Composable
+private fun RideActionInfoDialog(
+    notice: RideActionInfoNotice,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(
+                    text = notice.title,
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = PrimaryBlue
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = notice.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+                if (notice.previousTrustScore != null && notice.newTrustScore != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = WheelsBackground
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Previous trust score",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextSecondary
+                                )
+                                Text(
+                                    text = "${notice.previousTrustScore}%",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = PrimaryBlue
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Current trust score",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextSecondary
+                                )
+                                Text(
+                                    text = "${notice.newTrustScore}%",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = ElectricGreen
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp)
+                ) {
+                    Text(
+                        text = "OK",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingRideActionBanner(actionType: PendingRideActionType) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFFEF3C7),
+        border = BorderStroke(1.dp, Color(0xFFF59E0B))
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Text(
+                text = "Offline action queued",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryBlue
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = when (actionType) {
+                    PendingRideActionType.START -> "We will start this ride automatically when your connection returns."
+                    PendingRideActionType.COMPLETE -> "We will end this ride automatically when your connection returns."
+                    PendingRideActionType.CANCEL -> "We will cancel this ride automatically when your connection returns."
+                    PendingRideActionType.DELETE -> "We will delete this ride automatically when your connection returns."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
 private fun CompletedRideContent(
     innerPadding: PaddingValues,
     navController: NavController,
     ride: DriverRideUiModel,
     isDeleting: Boolean,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    isDeleteEnabled: Boolean
 ) {
     ArchivedRideContent(
         innerPadding = innerPadding,
         navController = navController,
         ride = ride,
-        title = "Ride Completed",
-        description = "Passenger payments may now be paid or still pending while the settlement finishes.",
-        primaryActionLabel = if (isDeleting) "Deleting..." else "Delete from My Rides",
-        primaryActionEnabled = !isDeleting,
+        title = if (ride.pendingSyncAction == PendingRideActionType.COMPLETE) {
+            "Completion Pending Sync"
+        } else if (ride.pendingSyncAction == PendingRideActionType.DELETE) {
+            "Delete Pending Sync"
+        } else {
+            "Ride Completed"
+        },
+        description = if (ride.pendingSyncAction == PendingRideActionType.COMPLETE) {
+            "You ended this ride while offline. We will sync the completion automatically when your connection returns."
+        } else if (ride.pendingSyncAction == PendingRideActionType.DELETE) {
+            "You asked to delete this completed ride while offline. We will remove it automatically when your connection returns."
+        } else {
+            "Passenger payments may now be paid or still pending while the settlement finishes."
+        },
+        primaryActionLabel = if (ride.pendingSyncAction == PendingRideActionType.COMPLETE) {
+            "Waiting for connection..."
+        } else if (ride.pendingSyncAction == PendingRideActionType.DELETE) {
+            "Waiting for connection..."
+        } else if (isDeleting) {
+            "Deleting..."
+        } else {
+            "Delete from My Rides"
+        },
+        primaryActionEnabled = !isDeleting && isDeleteEnabled,
         onPrimaryAction = onDelete,
         extraContent = {
             Spacer(modifier = Modifier.height(12.dp))

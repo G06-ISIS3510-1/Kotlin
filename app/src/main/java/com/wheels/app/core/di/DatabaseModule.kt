@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.wheels.app.core.analytics.bqt3.data.local.BQT3UsageDao
 import com.wheels.app.core.database.WheelsDatabase
+import com.wheels.app.features.rides.data.local.RideOfflineDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,5 +31,10 @@ object DatabaseModule {
     @Provides
     fun provideBQT3UsageDao(database: WheelsDatabase): BQT3UsageDao {
         return database.bqT3UsageDao()
+    }
+
+    @Provides
+    fun provideRideOfflineDao(database: WheelsDatabase): RideOfflineDao {
+        return database.rideOfflineDao()
     }
 }

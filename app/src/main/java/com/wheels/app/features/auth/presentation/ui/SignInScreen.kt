@@ -171,6 +171,15 @@ fun SignInScreen(
                     color = TextSecondary
                 )
 
+                if (state.isOffline) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "You are offline. If you signed out, you will need to reconnect before signing in again.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.error
+                    )
+                }
+
                 if (errorMessage != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(

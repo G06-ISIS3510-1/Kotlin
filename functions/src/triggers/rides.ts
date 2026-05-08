@@ -1,4 +1,4 @@
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { db } from "../app.js";
 import {
@@ -10,12 +10,48 @@ import {
   calculateHoursBeforeDeparture,
   recordRideCancellationAnalytics,
 } from "../services/cancellationAnalytics.js";
+import { recordCreateRideLocationUsageAnalytics } from "../services/createRideLocationUsageAnalytics.js";
 import { updateUserCancellationMetrics } from "../services/cancellationMetrics.js";
 import { RideDocument } from "../types/trust.js";
 
 function resolveDepartureAt(ride: RideDocument) {
   return ride.departureAt ?? ride.scheduledStartAt;
 }
+
+export const onRidePublished = onDocumentCreated(
+  "rides/{rideId}",
+  async (event) => {
+    const ride = event.data?.data() as RideDocument | undefined;
+
+    if (!ride) {
+      logger.warn("Ride publish analytics event is empty", {
+        rideId: event.params.rideId,
+      });
+      return;
+    }
+
+    if (ride.status !== "published" || !ride.driverId) {
+      return;
+    }
+
+    try {
+      await recordCreateRideLocationUsageAnalytics({
+        db,
+        rideId: event.params.rideId,
+        driverId: ride.driverId,
+        usedCurrentLocationOrigin: ride.usedCurrentLocationOrigin ?? false,
+        usedCurrentLocationDestination:
+          ride.usedCurrentLocationDestination ?? false,
+      });
+    } catch (error) {
+      logger.error("Failed to record create ride current location analytics", {
+        rideId: event.params.rideId,
+        driverId: ride.driverId,
+        error,
+      });
+    }
+  },
+);
 
 export const onRideCompleted = onDocumentUpdated(
   "rides/{rideId}",
