@@ -860,27 +860,18 @@ class RidesViewModel @Inject constructor(
             time = currentState.time
         ) ?: return showTrustError("We could not parse the selected ride schedule.")
         val estimatedDurationMinutes = 30
-        val isOnline = networkMonitor.isOnline()
 
         viewModelScope.launch {
             _uiState.update { state -> state.copy(isPublishingRide = true) }
             runCatching {
-                val originCoordinates = if (isOnline) {
-                    resolveCoordinatesForPublish(
-                        typedValue = currentState.origin,
-                        selectedSuggestion = currentState.selectedOrigin
-                    )
-                } else {
-                    currentState.selectedOrigin?.coordinates
-                }
-                val destinationCoordinates = if (isOnline) {
-                    resolveCoordinatesForPublish(
-                        typedValue = currentState.destination,
-                        selectedSuggestion = currentState.selectedDestination
-                    )
-                } else {
-                    currentState.selectedDestination?.coordinates
-                }
+                val originCoordinates = resolveCoordinatesForPublish(
+                    typedValue = currentState.origin,
+                    selectedSuggestion = currentState.selectedOrigin
+                )
+                val destinationCoordinates = resolveCoordinatesForPublish(
+                    typedValue = currentState.destination,
+                    selectedSuggestion = currentState.selectedDestination
+                )
 
                 val request = PublishRideRequest(
                     driverId = driverId,
@@ -903,25 +894,17 @@ class RidesViewModel @Inject constructor(
                     onTimeRate = 100,
                     reviewCount = 0,
                     verifiedByUniversity = true,
+                    paymentOption = "card",
                     usedCurrentLocationOrigin = currentState.usedCurrentLocationOrigin,
                     usedCurrentLocationDestination = currentState.usedCurrentLocationDestination
                 )
 
-                if (isOnline) {
-                    rideRepository.publishRide(request)
-                } else {
-                    rideRepository.enqueueRidePublish(request)
-                    null
-                }
+                rideRepository.createRide(request)
             }.onSuccess {
                 rideRepository.clearCreateRideDraft(driverId)
                 _uiState.update { state ->
                     state.resetCreateRideForm(
-                        publishRideInfoMessage = if (isOnline) {
-                            "Ride published successfully."
-                        } else {
-                            "No internet connection. We saved your ride and will publish it automatically when your connection returns."
-                        }
+                        publishRideInfoMessage = "Ride published successfully."
                     )
                 }
             }.onFailure { throwable ->
@@ -1047,40 +1030,20 @@ class RidesViewModel @Inject constructor(
         if (ride.status != DriverRideStatus.ACTIVE) {
             return showTrustError("Only active rides can be completed.")
         }
-        if (ride.pendingSyncAction != null) {
-            return showTrustError("This ride already has a pending offline action. Wait for the connection to return before sending another one.")
-        }
-        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
-        if (!networkMonitor.isOnline()) {
-            return enqueueOfflineRideAction(
-                ride = ride,
-                driverId = driverId,
-                actionType = PendingRideActionType.COMPLETE,
-                infoMessage = "No internet connection. We saved your end-ride action and will complete this ride automatically when your connection returns."
-            )
-        }
-
         viewModelScope.launch {
             _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
             runCatching {
-                val notice = driverTrustRepository.completeRideAndAwaitTrustUpdate(
-                    params = ride.toTrustActionParams(driverId)
-                )
-                notice
-            }.onSuccess { notice ->
+                rideRepository.finishRide(ride.backendRideId)
+            }.onSuccess {
                 _uiState.update { state ->
                     state.copy(
                         driverRides = state.driverRides.map { currentRide ->
                             if (currentRide.id == rideId) {
                                 currentRide.copy(
                                     status = DriverRideStatus.COMPLETED,
-                                    passengers = currentRide.passengers.mapIndexed { index, passenger ->
+                                    passengers = currentRide.passengers.map { passenger ->
                                         passenger.copy(
-                                            paymentStatus = if (index == currentRide.passengers.lastIndex) {
-                                                PaymentStatusState.PENDING
-                                            } else {
-                                                PaymentStatusState.PAID
-                                            }
+                                            paymentStatus = PaymentStatusState.PAID
                                         )
                                     }
                                 )
@@ -1089,7 +1052,7 @@ class RidesViewModel @Inject constructor(
                             }
                         },
                         actionInProgressRideId = null,
-                        trustNotice = notice,
+                        trustNotice = null,
                         shouldPopAfterTrustNotice = false,
                         ridePendingRemovalId = null
                     )
@@ -1108,23 +1071,10 @@ class RidesViewModel @Inject constructor(
         if (ride.status != DriverRideStatus.PUBLISHED) {
             return showTrustError("Only published rides can be started.")
         }
-        if (ride.pendingSyncAction != null) {
-            return showTrustError("This ride already has a pending offline action. Wait for the connection to return before sending another one.")
-        }
-        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
-        if (!networkMonitor.isOnline()) {
-            return enqueueOfflineRideAction(
-                ride = ride,
-                driverId = driverId,
-                actionType = PendingRideActionType.START,
-                infoMessage = "No internet connection. We saved your start-ride action and will start this ride automatically when your connection returns."
-            )
-        }
-
         viewModelScope.launch {
             _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
             runCatching {
-                driverTrustRepository.startRide(ride.toTrustActionParams(driverId))
+                rideRepository.updateRideStatus(ride.backendRideId, "in_progress")
             }.onSuccess {
                 _uiState.update { state ->
                     state.copy(
@@ -1149,33 +1099,19 @@ class RidesViewModel @Inject constructor(
 
     private fun cancelDriverRide(rideId: String) {
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
-        if (ride.status != DriverRideStatus.PUBLISHED) {
-            return showTrustError("Only published rides can be canceled from this screen.")
-        }
-        if (ride.pendingSyncAction != null) {
-            return showTrustError("This ride already has a pending offline action. Wait for the connection to return before sending another one.")
-        }
-        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
-        if (!networkMonitor.isOnline()) {
-            return enqueueOfflineRideAction(
-                ride = ride,
-                driverId = driverId,
-                actionType = PendingRideActionType.CANCEL,
-                infoMessage = "No internet connection. We saved your cancellation and will cancel this ride automatically when your connection returns."
-            )
+        if (ride.status != DriverRideStatus.PUBLISHED && ride.status != DriverRideStatus.ACTIVE) {
+            return showTrustError("Only open or active rides can be canceled from this screen.")
         }
 
         viewModelScope.launch {
             _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
             runCatching {
-                driverTrustRepository.cancelRideAndAwaitTrustUpdate(
-                    params = ride.toTrustActionParams(driverId)
-                )
-            }.onSuccess { notice ->
+                rideRepository.updateRideStatus(ride.backendRideId, "cancelled")
+            }.onSuccess {
                 _uiState.update { state ->
                     state.copy(
                         actionInProgressRideId = null,
-                        trustNotice = notice,
+                        trustNotice = null,
                         shouldPopAfterTrustNotice = false,
                         ridePendingRemovalId = null
                     )
@@ -1767,8 +1703,10 @@ private fun RidesUiState.toCreateRideDraft(driverId: String): CreateRideDraft {
 private fun String.toDriverRideStatus(): DriverRideStatus {
     return when (this) {
         "completed" -> DriverRideStatus.COMPLETED
+        "cancelled" -> DriverRideStatus.CANCELLED
         "canceled" -> DriverRideStatus.CANCELLED
         "in_progress" -> DriverRideStatus.ACTIVE
+        "open" -> DriverRideStatus.PUBLISHED
         "published" -> DriverRideStatus.PUBLISHED
         else -> DriverRideStatus.PUBLISHED
     }

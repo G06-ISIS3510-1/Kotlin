@@ -26,5 +26,7 @@ data class Ride(
     val carModel: String = "",
     val licensePlate: String = "",
     val notes: String = "",
-    val verifiedByUniversity: Boolean = true
+    val verifiedByUniversity: Boolean = true,
+    val paymentOption: String = "card",
+    val passengerIds: List<String> = emptyList()
 )

@@ -45,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -87,6 +88,18 @@ fun RideRequestScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val ride = state.ride
+
+    LaunchedEffect(state.requestConfirmed) {
+        if (!state.requestConfirmed || ride == null) return@LaunchedEffect
+        navController.navigate(
+            Destinations.BookingConfirmation.createRoute(
+                rideId = ride.id,
+                seats = state.selectedSeats
+            )
+        ) {
+            launchSingleTop = true
+        }
+    }
 
     if (state.isLoading) {
         Box(
@@ -179,6 +192,16 @@ fun RideRequestScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
             onClick = { viewModel.onEvent(RideRequestEvent.RequestTapped) }
         )
+        state.requestErrorMessage?.let { message ->
+            Text(
+                text = message,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 88.dp, start = 16.dp, end = 16.dp),
+                color = Color(0xFFDC2626),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     }
 
     if (state.showConfirmation) {
@@ -187,17 +210,7 @@ fun RideRequestScreen(
             selectedSeats = state.selectedSeats,
             totalPrice = state.totalPrice,
             onDismiss = { viewModel.onEvent(RideRequestEvent.ConfirmationDismissed) },
-            onConfirm = {
-                viewModel.onEvent(RideRequestEvent.ConfirmRequest)
-                navController.navigate(
-                    Destinations.BookingConfirmation.createRoute(
-                        rideId = ride.id,
-                        seats = state.selectedSeats
-                    )
-                ) {
-                    launchSingleTop = true
-                }
-            }
+            onConfirm = { viewModel.onEvent(RideRequestEvent.ConfirmRequest) }
         )
     }
 }
@@ -658,7 +671,7 @@ private fun RequestRideButton(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
         ) {
             Text(
-                text = "Request Ride • $$totalPrice",
+                text = "Apply to Ride • $$totalPrice",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -730,7 +743,7 @@ private fun ConfirmationDialog(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "You're requesting $selectedSeats seat${if (selectedSeats > 1) "s" else ""} with ${ride.driver.name}",
+                        text = "You're applying for $selectedSeats seat${if (selectedSeats > 1) "s" else ""} with ${ride.driver.name}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary,
                         textAlign = TextAlign.Center,
@@ -775,7 +788,7 @@ private fun ConfirmationDialog(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "The driver will review your request. You'll be notified when accepted.",
+                                text = "The driver will review your application. You'll be notified when accepted.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = PrimaryBlue
                             )

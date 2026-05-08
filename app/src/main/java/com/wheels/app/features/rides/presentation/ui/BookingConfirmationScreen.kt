@@ -150,7 +150,7 @@ private fun SuccessHeader() {
         }
         Spacer(modifier = Modifier.height(20.dp))
         Text(
-            text = "Ride Requested!",
+            text = "Ride Applied!",
             style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
             color = WheelsSurface
         )
@@ -185,14 +185,14 @@ private fun PendingStatusCard() {
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Pending Driver Acceptance",
+            text = "Pending Driver Review",
                     color = PrimaryBlue,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "The driver will review your request and respond within the next few minutes. You'll receive a notification once accepted.",
+                text = "The driver will review your application and respond within the next few minutes. You'll receive a notification once accepted.",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )

@@ -19,5 +19,6 @@ data class DriverRideRecord(
     val notes: String,
     val driverName: String,
     val driverEmail: String,
-    val status: String
+    val status: String,
+    val paymentOption: String = "card"
 )

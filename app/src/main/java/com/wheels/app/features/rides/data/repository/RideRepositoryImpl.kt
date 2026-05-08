@@ -22,14 +22,15 @@ import com.wheels.app.features.rides.data.remote.NearRidesRemoteDataSource
 import com.wheels.app.features.rides.domain.model.Booking
 import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.CreateRideDraft
-import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.NearRidesQuery
 import com.wheels.app.features.rides.domain.model.PendingRideAction
 import com.wheels.app.features.rides.domain.model.PendingRideActionSyncResult
 import com.wheels.app.features.rides.domain.model.PendingRideActionType
 import com.wheels.app.features.rides.domain.model.PendingRidePublish
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
+import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.Ride
+import com.wheels.app.features.rides.domain.model.RideApplication
 import com.wheels.app.features.rides.domain.repository.RideRepository
 import java.time.Instant
 import javax.inject.Inject
@@ -62,7 +63,9 @@ class RideRepositoryImpl @Inject constructor(
     private val ioDispatcher: CoroutineDispatcher
 ) : RideRepository {
 
-    override fun getAvailableRides(): Flow<List<Ride>> = flow {
+    override fun getAvailableRides(): Flow<List<Ride>> = watchAvailableRides()
+
+    override fun watchAvailableRides(): Flow<List<Ride>> = flow {
         val cached = withContext(ioDispatcher) {
             availableRidesLocalCache.get()
         }
@@ -194,6 +197,102 @@ class RideRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun watchCurrentDriverRide(driverId: String): Flow<Ride?> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .whereEqualTo("driverId", driverId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                launch {
+                    val currentRide = snapshot?.documents
+                        .orEmpty()
+                        .mapNotNull { document -> document.toAvailableRide() }
+                        .firstOrNull { ride ->
+                            ride.status == RIDE_STATUS_OPEN || ride.status == RIDE_STATUS_IN_PROGRESS
+                        }
+
+                    trySend(currentRide)
+                }
+            }
+
+        awaitClose { registration.remove() }
+    }
+
+    override fun watchCurrentPassengerRide(passengerId: String): Flow<Ride?> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                launch {
+                    val currentRide = snapshot?.documents
+                        .orEmpty()
+                        .mapNotNull { document -> document.toAvailableRide() }
+                        .firstOrNull { ride ->
+                            ride.passengerIds.contains(passengerId) &&
+                                (ride.status == RIDE_STATUS_OPEN || ride.status == RIDE_STATUS_IN_PROGRESS)
+                        }
+
+                    trySend(currentRide)
+                }
+            }
+
+        awaitClose { registration.remove() }
+    }
+
+    override fun watchRideApplications(rideId: String): Flow<List<RideApplication>> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .document(rideId)
+            .collection(APPLICATIONS_SUBCOLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val applications = snapshot?.documents
+                    ?.mapNotNull { document -> mapRideApplicationDocument(document.id, document.data ?: emptyMap()) }
+                    .orEmpty()
+                    .sortedBy { it.appliedAt }
+
+                trySend(applications)
+            }
+
+        awaitClose { registration.remove() }
+    }
+
+    override fun watchPassengerApplication(
+        rideId: String,
+        passengerId: String
+    ): Flow<RideApplication?> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .document(rideId)
+            .collection(APPLICATIONS_SUBCOLLECTION)
+            .document(passengerId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                trySend(
+                    snapshot?.takeIf { it.exists() }
+                        ?.let { mapRideApplicationDocument(it.id, it.data ?: emptyMap()) }
+                )
+            }
+
+        awaitClose { registration.remove() }
+    }
+
     private fun observeRemoteAvailableRides(): Flow<List<Ride>> = callbackFlow {
         val registration = firestore
             .collection(RIDES_COLLECTION)
@@ -207,9 +306,7 @@ class RideRepositoryImpl @Inject constructor(
                     val rides = snapshot
                         ?.toAvailableRides()
                         .orEmpty()
-                        .filter { ride ->
-                            ride.status.equals(RIDE_STATUS_PUBLISHED, ignoreCase = true)
-                        }
+                        .filter { ride -> ride.status == RIDE_STATUS_OPEN }
                         .filter { it.availableSeats > 0 }
 
                     val reliabilityScores = fetchReliabilityScores(
@@ -246,7 +343,7 @@ class RideRepositoryImpl @Inject constructor(
                 }
 
                 val rides = snapshot?.documents
-                    ?.mapNotNull { document -> document.toDriverRideRecord() }
+                    ?.mapNotNull { document -> mapDriverRideDocument(document.id, document.data ?: emptyMap()) }
                     ?.sortedBy { it.departureAt }
                     .orEmpty()
 
@@ -309,7 +406,7 @@ class RideRepositoryImpl @Inject constructor(
 
             for (pendingPublish in pendingPublishes) {
                 try {
-                    publishRideRemotely(pendingPublish.toPublishRideRequest())
+                    createRide(pendingPublish.toPublishRideRequest())
                     rideOfflineDao.deletePendingRidePublish(pendingPublish.id)
                     syncedCount += 1
                 } catch (throwable: Throwable) {
@@ -347,47 +444,260 @@ class RideRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun publishRide(request: PublishRideRequest): String {
-        return publishRideRemotely(request)
-    }
-
-    private suspend fun publishRideRemotely(request: PublishRideRequest): String {
+    override suspend fun createRide(request: PublishRideRequest): String {
         val rideRef = firestore.collection(RIDES_COLLECTION).document()
         val rideId = rideRef.id
 
-        rideRef.set(
-            mapOf(
-                "driverId" to request.driverId,
-                "driverName" to request.driverName,
-                "driverEmail" to request.driverEmail,
-                "origin" to request.origin,
-                "originSearch" to request.originSearch,
-                "originCoordinates" to request.originCoordinates?.toGeoPoint(),
-                "destination" to request.destination,
-                "destinationSearch" to request.destinationSearch,
-                "destinationCoordinates" to request.destinationCoordinates?.toGeoPoint(),
-                "departureAt" to Timestamp(request.departureAt.epochSecond, request.departureAt.nano),
-                "estimatedDurationMinutes" to request.estimatedDurationMinutes,
-                "totalSeats" to request.totalSeats,
-                "availableSeats" to request.totalSeats,
-                "pricePerSeat" to request.pricePerSeat,
-                "passengerIds" to request.passengerIds,
-                "driverRating" to request.driverRating,
-                "onTimeRate" to request.onTimeRate,
-                "reviewCount" to request.reviewCount,
-                "verifiedByUniversity" to request.verifiedByUniversity,
-                "usedCurrentLocationOrigin" to request.usedCurrentLocationOrigin,
-                "usedCurrentLocationDestination" to request.usedCurrentLocationDestination,
-                "carModel" to request.carModel,
-                "licensePlate" to request.licensePlate,
-                "notes" to request.notes,
-                "status" to RIDE_STATUS_PUBLISHED,
-                "createdAt" to FieldValue.serverTimestamp(),
-                "updatedAt" to FieldValue.serverTimestamp()
-            )
-        ).awaitResult()
-
+        rideRef.set(buildRideCreationData(request)).awaitResult()
         return rideId
+    }
+
+    override suspend fun publishRide(request: PublishRideRequest): String {
+        return createRide(request)
+    }
+
+    override suspend fun applyToRide(
+        rideId: String,
+        passengerId: String,
+        passengerName: String,
+        passengerEmail: String
+    ): RideApplication {
+        val rideRef = firestore.collection(RIDES_COLLECTION).document(rideId)
+        val applicationRef = rideRef.collection(APPLICATIONS_SUBCOLLECTION).document(passengerId)
+        val paymentMirrorRef = firestore.collection(PAYMENTS_COLLECTION)
+            .document(rideId)
+            .collection(PASSENGERS_SUBCOLLECTION)
+            .document(passengerId)
+
+        return firestore.runTransaction { transaction ->
+            val rideSnapshot = transaction.get(rideRef)
+            if (!rideSnapshot.exists()) {
+                throw IllegalStateException("Ride not found.")
+            }
+
+            val rideData = rideSnapshot.data ?: emptyMap()
+            val decision = decideRideApplication(
+                rideId = rideId,
+                rideData = rideData,
+                passengerId = passengerId,
+                passengerName = passengerName,
+                passengerEmail = passengerEmail,
+                existingApplicationExists = transaction.get(applicationRef).exists()
+            )
+
+            when (decision) {
+                ApplyRideDecision.NoOp -> {
+                    val existing = transaction.get(applicationRef)
+                    mapRideApplicationDocument(existing.id, existing.data ?: emptyMap())
+                        ?: throw IllegalStateException("Application already exists but could not be read.")
+                }
+                is ApplyRideDecision.Apply -> {
+                    if (decision.application.status == APPLICATION_STATUS_REJECTED) {
+                        throw IllegalStateException(
+                            when (decision.application.statusDetail) {
+                                "driver_cannot_apply" -> "Drivers cannot apply to their own ride."
+                                "ride_not_open" -> "This ride is no longer open."
+                                "ride_is_full" -> "This ride is already full."
+                                else -> "We could not apply to this ride."
+                            }
+                        )
+                    }
+
+                    val currentAvailableSeats = readInt(rideData, "availableSeats")
+                        ?: readInt(rideData, "totalSeats")
+                        ?: readInt(rideData, "seats")
+                        ?: 0
+                    if (currentAvailableSeats <= 0) {
+                        throw IllegalStateException("This ride is already full.")
+                    }
+
+                    transaction.update(
+                        rideRef,
+                        mapOf(
+                            "availableSeats" to currentAvailableSeats - 1,
+                            "passengerIds" to FieldValue.arrayUnion(passengerId),
+                            "updatedAt" to FieldValue.serverTimestamp()
+                        )
+                    )
+
+                    val applicationData = buildApplicationDocumentData(decision.application)
+                    transaction.set(applicationRef, applicationData)
+                    transaction.set(
+                        paymentMirrorRef,
+                        buildPassengerPaymentMirrorData(
+                            rideId = rideId,
+                            passengerId = passengerId,
+                            paymentMethodId = decision.paymentMethodId,
+                            paymentStatus = decision.paymentStatus,
+                            paymentStatusSource = decision.paymentStatusSource,
+                            isPaymentLocked = false,
+                            status = decision.paymentMirrorStatus,
+                            statusDetail = decision.paymentMirrorStatusDetail
+                        )
+                    )
+                    decision.application
+                }
+            }
+        }.awaitResult()
+    }
+
+    override suspend fun updateRideStatus(rideId: String, status: String) {
+        val rideRef = firestore.collection(RIDES_COLLECTION).document(rideId)
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(rideRef)
+            if (!snapshot.exists()) {
+                throw IllegalStateException("Ride not found.")
+            }
+
+            val currentStatus = normalizeRideReadStatus(snapshot.getString("status"))
+            when (val decision = validateRideStatusTransition(currentStatus, status)) {
+                RideStatusTransitionDecision.Allowed -> {
+                    transaction.update(rideRef, buildRideStatusUpdate(status))
+                }
+                is RideStatusTransitionDecision.Rejected -> {
+                    throw IllegalStateException(decision.reason)
+                }
+            }
+        }.awaitResult()
+    }
+
+    override suspend fun finishRide(rideId: String) {
+        val rideRef = firestore.collection(RIDES_COLLECTION).document(rideId)
+        val applicationsRef = rideRef.collection(APPLICATIONS_SUBCOLLECTION)
+
+        val rideSnapshot = rideRef.get().awaitResult()
+        if (!rideSnapshot.exists()) {
+            throw IllegalStateException("Ride not found.")
+        }
+
+        val applicationsSnapshot = applicationsRef.get().awaitResult()
+        val passengerStates = applicationsSnapshot.documents.mapNotNull { document ->
+            mapRideApplicationDocument(document.id, document.data ?: emptyMap())
+        }
+
+        val batch = firestore.batch()
+        passengerStates.forEach { application ->
+            val finalPaymentStatus = if (application.status == APPLICATION_STATUS_REJECTED) {
+                PAYMENT_STATUS_UNPAID
+            } else {
+                PAYMENT_STATUS_PAID
+            }
+
+            batch.set(
+                firestore.collection(PAYMENTS_COLLECTION)
+                    .document(rideId)
+                    .collection(PASSENGERS_SUBCOLLECTION)
+                    .document(application.passengerId),
+                buildPassengerPaymentMirrorData(
+                    rideId = rideId,
+                    passengerId = application.passengerId,
+                    paymentMethodId = application.paymentMethod,
+                    paymentStatus = finalPaymentStatus,
+                    paymentStatusSource = PAYMENT_STATUS_SOURCE_RIDE_FINISHED,
+                    isPaymentLocked = true,
+                    status = if (finalPaymentStatus == PAYMENT_STATUS_PAID) {
+                        PAYMENT_MIRROR_STATUS_APPROVED
+                    } else {
+                        PAYMENT_MIRROR_STATUS_REJECTED
+                    },
+                    statusDetail = "ride_completed"
+                )
+            )
+
+            batch.update(
+                applicationsRef.document(application.passengerId),
+                mapOf(
+                    "status" to if (finalPaymentStatus == PAYMENT_STATUS_PAID) {
+                        APPLICATION_STATUS_APPROVED
+                    } else {
+                        APPLICATION_STATUS_REJECTED
+                    },
+                    "paymentStatus" to finalPaymentStatus,
+                    "isPaymentLocked" to true,
+                    "paymentStatusSource" to PAYMENT_STATUS_SOURCE_RIDE_FINISHED,
+                    "statusDetail" to "ride_completed",
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            )
+        }
+
+        batch.update(rideRef, buildRideFinishUpdate())
+        batch.commit().awaitResult()
+    }
+
+    override suspend fun updatePassengerPaymentStatus(
+        rideId: String,
+        passengerId: String,
+        paymentMethodId: String,
+        paymentStatus: String,
+        paymentStatusSource: String,
+        isPaymentLocked: Boolean,
+        status: String,
+        statusDetail: String?
+    ) {
+        val rideRef = firestore.collection(RIDES_COLLECTION).document(rideId)
+        val applicationRef = rideRef.collection(APPLICATIONS_SUBCOLLECTION).document(passengerId)
+
+        firestore.runTransaction { transaction ->
+            updatePassengerPaymentStatusInternal(
+                transaction = transaction,
+                rideId = rideId,
+                passengerId = passengerId,
+                paymentMethodId = paymentMethodId,
+                paymentStatus = paymentStatus,
+                paymentStatusSource = paymentStatusSource,
+                isPaymentLocked = isPaymentLocked,
+                status = status,
+                statusDetail = statusDetail
+            )
+
+            transaction.set(
+                applicationRef,
+                mapOf(
+                    "rideId" to rideId,
+                    "passengerId" to passengerId,
+                    "paymentMethod" to paymentMethodId,
+                    "paymentStatus" to paymentStatus,
+                    "paymentStatusSource" to paymentStatusSource,
+                    "isPaymentLocked" to isPaymentLocked,
+                    "status" to APPLICATION_STATUS_APPLIED,
+                    "statusDetail" to statusDetail,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+        }.awaitResult()
+    }
+
+    private fun updatePassengerPaymentStatusInternal(
+        transaction: com.google.firebase.firestore.Transaction,
+        rideId: String,
+        passengerId: String,
+        paymentMethodId: String,
+        paymentStatus: String,
+        paymentStatusSource: String,
+        isPaymentLocked: Boolean,
+        status: String,
+        statusDetail: String?
+    ) {
+        val paymentMirrorRef = firestore.collection(PAYMENTS_COLLECTION)
+            .document(rideId)
+            .collection(PASSENGERS_SUBCOLLECTION)
+            .document(passengerId)
+
+        transaction.set(
+            paymentMirrorRef,
+            buildPassengerPaymentMirrorData(
+                rideId = rideId,
+                passengerId = passengerId,
+                paymentMethodId = paymentMethodId,
+                paymentStatus = paymentStatus,
+                paymentStatusSource = paymentStatusSource,
+                isPaymentLocked = isPaymentLocked,
+                status = status,
+                statusDetail = statusDetail
+            )
+        )
     }
 
     override suspend fun deleteDriverRide(rideId: String) {
@@ -447,92 +757,15 @@ class RideRepositoryImpl @Inject constructor(
         )
 
     private suspend fun QuerySnapshot.toAvailableRides(): List<Ride> {
-        return documents.mapNotNull { document -> document.toAvailableRide() }
+        return documents.mapNotNull { document -> mapRideDocument(document.id, document.data ?: emptyMap()) }
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toAvailableRide(): Ride? {
-        val departureTime = (getTimestamp("departureAt") ?: getTimestamp("scheduledStartAt"))
-            ?.toDate()
-            ?.toInstant()
-            ?: return null
-
-        val destination = getString("destination").orEmpty()
-        val totalSeats = getLong("totalSeats")?.toInt() ?: 0
-        val availableSeats = getLong("availableSeats")?.toInt() ?: totalSeats
-        val estimatedDurationMinutes = getLong("estimatedDurationMinutes")?.toInt()
-            ?: DEFAULT_RIDE_DURATION_MINUTES
-        val driverRating = getDouble("driverRating")
-            ?: getLong("driverRating")?.toDouble()
-            ?: DEFAULT_DRIVER_RATING
-        val reviewCount = getLong("reviewCount")?.toInt() ?: 0
-        val punctualityRate = getLong("onTimeRate")?.toInt() ?: DEFAULT_PUNCTUALITY_RATE
-        val pricePerSeat = getLong("pricePerSeat")?.toDouble()
-            ?: getDouble("pricePerSeat")
-            ?: 0.0
-
-        return Ride(
-            id = id,
-            driverId = getString("driverId").orEmpty(),
-            driverName = getString("driverName").orEmpty(),
-            driverEmail = getString("driverEmail").orEmpty(),
-            driverRating = driverRating,
-            reviewCount = reviewCount,
-            reliabilityScore = DEFAULT_RELIABILITY_SCORE,
-            status = getString("status").orEmpty().ifBlank { RIDE_STATUS_PUBLISHED },
-            origin = getString("origin").orEmpty(),
-            originCoordinates = getCoordinates("originCoordinates"),
-            destination = destination,
-            destinationCoordinates = getCoordinates("destinationCoordinates"),
-            destinationArea = destination.substringAfterLast(",").trim().ifBlank { destination },
-            departureTime = departureTime,
-            estimatedDurationMinutes = estimatedDurationMinutes,
-            availableSeats = availableSeats,
-            totalSeats = totalSeats,
-            pricePerSeat = pricePerSeat,
-            punctualityRate = punctualityRate,
-            isHabitRide = false,
-            carModel = getString("carModel").orEmpty(),
-            licensePlate = getString("licensePlate").orEmpty(),
-            notes = getString("notes") ?: getString("description").orEmpty(),
-            verifiedByUniversity = getBoolean("verifiedByUniversity") ?: false
-        )
+        return mapRideDocument(id, data ?: emptyMap())
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toDriverRideRecord(): DriverRideRecord? {
-        val status = getString("status").orEmpty().ifBlank { RIDE_STATUS_PUBLISHED }
-        val departureAt = (getTimestamp("departureAt") ?: getTimestamp("scheduledStartAt"))
-            ?.toDate()
-            ?.toInstant()
-            ?: return null
-
-        val estimatedDurationMinutes = getLong("estimatedDurationMinutes")?.toInt()
-            ?: getTimestamp("estimatedArrivalAt")
-                ?.toDate()
-                ?.toInstant()
-                ?.let { arrival ->
-                    ((arrival.epochSecond - departureAt.epochSecond) / 60).toInt().coerceAtLeast(0)
-                }
-            ?: DEFAULT_RIDE_DURATION_MINUTES
-
-        return DriverRideRecord(
-            id = id,
-            driverId = getString("driverId").orEmpty(),
-            origin = getString("origin").orEmpty(),
-            originCoordinates = getCoordinates("originCoordinates"),
-            destination = getString("destination").orEmpty(),
-            destinationCoordinates = getCoordinates("destinationCoordinates"),
-            departureAt = departureAt,
-            estimatedDurationMinutes = estimatedDurationMinutes,
-            availableSeats = getLong("availableSeats")?.toInt() ?: 0,
-            totalSeats = getLong("totalSeats")?.toInt() ?: 0,
-            pricePerSeat = getLong("pricePerSeat")?.toInt() ?: 0,
-            carModel = getString("carModel").orEmpty(),
-            licensePlate = getString("licensePlate").orEmpty(),
-            notes = getString("notes") ?: getString("description").orEmpty(),
-            driverName = getString("driverName").orEmpty(),
-            driverEmail = getString("driverEmail").orEmpty(),
-            status = status
-        )
+        return mapDriverRideDocument(id, data ?: emptyMap())
     }
 
     private suspend fun <T> Task<T>.awaitResult(): T {
@@ -560,48 +793,14 @@ class RideRepositoryImpl @Inject constructor(
         return snapshot.getLong("reliabilityScore")?.toInt()
     }
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.getCoordinates(field: String): Coordinates? {
-        getGeoPoint(field)?.let { geoPoint ->
-            return geoPoint.toCoordinates()
-        }
-
-        val coordinateMap = get(field)
-        if (coordinateMap !is Map<*, *>) {
-            return null
-        }
-
-        val latitude = (coordinateMap["lat"] as? Number)?.toDouble()
-            ?: (coordinateMap["latitude"] as? Number)?.toDouble()
-        val longitude = (coordinateMap["lng"] as? Number)?.toDouble()
-            ?: (coordinateMap["longitude"] as? Number)?.toDouble()
-
-        return if (latitude != null && longitude != null) {
-            Coordinates(lat = latitude, lng = longitude)
-        } else {
-            null
-        }
-    }
-
-    private fun Coordinates.toGeoPoint(): GeoPoint {
-        return GeoPoint(lat, lng)
-    }
-
-    private fun GeoPoint.toCoordinates(): Coordinates {
-        return Coordinates(
-            lat = latitude,
-            lng = longitude
-        )
-    }
-
     private companion object {
         const val RIDES_COLLECTION = "rides"
         const val TRUST_SCORES_COLLECTION = "trustScores"
-        const val RIDE_STATUS_PUBLISHED = "published"
-        const val RIDE_STATUS_CANCELED = "canceled"
+        const val PAYMENTS_COLLECTION = "payments"
+        const val APPLICATIONS_SUBCOLLECTION = "applications"
+        const val PASSENGERS_SUBCOLLECTION = "passengers"
         const val DEFAULT_RIDE_DURATION_MINUTES = 30
         const val DEFAULT_RELIABILITY_SCORE = 100
-        const val DEFAULT_PUNCTUALITY_RATE = 100
-        const val DEFAULT_DRIVER_RATING = 5.0
     }
 }
 
