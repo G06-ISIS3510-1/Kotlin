@@ -13,7 +13,8 @@
     "deploy": "firebase deploy --only functions",
     "test": "npm run build && node --test lib/**/*.test.js",
     "seed:cancellations": "node scripts/seed_cancellations.js",
-    "clear:cancellations": "node scripts/clear_cancellations.js"
+    "clear:cancellations": "node scripts/clear_cancellations.js",
+    "seed:create-ride-location-usage": "node scripts/seed_create_ride_location_usage.js"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
