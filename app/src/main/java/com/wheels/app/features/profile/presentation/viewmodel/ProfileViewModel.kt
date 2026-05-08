@@ -104,9 +104,15 @@ class ProfileViewModel @Inject constructor(
                         roleInfoMessage = null
                     )
                 } else {
+                    val displayName = user.fullName.ifBlank {
+                        user.email.substringBefore("@")
+                            .replace('.', ' ')
+                            .ifBlank { "Estudiante Uniandes" }
+                    }
+
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        name = user.fullName,
+                        name = displayName,
                         email = user.email,
                         phone = user.phone,
                         memberSinceLabel = formatMemberSince(user.createdAtMillis),

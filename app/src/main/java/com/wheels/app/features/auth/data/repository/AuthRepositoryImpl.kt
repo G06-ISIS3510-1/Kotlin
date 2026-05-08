@@ -18,6 +18,7 @@ import com.wheels.app.features.auth.domain.model.ForgotPasswordRequest
 import com.wheels.app.features.auth.domain.model.SignInRequest
 import com.wheels.app.features.auth.domain.repository.AuthRepository
 import com.wheels.app.features.auth.domain.util.buildInstitutionalEmail
+import com.wheels.app.features.profile.data.local.UserProfileLocalDataSource
 import com.wheels.app.features.profile.domain.model.User
 import java.util.Collections
 import javax.inject.Inject
@@ -38,6 +39,7 @@ import kotlinx.coroutines.withContext
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val userProfileLocalDataSource: UserProfileLocalDataSource,
     private val ioDispatcher: CoroutineDispatcher
 ) : AuthRepository {
 
@@ -77,8 +79,11 @@ class AuthRepositoryImpl @Inject constructor(
             val refreshedUser = firebaseAuth.currentUser ?: return@runCatching null
             resolveAuthUser(refreshedUser)
         }.getOrElse {
-            firebaseAuth.signOut()
-            null
+            resolveAuthUser(currentUser)
+        }.also { authUser ->
+            if (authUser != null) {
+                cacheProfile(authUser)
+            }
         }
     }
 
@@ -129,6 +134,7 @@ class AuthRepositoryImpl @Inject constructor(
                 }
 
                 loginHistoryTimestamps.add(System.currentTimeMillis())
+                cacheProfile(authUser)
                 authUser
             }.fold(
                 onSuccess = { Resource.Success(it) },
@@ -151,6 +157,7 @@ class AuthRepositoryImpl @Inject constructor(
 
                 resolveAuthUser(firebaseUser).also {
                     loginHistoryTimestamps.add(System.currentTimeMillis())
+                    cacheProfile(it)
                 }
             }.fold(
                 onSuccess = { Resource.Success(it) },
@@ -218,7 +225,7 @@ class AuthRepositoryImpl @Inject constructor(
                     activeRole = role
                 )
 
-                resolveAuthUser(currentUser)
+                resolveAuthUser(currentUser).also { cacheProfile(it) }
             }.fold(
                 onSuccess = { Resource.Success(it) },
                 onFailure = { Resource.Error(it.toAuthFailure().message) }
@@ -251,7 +258,7 @@ class AuthRepositoryImpl @Inject constructor(
                     activeRole = role
                 )
 
-                resolveAuthUser(currentUser)
+                resolveAuthUser(currentUser).also { cacheProfile(it) }
             }.fold(
                 onSuccess = { Resource.Success(it) },
                 onFailure = { Resource.Error(it.toAuthFailure().message) }
@@ -262,6 +269,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signOut() {
         withContext(ioDispatcher) {
             firebaseAuth.signOut()
+            userProfileLocalDataSource.clearProfile()
         }
     }
 
@@ -304,6 +312,12 @@ class AuthRepositoryImpl @Inject constructor(
             roles = resolvedRoles,
             activeRole = activeRole
         )
+    }
+
+    private suspend fun cacheProfile(authUser: AuthUser) {
+        runCatching {
+            userProfileLocalDataSource.saveProfile(authUser.toProfileUser())
+        }
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot?.resolveStoredRoles(): Set<UserRole> {
