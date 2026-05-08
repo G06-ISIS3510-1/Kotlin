@@ -84,6 +84,8 @@ import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
 import com.wheels.app.features.home.presentation.viewmodel.LocationAwareCardUiModel
 import com.wheels.app.features.home.presentation.viewmodel.RideDisplayStatus
 import com.wheels.app.features.home.presentation.viewmodel.UpdateTone
+import java.text.DateFormat
+import java.util.Date
 
 @Composable
 fun HomeScreen(
@@ -141,7 +143,8 @@ fun HomeScreen(
             item {
                 FrequentDestinationsSection(
                     destinations = state.destinationInsights,
-                    trackedBookings = state.trackedDestinationBookings
+                    trackedBookings = state.trackedDestinationBookings,
+                    lastUpdatedMillis = state.destinationInsightsLastUpdatedMillis
                 )
             }
             state.currentRide?.let { currentRide ->
@@ -275,12 +278,9 @@ private fun LocationAwareSection(
 @Composable
 private fun FrequentDestinationsSection(
     destinations: List<FrequentDestinationUiModel>,
-    trackedBookings: Int
+    trackedBookings: Int,
+    lastUpdatedMillis: Long?
 ) {
-    if (destinations.isEmpty()) {
-        return
-    }
-
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -301,10 +301,26 @@ private fun FrequentDestinationsSection(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
+            lastUpdatedMillis?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Last updated: ${DateFormat.getDateTimeInstance().format(Date(it))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
 
-            destinations.forEach { destination ->
-                FrequentDestinationRow(destination = destination)
+            if (destinations.isEmpty()) {
+                Text(
+                    text = "No frequent destination data available to display.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            } else {
+                destinations.forEach { destination ->
+                    FrequentDestinationRow(destination = destination)
+                }
             }
         }
     }

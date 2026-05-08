@@ -42,7 +42,8 @@ class AuthRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val authSessionLocalStore: AuthSessionLocalStore,
     private val userProfileLocalDataSource: UserProfileLocalDataSource,
-    private val ioDispatcher: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher,
+    private val networkMonitor: com.wheels.app.core.network.NetworkMonitor
 ) : AuthRepository {
 
     private val loginHistoryTimestamps = Collections.synchronizedList(mutableListOf<Long>())
@@ -193,6 +194,9 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun forgotPassword(request: ForgotPasswordRequest): Resource<Unit> {
         return withContext(ioDispatcher) {
+            if (!networkMonitor.isOnline()) {
+                return@withContext Resource.Error("An internet connection is required to recover your password.")
+            }
             val institutionalEmail = buildInstitutionalEmail(request.username)
             val normalizedUsername = request.username.trim().substringBefore("@").lowercase()
 

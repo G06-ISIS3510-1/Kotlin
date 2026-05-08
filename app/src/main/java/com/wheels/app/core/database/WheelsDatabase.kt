@@ -5,6 +5,8 @@ import androidx.room.RoomDatabase
 import com.wheels.app.core.analytics.bqt3.data.local.BQT3UsageDao
 import com.wheels.app.core.analytics.bqt3.data.local.BQT3UsageEventEntity
 import com.wheels.app.core.analytics.bqt3.data.local.BQT3WeeklyUsageEntity
+import com.wheels.app.core.analytics.data.local.UserDestinationInsightsDao
+import com.wheels.app.core.analytics.data.local.UserDestinationInsightsEntity
 import com.wheels.app.features.rides.data.local.CreateRideDraftEntity
 import com.wheels.app.features.rides.data.local.PendingRideActionEntity
 import com.wheels.app.features.rides.data.local.PendingRidePublishEntity
@@ -16,12 +18,14 @@ import com.wheels.app.features.rides.data.local.RideOfflineDao
         BQT3WeeklyUsageEntity::class,
         CreateRideDraftEntity::class,
         PendingRideActionEntity::class,
-        PendingRidePublishEntity::class
+        PendingRidePublishEntity::class,
+        UserDestinationInsightsEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class WheelsDatabase : RoomDatabase() {
     abstract fun bqT3UsageDao(): BQT3UsageDao
     abstract fun rideOfflineDao(): RideOfflineDao
+    abstract fun userDestinationInsightsDao(): UserDestinationInsightsDao
 }

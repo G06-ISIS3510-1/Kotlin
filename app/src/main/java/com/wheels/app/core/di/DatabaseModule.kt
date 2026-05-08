@@ -37,4 +37,9 @@ object DatabaseModule {
     fun provideRideOfflineDao(database: WheelsDatabase): RideOfflineDao {
         return database.rideOfflineDao()
     }
+
+    @Provides
+    fun provideUserDestinationInsightsDao(database: WheelsDatabase): com.wheels.app.core.analytics.data.local.UserDestinationInsightsDao {
+        return database.userDestinationInsightsDao()
+    }
 }
