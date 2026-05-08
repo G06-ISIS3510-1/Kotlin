@@ -145,7 +145,8 @@ class HomeViewModel @Inject constructor(
                 .catch {
                     _uiState.value = _uiState.value.copy(
                         destinationInsights = emptyList(),
-                        trackedDestinationBookings = 0
+                        trackedDestinationBookings = 0,
+                        destinationInsightsLastUpdatedMillis = null
                     )
                 }
                 .collect { insights ->
@@ -157,7 +158,8 @@ class HomeViewModel @Inject constructor(
                                 rank = it.rank
                             )
                         },
-                        trackedDestinationBookings = insights?.totalBookingsTracked ?: 0
+                        trackedDestinationBookings = insights?.totalBookingsTracked ?: 0,
+                        destinationInsightsLastUpdatedMillis = insights?.lastUpdatedMillis
                     )
                 }
         }
@@ -246,6 +248,7 @@ data class HomeUiState(
     val showQuickPay: Boolean = false,
     val destinationInsights: List<FrequentDestinationUiModel> = emptyList(),
     val trackedDestinationBookings: Int = 0,
+    val destinationInsightsLastUpdatedMillis: Long? = null,
     val updates: List<HomeUpdateUiModel> = listOf(
         HomeUpdateUiModel(
             title = "Driver arriving soon",

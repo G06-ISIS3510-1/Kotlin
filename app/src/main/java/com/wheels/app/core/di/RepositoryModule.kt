@@ -1,6 +1,7 @@
 package com.wheels.app.core.di
 
 import com.wheels.app.core.analytics.data.repository.FirebaseUserDestinationInsightsRepository
+import com.wheels.app.core.analytics.data.repository.CachedUserDestinationInsightsRepository
 import com.wheels.app.core.analytics.data.repository.FirebaseRoleChangeEventRepository
 import com.wheels.app.core.analytics.bq13.data.connectivity.AndroidConnectivityChecker
 import com.wheels.app.core.analytics.bq13.data.repository.BQ13RepositoryImpl
@@ -44,7 +45,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindUserDestinationInsightsRepository(
-        impl: FirebaseUserDestinationInsightsRepository
+        impl: CachedUserDestinationInsightsRepository
     ): UserDestinationInsightsRepository
 
     @Binds

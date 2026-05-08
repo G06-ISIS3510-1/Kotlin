@@ -38,6 +38,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.wheels.app.features.rides.presentation.navigation.NavigationAutoRetry
+
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,6 +86,9 @@ fun ActiveRideManagementScreen(
     val ride = state.driverRides.firstOrNull { it.id == rideId }
     val context = LocalContext.current
     val navigationLauncher = remember { NavigationLauncherService() }
+    var showNavOfflineDialog by remember { mutableStateOf(false) }
+    var showNavErrorDialog by remember { mutableStateOf<Pair<Boolean, String>>(false to "") }
+    var pendingNavIntent by remember { mutableStateOf<Triple<String, com.wheels.app.features.rides.domain.model.Coordinates?, String?>>(Triple("", null, null)) }
     var showEndConfirmation by remember { mutableStateOf(false) }
     var showCancelConfirmation by remember { mutableStateOf(false) }
     val isActionInProgress = state.actionInProgressRideId == rideId
@@ -183,6 +188,37 @@ fun ActiveRideManagementScreen(
                         navController.popBackStack()
                     }
                 }
+            )
+        }
+
+        if (showNavOfflineDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showNavOfflineDialog = false },
+                confirmButton = {
+                    Button(onClick = {
+                        // start auto-retry
+                        try {
+                            NavigationAutoRetry(context).start(navigationLauncher)
+                        } catch (_: Throwable) {}
+                        showNavOfflineDialog = false
+                    }) { Text("Yes, retry when online") }
+                },
+                dismissButton = {
+                    Button(onClick = { showNavOfflineDialog = false }) { Text("Cancel") }
+                },
+                title = { Text("Connection required to navigate") },
+                text = { Text("No internet connection. Do you want the app to retry launching navigation when connection returns?") }
+            )
+        }
+
+        if (showNavErrorDialog.first) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showNavErrorDialog = false to "" },
+                confirmButton = {
+                    Button(onClick = { showNavErrorDialog = false to "" }) { Text("OK") }
+                },
+                title = { Text("Navigation error") },
+                text = { Text(showNavErrorDialog.second) }
             )
         }
         if (rideActionInfo != null) {
@@ -385,12 +421,23 @@ fun ActiveRideManagementScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                navigationLauncher.openDrivingDirections(
+                                when (val result = navigationLauncher.openDrivingDirections(
                                     context = context,
                                     destination = ride.destination,
                                     destinationCoordinates = ride.destinationCoordinates,
                                     origin = ride.origin
-                                )
+                                )) {
+                                    is NavigationLauncherService.NavigationResult.Launched -> {
+                                        /* nothing to show */
+                                    }
+                                    is NavigationLauncherService.NavigationResult.BlockedOffline -> {
+                                        pendingNavIntent = Triple(ride.destination, ride.destinationCoordinates, ride.origin)
+                                        showNavOfflineDialog = true
+                                    }
+                                    is NavigationLauncherService.NavigationResult.Error -> {
+                                        showNavErrorDialog = true to result.message
+                                    }
+                                }
                             },
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0xFFE8F0F9),

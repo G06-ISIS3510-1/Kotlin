@@ -88,7 +88,9 @@ class FirebaseUserDestinationInsightsRepository @Inject constructor(
                         UserDestinationInsights(
                             userId = snapshot.getString("userId").orEmpty().ifBlank { userId },
                             topDestinations = topDestinations,
-                            totalBookingsTracked = snapshot.getLong("totalBookingsTracked")?.toInt() ?: 0
+                            totalBookingsTracked = snapshot.getLong("totalBookingsTracked")?.toInt() ?: 0,
+                            lastUpdatedMillis = snapshot.getTimestamp("updatedAt")?.toDate()?.time
+                                ?: snapshot.getLong("lastUpdatedMillis")
                         )
                     }
 
