@@ -23,5 +23,7 @@ data class PublishRideRequest(
     val onTimeRate: Int,
     val reviewCount: Int,
     val verifiedByUniversity: Boolean,
+    val usedCurrentLocationOrigin: Boolean = false,
+    val usedCurrentLocationDestination: Boolean = false,
     val passengerIds: List<String> = emptyList()
 )

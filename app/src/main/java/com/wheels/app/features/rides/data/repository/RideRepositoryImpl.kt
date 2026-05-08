@@ -8,12 +8,26 @@ import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.QuerySnapshot
 import com.wheels.app.core.common.Resource
 import com.wheels.app.core.network.NetworkMonitor
+import com.wheels.app.core.trust.domain.repository.DriverRideTrustActionParams
+import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
+import com.wheels.app.features.rides.data.local.AvailableRidesLocalCache
+import com.wheels.app.features.rides.data.local.DriverRidesLocalCache
+import com.wheels.app.features.rides.data.local.RideOfflineDao
+import com.wheels.app.features.rides.data.local.toDomain
+import com.wheels.app.features.rides.data.local.toEntity
+import com.wheels.app.features.rides.data.local.toPendingRidePublishEntity
+import com.wheels.app.features.rides.data.local.toPublishRideRequest
 import com.wheels.app.features.rides.data.local.NearRidesLocalCache
 import com.wheels.app.features.rides.data.remote.NearRidesRemoteDataSource
 import com.wheels.app.features.rides.domain.model.Booking
 import com.wheels.app.features.rides.domain.model.Coordinates
+import com.wheels.app.features.rides.domain.model.CreateRideDraft
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.NearRidesQuery
+import com.wheels.app.features.rides.domain.model.PendingRideAction
+import com.wheels.app.features.rides.domain.model.PendingRideActionSyncResult
+import com.wheels.app.features.rides.domain.model.PendingRideActionType
+import com.wheels.app.features.rides.domain.model.PendingRidePublish
 import com.wheels.app.features.rides.domain.model.PublishRideRequest
 import com.wheels.app.features.rides.domain.model.Ride
 import com.wheels.app.features.rides.domain.repository.RideRepository
@@ -24,9 +38,13 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -36,49 +54,42 @@ class RideRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val nearRidesRemoteDataSource: NearRidesRemoteDataSource,
     private val nearRidesLocalCache: NearRidesLocalCache,
+    private val availableRidesLocalCache: AvailableRidesLocalCache,
+    private val driverRidesLocalCache: DriverRidesLocalCache,
+    private val rideOfflineDao: RideOfflineDao,
     private val networkMonitor: NetworkMonitor,
+    private val driverTrustRepository: DriverTrustRepository,
     private val ioDispatcher: CoroutineDispatcher
 ) : RideRepository {
 
-    override fun getAvailableRides(): Flow<List<Ride>> = callbackFlow {
-        val registration = firestore
-            .collection(RIDES_COLLECTION)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
+    override fun getAvailableRides(): Flow<List<Ride>> = flow {
+        val cached = withContext(ioDispatcher) {
+            availableRidesLocalCache.get()
+        }
 
-                launch {
-                    val rides = snapshot
-                        ?.toAvailableRides()
-                        .orEmpty()
-                        .filter { ride ->
-                            ride.status.equals(RIDE_STATUS_PUBLISHED, ignoreCase = true)
-                        }
-                        .filter { it.availableSeats > 0 }
+        if (cached != null) {
+            emit(cached.rides)
+        }
 
-                    val reliabilityScores = fetchReliabilityScores(
-                        driverIds = rides.map { it.driverId }.distinct()
-                    )
+        val isOnline = withContext(ioDispatcher) {
+            networkMonitor.isOnline()
+        }
 
-                    val enrichedRides = rides
-                        .map { ride ->
-                            ride.copy(
-                                reliabilityScore = reliabilityScores[ride.driverId]
-                                    ?: ride.reliabilityScore
-                            )
-                        }
-                        .sortedWith(
-                            compareByDescending<Ride> { it.reliabilityScore }
-                                .thenBy { it.departureTime }
-                        )
-
-                    trySend(enrichedRides)
-                }
+        if (!isOnline) {
+            if (cached == null) {
+                emit(emptyList())
             }
+            return@flow
+        }
 
-        awaitClose { registration.remove() }
+        emitAll(
+            observeRemoteAvailableRides()
+                .onEach { rides ->
+                    withContext(ioDispatcher) {
+                        availableRidesLocalCache.put(rides)
+                    }
+                }
+        )
     }
 
     override fun getNearRides(query: NearRidesQuery): Flow<Resource<List<Ride>>> = flow {
@@ -152,29 +163,195 @@ class RideRepositoryImpl @Inject constructor(
     }
 
     override fun observeDriverRides(driverId: String): Flow<List<DriverRideRecord>> {
-        return callbackFlow {
-            val registration = firestore
-                .collection(RIDES_COLLECTION)
-                .whereEqualTo("driverId", driverId)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        close(error)
-                        return@addSnapshotListener
+        return flow {
+            val cached = withContext(ioDispatcher) {
+                driverRidesLocalCache.get(driverId)
+            }
+
+            if (cached != null) {
+                emit(cached.rides)
+            }
+
+            val isOnline = withContext(ioDispatcher) {
+                networkMonitor.isOnline()
+            }
+
+            if (!isOnline) {
+                if (cached == null) {
+                    emit(emptyList())
+                }
+                return@flow
+            }
+
+            emitAll(
+                observeRemoteDriverRides(driverId)
+                    .onEach { rides ->
+                        withContext(ioDispatcher) {
+                            driverRidesLocalCache.put(driverId, rides)
+                        }
                     }
+            )
+        }
+    }
 
-                    val rides = snapshot?.documents
-                        ?.mapNotNull { document -> document.toDriverRideRecord() }
-                        ?.sortedBy { it.departureAt }
-                        .orEmpty()
-
-                    trySend(rides)
+    private fun observeRemoteAvailableRides(): Flow<List<Ride>> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
                 }
 
-            awaitClose { registration.remove() }
+                launch {
+                    val rides = snapshot
+                        ?.toAvailableRides()
+                        .orEmpty()
+                        .filter { ride ->
+                            ride.status.equals(RIDE_STATUS_PUBLISHED, ignoreCase = true)
+                        }
+                        .filter { it.availableSeats > 0 }
+
+                    val reliabilityScores = fetchReliabilityScores(
+                        driverIds = rides.map { it.driverId }.distinct()
+                    )
+
+                    val enrichedRides = rides
+                        .map { ride ->
+                            ride.copy(
+                                reliabilityScore = reliabilityScores[ride.driverId]
+                                    ?: ride.reliabilityScore
+                            )
+                        }
+                        .sortedWith(
+                            compareByDescending<Ride> { it.reliabilityScore }
+                                .thenBy { it.departureTime }
+                        )
+
+                    trySend(enrichedRides)
+                }
+            }
+
+        awaitClose { registration.remove() }
+    }
+
+    private fun observeRemoteDriverRides(driverId: String): Flow<List<DriverRideRecord>> = callbackFlow {
+        val registration = firestore
+            .collection(RIDES_COLLECTION)
+            .whereEqualTo("driverId", driverId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val rides = snapshot?.documents
+                    ?.mapNotNull { document -> document.toDriverRideRecord() }
+                    ?.sortedBy { it.departureAt }
+                    .orEmpty()
+
+                trySend(rides)
+            }
+
+        awaitClose { registration.remove() }
+    }
+
+    override fun observeCreateRideDraft(driverId: String): Flow<CreateRideDraft?> {
+        return rideOfflineDao.observeCreateRideDraft(driverId).flowOn(ioDispatcher).map { it?.toDomain() }
+    }
+
+    override fun observePendingRideActions(driverId: String): Flow<List<PendingRideAction>> {
+        return rideOfflineDao.observePendingRideActions(driverId)
+            .flowOn(ioDispatcher)
+            .map { entities -> entities.map { it.toDomain() } }
+    }
+
+    override fun observePendingRidePublishes(driverId: String): Flow<List<PendingRidePublish>> {
+        return rideOfflineDao.observePendingRidePublishes(driverId)
+            .flowOn(ioDispatcher)
+            .map { entities -> entities.map { it.toDomain() } }
+    }
+
+    override suspend fun saveCreateRideDraft(draft: CreateRideDraft) {
+        withContext(ioDispatcher) {
+            rideOfflineDao.upsertCreateRideDraft(draft.toEntity())
+        }
+    }
+
+    override suspend fun clearCreateRideDraft(driverId: String) {
+        withContext(ioDispatcher) {
+            rideOfflineDao.clearCreateRideDraft(driverId)
+        }
+    }
+
+    override suspend fun enqueuePendingRideAction(action: PendingRideAction) {
+        withContext(ioDispatcher) {
+            rideOfflineDao.insertPendingRideAction(action.toEntity())
+        }
+    }
+
+    override suspend fun enqueueRidePublish(request: PublishRideRequest) {
+        withContext(ioDispatcher) {
+            rideOfflineDao.insertPendingRidePublish(request.toPendingRidePublishEntity())
+        }
+    }
+
+    override suspend fun deletePendingRidePublish(id: String) {
+        withContext(ioDispatcher) {
+            rideOfflineDao.deletePendingRidePublish(id)
+        }
+    }
+
+    override suspend fun syncPendingRidePublishes(driverId: String): Int {
+        return withContext(ioDispatcher) {
+            val pendingPublishes = rideOfflineDao.getPendingRidePublishes(driverId)
+            var syncedCount = 0
+
+            for (pendingPublish in pendingPublishes) {
+                try {
+                    publishRideRemotely(pendingPublish.toPublishRideRequest())
+                    rideOfflineDao.deletePendingRidePublish(pendingPublish.id)
+                    syncedCount += 1
+                } catch (throwable: Throwable) {
+                    rideOfflineDao.markPendingRidePublishFailed(
+                        id = pendingPublish.id,
+                        lastError = throwable.message ?: "We could not sync this ride yet."
+                    )
+                    break
+                }
+            }
+
+            syncedCount
+        }
+    }
+
+    override suspend fun syncPendingRideActions(driverId: String): List<PendingRideActionSyncResult> {
+        return withContext(ioDispatcher) {
+            val pendingActions = rideOfflineDao.getPendingRideActions(driverId)
+            val syncedActions = mutableListOf<PendingRideActionSyncResult>()
+
+            for (pendingAction in pendingActions) {
+                try {
+                    syncedActions += executePendingRideAction(pendingAction.toDomain())
+                    rideOfflineDao.deletePendingRideAction(pendingAction.rideId)
+                } catch (throwable: Throwable) {
+                    rideOfflineDao.markPendingRideActionFailed(
+                        rideId = pendingAction.rideId,
+                        lastError = throwable.message ?: "We could not sync this ride action yet."
+                    )
+                    break
+                }
+            }
+
+            syncedActions
         }
     }
 
     override suspend fun publishRide(request: PublishRideRequest): String {
+        return publishRideRemotely(request)
+    }
+
+    private suspend fun publishRideRemotely(request: PublishRideRequest): String {
         val rideRef = firestore.collection(RIDES_COLLECTION).document()
         val rideId = rideRef.id
 
@@ -199,6 +376,8 @@ class RideRepositoryImpl @Inject constructor(
                 "onTimeRate" to request.onTimeRate,
                 "reviewCount" to request.reviewCount,
                 "verifiedByUniversity" to request.verifiedByUniversity,
+                "usedCurrentLocationOrigin" to request.usedCurrentLocationOrigin,
+                "usedCurrentLocationDestination" to request.usedCurrentLocationDestination,
                 "carModel" to request.carModel,
                 "licensePlate" to request.licensePlate,
                 "notes" to request.notes,
@@ -213,6 +392,49 @@ class RideRepositoryImpl @Inject constructor(
 
     override suspend fun deleteDriverRide(rideId: String) {
         firestore.collection(RIDES_COLLECTION).document(rideId).delete().awaitResult()
+    }
+
+    private suspend fun executePendingRideAction(action: PendingRideAction): PendingRideActionSyncResult {
+        return when (action.actionType) {
+            PendingRideActionType.START -> {
+                driverTrustRepository.startRide(action.toTrustActionParams())
+                PendingRideActionSyncResult(
+                    rideId = action.rideId,
+                    actionType = action.actionType,
+                    previousTrustScore = null,
+                    newTrustScore = null
+                )
+            }
+            PendingRideActionType.COMPLETE -> {
+                val notice =
+                    driverTrustRepository.completeRideAndAwaitTrustUpdate(action.toTrustActionParams())
+                PendingRideActionSyncResult(
+                    rideId = action.rideId,
+                    actionType = action.actionType,
+                    previousTrustScore = action.previousTrustScore,
+                    newTrustScore = notice.newScore
+                )
+            }
+            PendingRideActionType.CANCEL -> {
+                val notice =
+                    driverTrustRepository.cancelRideAndAwaitTrustUpdate(action.toTrustActionParams())
+                PendingRideActionSyncResult(
+                    rideId = action.rideId,
+                    actionType = action.actionType,
+                    previousTrustScore = action.previousTrustScore,
+                    newTrustScore = notice.newScore
+                )
+            }
+            PendingRideActionType.DELETE -> {
+                deleteDriverRide(action.rideId)
+                PendingRideActionSyncResult(
+                    rideId = action.rideId,
+                    actionType = action.actionType,
+                    previousTrustScore = null,
+                    newTrustScore = null
+                )
+            }
+        }
     }
 
     override suspend fun bookRide(rideId: String, seats: Int): Booking =
@@ -381,4 +603,12 @@ class RideRepositoryImpl @Inject constructor(
         const val DEFAULT_PUNCTUALITY_RATE = 100
         const val DEFAULT_DRIVER_RATING = 5.0
     }
+}
+
+private fun PendingRideAction.toTrustActionParams(): DriverRideTrustActionParams {
+    return DriverRideTrustActionParams(
+        rideId = rideId,
+        driverId = driverId,
+        scheduledStartAtMillis = scheduledStartAtMillis
+    )
 }

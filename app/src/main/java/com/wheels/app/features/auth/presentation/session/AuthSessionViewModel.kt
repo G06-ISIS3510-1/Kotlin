@@ -6,6 +6,7 @@ import com.wheels.app.core.behavior.domain.event.AppOpenSource
 import com.wheels.app.core.behavior.domain.model.AppOpenIdentity
 import com.wheels.app.core.behavior.domain.usecase.TrackAppOpenUseCase
 import com.wheels.app.core.session.RoleManager
+import com.wheels.app.core.session.SessionTransitionCoordinator
 import com.wheels.app.core.session.domain.usecase.SyncCurrentSessionMetadataUseCase
 import com.wheels.app.features.auth.domain.model.AuthUser
 import com.wheels.app.features.auth.domain.usecase.ObserveAuthSessionUseCase
@@ -23,6 +24,7 @@ class AuthSessionViewModel @Inject constructor(
     private val restoreSessionUseCase: RestoreSessionUseCase,
     private val observeAuthSessionUseCase: ObserveAuthSessionUseCase,
     private val roleManager: RoleManager,
+    private val sessionTransitionCoordinator: SessionTransitionCoordinator,
     private val syncCurrentSessionMetadataUseCase: SyncCurrentSessionMetadataUseCase,
     private val trackAppOpenUseCase: TrackAppOpenUseCase
 ) : ViewModel() {
@@ -31,7 +33,16 @@ class AuthSessionViewModel @Inject constructor(
     val uiState: StateFlow<AuthSessionUiState> = _uiState.asStateFlow()
 
     init {
+        observeSessionTransitions()
         restoreAndObserveSession()
+    }
+
+    private fun observeSessionTransitions() {
+        viewModelScope.launch {
+            sessionTransitionCoordinator.isSigningOut.collect { isSigningOut ->
+                _uiState.value = _uiState.value.copy(isSigningOut = isSigningOut)
+            }
+        }
     }
 
     private fun restoreAndObserveSession() {
@@ -59,6 +70,11 @@ class AuthSessionViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(isLoading = false, authUser = null)
                 }
                 .collect { authUser ->
+                    if (authUser == null && sessionTransitionCoordinator.isSigningOut.value) {
+                        sessionTransitionCoordinator.completeSignOut()
+                    } else if (authUser != null && sessionTransitionCoordinator.isSigningOut.value) {
+                        sessionTransitionCoordinator.completeSignOut()
+                    }
                     roleManager.syncFromAuthUser(authUser)
                     if (authUser != null) {
                         runCatching { syncCurrentSessionMetadataUseCase() }
@@ -74,5 +90,6 @@ class AuthSessionViewModel @Inject constructor(
 
 data class AuthSessionUiState(
     val isLoading: Boolean = true,
-    val authUser: AuthUser? = null
+    val authUser: AuthUser? = null,
+    val isSigningOut: Boolean = false
 )

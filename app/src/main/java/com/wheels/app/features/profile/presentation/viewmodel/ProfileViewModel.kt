@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.common.Resource
 import com.wheels.app.core.analytics.domain.usecase.TrackRoleChangeUseCase
 import com.wheels.app.core.session.RoleManager
+import com.wheels.app.core.session.SessionTransitionCoordinator
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.network.NetworkMonitor
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
@@ -31,6 +32,7 @@ class ProfileViewModel @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val driverTrustRepository: DriverTrustRepository,
     private val signOutUseCase: SignOutUseCase,
+    private val sessionTransitionCoordinator: SessionTransitionCoordinator,
     private val switchActiveRoleUseCase: SwitchActiveRoleUseCase,
     private val registerAdditionalRoleUseCase: RegisterAdditionalRoleUseCase,
     private val trackRoleChangeUseCase: TrackRoleChangeUseCase
@@ -91,7 +93,7 @@ class ProfileViewModel @Inject constructor(
                     observedTrustUserId = null
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        name = "Estudiante Uniandes",
+                        name = "",
                         email = "",
                         phone = "",
                         memberSinceLabel = "Member since --",
@@ -238,6 +240,7 @@ class ProfileViewModel @Inject constructor(
 
     private fun logOut() {
         viewModelScope.launch {
+            sessionTransitionCoordinator.beginSignOut()
             signOutUseCase()
             roleManager.syncFromAuthUser(null)
         }
@@ -256,14 +259,14 @@ sealed interface ProfileEvent {
 
 data class ProfileUiState(
     val isLoading: Boolean = false,
-    val name: String = "Estudiante Uniandes",
-    val email: String = "m.gonzalez@uniandes.edu.co",
+    val name: String = "",
+    val email: String = "",
     val phone: String = "",
     val memberSinceLabel: String = "Member since --",
     val reputationScore: Double = 0.0,
     val trustScore: Int? = null,
     val trustScoreLoading: Boolean = true,
-    val ridesCount: Int = 16,
+    val ridesCount: Int = 0,
     val activeRole: UserRole = UserRole.PASSENGER,
     val availableRoles: Set<UserRole> = setOf(UserRole.PASSENGER),
     val trustFairnessDarkMode: Boolean = false,
