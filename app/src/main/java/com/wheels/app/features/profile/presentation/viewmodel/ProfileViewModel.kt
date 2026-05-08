@@ -80,6 +80,7 @@ class ProfileViewModel @Inject constructor(
 
     private fun observeProfile() {
         viewModelScope.launch {
+            // Keep profile data, active role, and available roles in one UI stream.
             combine(
                 getUserProfileUseCase().catch { emit(null) },
                 roleManager.activeRole,
@@ -89,6 +90,7 @@ class ProfileViewModel @Inject constructor(
             }.collect { (user, activeRole, availableRoles) ->
                 if (user == null) {
                     observedTrustUserId = null
+                    // Use safe placeholders until the cached or remote profile becomes available.
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         name = "Estudiante Uniandes",
@@ -105,6 +107,7 @@ class ProfileViewModel @Inject constructor(
                     )
                 } else {
                     val displayName = user.fullName.ifBlank {
+                        // Fall back to the email prefix when the backend does not provide a name.
                         user.email.substringBefore("@")
                             .replace('.', ' ')
                             .ifBlank { "Estudiante Uniandes" }
@@ -133,6 +136,7 @@ class ProfileViewModel @Inject constructor(
 
     private fun observeTrustScore(userId: String) {
         viewModelScope.launch {
+            // Trust score is loaded separately so failures do not block the profile screen.
             driverTrustRepository.observeDriverTrustScore(userId)
                 .catch {
                     _uiState.value = _uiState.value.copy(trustScoreLoading = false)
@@ -147,6 +151,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun switchRole(role: UserRole) {
+        // Role switches are gated by connectivity because they depend on remote auth state.
         if (!networkMonitor.isOnline()) {
             _uiState.value = _uiState.value.copy(
                 roleActionLoading = false,
@@ -202,6 +207,7 @@ class ProfileViewModel @Inject constructor(
         val password = _uiState.value.roleUpgradePassword
         val previousRole = _uiState.value.activeRole
 
+        // Upgrading a role also requires the server, so we fail fast when offline.
         if (!networkMonitor.isOnline()) {
             _uiState.value = _uiState.value.copy(
                 roleActionLoading = false,

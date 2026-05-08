@@ -32,7 +32,9 @@ class FirebaseUserProfileRepository @Inject constructor(
 ) : UserProfileRepository {
 
     override fun observeCurrentUserProfile(): Flow<User?> {
+        // callbackFlow lets us combine the cached stream with an optional remote refresh.
         return callbackFlow {
+            // No authenticated user means there is no profile stream to expose.
             val currentUser = firebaseAuth.currentUser
             if (currentUser == null) {
                 trySend(null)
@@ -40,12 +42,14 @@ class FirebaseUserProfileRepository @Inject constructor(
                 return@callbackFlow
             }
 
+            // Replay the cached profile first so the UI still works while offline or loading.
             val localJob = launch {
                 localDataSource.cachedProfile.collect { cachedProfile ->
                     trySend(cachedProfile)
                 }
             }
 
+            // When connectivity is available, refresh Firestore and persist the newest data locally.
             if (networkMonitor.isOnline()) {
                 launch {
                     val freshProfile = runCatching { fetchCurrentProfile(currentUser) }.getOrNull()
@@ -56,6 +60,7 @@ class FirebaseUserProfileRepository @Inject constructor(
             }
 
             awaitClose {
+                // Stop collecting the cache stream when the UI no longer needs updates.
                 localJob.cancel()
             }
         }.flowOn(ioDispatcher)
@@ -66,6 +71,7 @@ class FirebaseUserProfileRepository @Inject constructor(
             val currentUser = firebaseAuth.currentUser ?: return@withContext
             if (!networkMonitor.isOnline()) return@withContext
 
+            // Manual refresh uses the same remote-to-cache path as the live observer.
             runCatching { fetchCurrentProfile(currentUser) }
                 .getOrNull()
                 ?.let { localDataSource.saveProfile(it) }
@@ -74,16 +80,19 @@ class FirebaseUserProfileRepository @Inject constructor(
 
     override suspend fun clearCachedProfile() {
         withContext(ioDispatcher) {
+            // Sign-out cleanup removes any stale profile that might belong to another account.
             localDataSource.clearProfile()
         }
     }
 
     private suspend fun fetchCurrentProfile(firebaseUser: FirebaseUser): User {
+        // Firestore is the source of truth when the app can reach the network.
         val snapshot = firestore.collection(USERS_COLLECTION)
             .document(firebaseUser.uid)
             .get()
             .awaitResult()
 
+        // Merge Firestore fields with Firebase Auth fallbacks to avoid empty profile data.
         val roles = snapshot.resolveStoredRoles()
         val activeRole = snapshot.resolveActiveRole(roles)
 

@@ -24,6 +24,7 @@ private val Context.userProfileDataStore by preferencesDataStore(name = "user_pr
 class UserProfileLocalDataSource @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    // DataStore emits the last saved profile so the UI can render without network access.
     val cachedProfile: Flow<User?> = context.userProfileDataStore.data
         .catch { exception ->
             if (exception is IOException) {
@@ -35,6 +36,7 @@ class UserProfileLocalDataSource @Inject constructor(
         .map { preferences -> preferences.toUserOrNull() }
 
     suspend fun saveProfile(user: User) {
+        // Keep the latest profile fields on disk so the app can restore them after reconnecting.
         context.userProfileDataStore.edit { preferences ->
             preferences[Keys.ID] = user.id
             preferences[Keys.FULL_NAME] = user.fullName
@@ -50,6 +52,7 @@ class UserProfileLocalDataSource @Inject constructor(
     }
 
     suspend fun clearProfile() {
+        // Remove only the profile cache, not the rest of the app state.
         context.userProfileDataStore.edit { it.clear() }
     }
 
@@ -57,6 +60,7 @@ class UserProfileLocalDataSource @Inject constructor(
         val id = this[Keys.ID].orEmpty()
         if (id.isBlank()) return null
 
+        // Rebuild the domain model from primitive DataStore values.
         val roles = this[Keys.ROLES]
             .orEmpty()
             .split(",")
