@@ -21,10 +21,12 @@ import com.wheels.app.core.trust.data.repository.FirebaseDriverTrustRepository
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
 import com.wheels.app.features.auth.data.repository.AuthRepositoryImpl
 import com.wheels.app.features.payments.data.repository.PaymentRepositoryImpl
+import com.wheels.app.features.reviews.data.repository.FirestoreRideReviewRepository
 import com.wheels.app.features.rides.data.repository.FirebaseCancellationBehaviorRepository
 import com.wheels.app.features.rides.data.repository.RideRepositoryImpl
 import com.wheels.app.features.auth.domain.repository.AuthRepository
 import com.wheels.app.features.payments.domain.repository.PaymentRepository
+import com.wheels.app.features.reviews.domain.repository.RideReviewRepository
 import com.wheels.app.features.rides.domain.repository.CancellationBehaviorRepository
 import com.wheels.app.features.rides.domain.repository.RideRepository
 import com.wheels.app.features.profile.data.repository.FirebaseUserProfileRepository
@@ -92,6 +94,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPaymentRepository(impl: PaymentRepositoryImpl): PaymentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRideReviewRepository(
+        impl: FirestoreRideReviewRepository
+    ): RideReviewRepository
 
     @Binds
     @Singleton

@@ -165,6 +165,7 @@ data class RideRequestUiState(
 
 data class RideRequestUiModel(
     val id: String,
+    val driverId: String,
     val origin: String,
     val destination: String,
     val departureTime: String,
@@ -208,6 +209,7 @@ private fun Ride.toRideRequestUiModel(): RideRequestUiModel {
 
     return RideRequestUiModel(
         id = id,
+        driverId = driverId,
         origin = origin,
         destination = destination,
         departureTime = departureDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),

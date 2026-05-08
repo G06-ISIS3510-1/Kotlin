@@ -10,7 +10,9 @@ import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.profile.domain.model.User
 import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
+import com.wheels.app.features.reviews.domain.model.DriverReviewSummary
 import com.wheels.app.features.rides.domain.model.Ride
+import com.wheels.app.features.reviews.domain.repository.RideReviewRepository
 import com.wheels.app.features.rides.domain.repository.RideRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
@@ -26,6 +28,7 @@ class HomeViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val userDestinationInsightsRepository: UserDestinationInsightsRepository,
     private val rideRepository: RideRepository,
+    private val reviewRepository: RideReviewRepository,
     private val currentLocationProvider: CurrentLocationProvider,
     roleManager: RoleManager
 ) : ViewModel() {
@@ -37,11 +40,14 @@ class HomeViewModel @Inject constructor(
     private var observedInsightsUserId: String? = null
     private var observedRideUserId: String? = null
     private val dismissedCompletedRideIds = mutableSetOf<String>()
+    private var latestPassengerRide: Ride? = null
+    private var latestReviewSummaries: Map<String, DriverReviewSummary> = emptyMap()
 
     init {
         loadCurrentLocation()
         observeCurrentUser()
         observeActiveRole()
+        observeReviewSummaries()
     }
 
     fun onEvent(event: HomeEvent) {
@@ -109,21 +115,26 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             rideRepository.watchCurrentPassengerRide(userId)
                 .catch {
-                    _uiState.value = _uiState.value.copy(
-                        currentRide = null,
-                        showQuickPay = false
-                    )
+                    latestPassengerRide = null
+                    renderPassengerRide()
                 }
                 .collect { ride ->
-                    val mappedRide = ride?.toHomeRideUiModel()
-                    val shouldHideForDemo = mappedRide?.rideId != null &&
-                        mappedRide.rideId in dismissedCompletedRideIds
+                    latestPassengerRide = ride
+                    renderPassengerRide()
+                }
+        }
+    }
 
-                    _uiState.value = _uiState.value.copy(
-                        currentRide = if (shouldHideForDemo) null else mappedRide,
-                        showQuickPay = mappedRide?.status == RideDisplayStatus.COMPLETED &&
-                            !shouldHideForDemo
-                    )
+    private fun observeReviewSummaries() {
+        viewModelScope.launch {
+            reviewRepository.observeDriverReviewSummaries()
+                .catch {
+                    latestReviewSummaries = emptyMap()
+                    renderPassengerRide()
+                }
+                .collect { summaries ->
+                    latestReviewSummaries = summaries
+                    renderPassengerRide()
                 }
         }
     }
@@ -175,6 +186,18 @@ class HomeViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             currentRide = null,
             showQuickPay = false
+        )
+    }
+
+    private fun renderPassengerRide() {
+        val ride = latestPassengerRide
+        val mappedRide = ride?.toHomeRideUiModel(latestReviewSummaries[ride.driverId])
+        val shouldHideForDemo = mappedRide?.rideId != null &&
+            mappedRide.rideId in dismissedCompletedRideIds
+
+        _uiState.value = _uiState.value.copy(
+            currentRide = if (shouldHideForDemo) null else mappedRide,
+            showQuickPay = mappedRide?.status == RideDisplayStatus.COMPLETED && !shouldHideForDemo
         )
     }
 
@@ -273,6 +296,7 @@ data class ActiveRideUiModel(
 
 data class HomeRideUiModel(
     val rideId: String,
+    val driverId: String,
     val driver: String,
     val rating: String,
     val carModel: String,
@@ -304,7 +328,7 @@ enum class UpdateTone {
     Info
 }
 
-private fun Ride.toHomeRideUiModel(): HomeRideUiModel {
+private fun Ride.toHomeRideUiModel(reviewSummary: DriverReviewSummary? = null): HomeRideUiModel {
     val rideStatus = when (status) {
         "in_progress" -> RideDisplayStatus.IN_PROGRESS
         "completed" -> RideDisplayStatus.COMPLETED
@@ -320,11 +344,13 @@ private fun Ride.toHomeRideUiModel(): HomeRideUiModel {
         RideDisplayStatus.IN_PROGRESS -> 3
         RideDisplayStatus.OPEN -> estimatedDurationMinutes
     }
+    val displayRating = reviewSummary?.displayRating ?: 0.0
 
     return HomeRideUiModel(
         rideId = id,
+        driverId = driverId,
         driver = driverName.ifBlank { "Uniandes driver" },
-        rating = String.format("%.1f", driverRating),
+        rating = String.format("%.1f", displayRating),
         carModel = carModel.ifBlank { "Vehicle info pending" },
         licensePlate = licensePlate.ifBlank { "Available later" },
         pickupLocation = origin,

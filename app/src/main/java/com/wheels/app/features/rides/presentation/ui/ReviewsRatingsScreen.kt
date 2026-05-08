@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,14 +21,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.ChevronLeft
-import androidx.compose.material.icons.outlined.FilterList
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -37,12 +33,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -56,142 +53,74 @@ import com.wheels.app.core.ui.theme.TextSecondary
 import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
 import com.wheels.app.core.ui.theme.gradientHeaderBrush
-
-private data class ReviewItem(
-    val id: Int,
-    val reviewer: String,
-    val role: String,
-    val rating: Int,
-    val date: String,
-    val comment: String,
-    val tags: List<String>,
-    val verified: Boolean,
-    val paymentOnTime: Boolean
-)
-
-private data class DriverStats(
-    val overallRating: Double,
-    val totalReviews: Int,
-    val ratingBreakdown: Map<Int, Int>,
-    val punctualityScore: Int,
-    val paymentReliability: Int,
-    val verifiedStudent: Boolean
-)
-
-private val mockReviews = listOf(
-    ReviewItem(
-        id = 1,
-        reviewer = "Maria Gonzalez",
-        role = "Passenger",
-        rating = 5,
-        date = "2 days ago",
-        comment = "Amazing driver! Very punctual and professional. The ride was smooth and comfortable.",
-        tags = listOf("Punctual", "Safe driving", "Friendly"),
-        verified = true,
-        paymentOnTime = true
-    ),
-    ReviewItem(
-        id = 2,
-        reviewer = "Carlos Ruiz",
-        role = "Passenger",
-        rating = 5,
-        date = "5 days ago",
-        comment = "Great experience! Easy payment and good conversation. Will definitely ride again.",
-        tags = listOf("Good communication", "Clean car"),
-        verified = true,
-        paymentOnTime = true
-    ),
-    ReviewItem(
-        id = 3,
-        reviewer = "Ana Martinez",
-        role = "Driver",
-        rating = 5,
-        date = "1 week ago",
-        comment = "Perfect passenger! On time, respectful, and paid immediately after the ride.",
-        tags = listOf("Punctual", "Respectful", "Quick payment"),
-        verified = true,
-        paymentOnTime = true
-    ),
-    ReviewItem(
-        id = 4,
-        reviewer = "Juan Lopez",
-        role = "Passenger",
-        rating = 4,
-        date = "1 week ago",
-        comment = "Good ride overall. Minor delay but good communication throughout.",
-        tags = listOf("Good communication"),
-        verified = true,
-        paymentOnTime = true
-    )
-)
-
-private val driverStats = DriverStats(
-    overallRating = 4.9,
-    totalReviews = 124,
-    ratingBreakdown = mapOf(5 to 98, 4 to 20, 3 to 4, 2 to 1, 1 to 1),
-    punctualityScore = 96,
-    paymentReliability = 99,
-    verifiedStudent = true
-)
+import com.wheels.app.features.rides.presentation.viewmodel.DriverReviewsViewModel
+import com.wheels.app.features.reviews.domain.model.DriverReviewSummary
+import com.wheels.app.features.reviews.domain.model.RideReview
+import com.wheels.app.features.reviews.domain.model.createdAtLabel
+import kotlin.math.roundToInt
 
 @Composable
 fun ReviewsRatingsScreen(
     innerPadding: PaddingValues,
     navController: NavController,
-    driverName: String
+    viewModel: DriverReviewsViewModel
 ) {
-    val colorScheme = MaterialTheme.colorScheme
+    val state by viewModel.uiState.collectAsState()
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(WheelsBackground)
-            .padding(innerPadding),
+            .padding(innerPadding)
+            .navigationBarsPadding(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
-            ReviewsHeader(driverName = driverName, onBack = { navController.popBackStack() })
+            ReviewsHeader(
+                driverName = state.driverName,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         item {
-            RatingSummaryCard(driverName = driverName)
+            RatingSummaryCard(
+                driverName = state.driverName,
+                summary = state.summary
+            )
         }
 
         item {
-            FiltersRow()
-        }
-
-        items(mockReviews, key = { it.id }) { review ->
-            ReviewCard(review = review)
-        }
-
-        item {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clickable { },
-                shape = RoundedCornerShape(16.dp),
-                color = WheelsSurface,
-                border = androidx.compose.foundation.BorderStroke(2.dp, colorScheme.outline)
-            ) {
-                Box(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Load more reviews",
-                        color = PrimaryBlue,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                    )
+            ReviewsSectionHeader(
+                title = "Recent feedback",
+                subtitle = if (state.summary.reviewCount == 0) {
+                    "No reviews yet"
+                } else {
+                    "${state.summary.reviewCount} review${if (state.summary.reviewCount == 1) "" else "s"}"
                 }
+            )
+        }
+
+        if (state.isLoading) {
+            item {
+                LoadingStateCard()
+            }
+        } else if (state.reviews.isEmpty()) {
+            item {
+                EmptyReviewsCard()
+            }
+        } else {
+            items(state.reviews, key = { it.reviewId }) { review ->
+                ReviewCard(review = review)
             }
         }
     }
 }
 
 @Composable
-private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
+private fun ReviewsHeader(
+    driverName: String,
+    onBack: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -209,12 +138,10 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
-                imageVector = Icons.Outlined.ChevronLeft,
+                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                 contentDescription = "Back",
                 tint = GradientHeaderPrimaryContent,
-                modifier = Modifier
-                    .width(20.dp)
-                    .height(20.dp)
+                modifier = Modifier.size(18.dp)
             )
             Text(
                 text = "Back",
@@ -232,7 +159,7 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "$driverName profile",
+            text = driverName,
             style = MaterialTheme.typography.bodyMedium,
             color = GradientHeaderSecondaryContent
         )
@@ -241,41 +168,45 @@ private fun ReviewsHeader(driverName: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun RatingSummaryCard(driverName: String) {
+private fun RatingSummaryCard(
+    driverName: String,
+    summary: DriverReviewSummary
+) {
     val colorScheme = MaterialTheme.colorScheme
+    val totalReviews = summary.reviewCount.coerceAtLeast(0)
 
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp)
-            .offset(y = (-25).dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = WheelsSurface),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row {
+            Row(verticalAlignment = Alignment.Top) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${driverStats.overallRating}",
+                        text = summary.displayRatingLabel,
                         style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                         color = PrimaryBlue
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        repeat(5) {
+                        repeat(5) { index ->
+                            val selected = index < summary.displayRating.roundToInt()
                             Icon(
-                                imageVector = Icons.Outlined.Star,
+                                imageVector = if (selected) Icons.Outlined.Star else Icons.Outlined.StarBorder,
                                 contentDescription = null,
-                                tint = Color(0xFFFFA726),
+                                tint = if (selected) Color(0xFFFFA726) else TextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${driverStats.totalReviews} reviews",
+                        text = summary.totalLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -285,8 +216,12 @@ private fun RatingSummaryCard(driverName: String) {
 
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(5, 4, 3, 2, 1).forEach { stars ->
-                        val votes = driverStats.ratingBreakdown[stars] ?: 0
-                        val progress = votes.toFloat() / driverStats.totalReviews.toFloat()
+                        val votes = summary.starBreakdown[stars] ?: 0
+                        val progress = if (summary.ratedReviewCount == 0) {
+                            0f
+                        } else {
+                            votes.toFloat() / summary.ratedReviewCount.toFloat()
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "$stars",
@@ -321,147 +256,91 @@ private fun RatingSummaryCard(driverName: String) {
                 }
             }
 
-            if (driverStats.verifiedStudent) {
+            if (totalReviews == 0) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(ElectricGreen.copy(alpha = 0.10f))
-                        .border(1.dp, ElectricGreen.copy(alpha = 0.22f), RoundedCornerShape(16.dp))
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colorScheme.surfaceVariant
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Shield,
-                        contentDescription = null,
-                        tint = ElectricGreen,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Verified Student",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = PrimaryBlue
-                        )
-                        Text(
-                            text = "University email verified",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
-                        contentDescription = null,
-                        tint = ElectricGreen,
-                        modifier = Modifier.size(18.dp)
+                    Text(
+                        text = "Be the first to leave feedback for $driverName.",
+                        color = PrimaryBlue,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(14.dp)
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricBox(
-                    icon = Icons.Outlined.AccessTime,
-                    label = "Punctuality",
-                    value = "${driverStats.punctualityScore}%",
-                    modifier = Modifier.weight(1f)
-                )
-                MetricBox(
-                    icon = Icons.Outlined.CheckCircle,
-                    label = "Payment",
-                    value = "${driverStats.paymentReliability}%",
-                    modifier = Modifier.weight(1f)
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun MetricBox(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
+private fun ReviewsSectionHeader(
+    title: String,
+    subtitle: String
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    Surface(
-        modifier = modifier,
-        color = colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = icon, contentDescription = null, tint = SecondaryBlue, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(text = label, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    color = PrimaryBlue
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(imageVector = Icons.Outlined.TrendingUp, contentDescription = null, tint = ElectricGreen, modifier = Modifier.size(14.dp))
-            }
-        }
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = PrimaryBlue
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary
+        )
     }
 }
 
 @Composable
-private fun FiltersRow() {
-    Row(
+private fun LoadingStateCard() {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = WheelsSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
     ) {
-        Surface(
-            modifier = Modifier.clickable { },
-            shape = RoundedCornerShape(12.dp),
-            color = WheelsSurface,
-            border = androidx.compose.foundation.BorderStroke(2.dp, Border)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(imageVector = Icons.Outlined.FilterList, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(text = "All reviews", color = PrimaryBlue, style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(imageVector = Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
-            }
-        }
+        Text(
+            text = "Loading reviews...",
+            color = TextSecondary,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(20.dp)
+        )
+    }
+}
 
-        Surface(
-            modifier = Modifier.clickable { },
-            shape = RoundedCornerShape(12.dp),
-            color = WheelsSurface,
-            border = androidx.compose.foundation.BorderStroke(2.dp, Border)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "Most recent", color = PrimaryBlue, style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(imageVector = Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
-            }
+@Composable
+private fun EmptyReviewsCard() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = WheelsSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "No feedback has been posted yet.",
+                color = PrimaryBlue,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Once passengers pay and leave a review, it will appear here.",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }
 
 @Composable
-private fun ReviewCard(review: ReviewItem) {
-    val colorScheme = MaterialTheme.colorScheme
-
+private fun ReviewCard(review: RideReview) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -479,9 +358,12 @@ private fun ReviewCard(review: ReviewItem) {
                         .background(Brush.linearGradient(listOf(Color(0xFF5B89C8), PrimaryBlue))),
                     contentAlignment = Alignment.Center
                 ) {
-                    val initials = review.reviewer.split(" ").take(2).mapNotNull { it.firstOrNull()?.toString() }.joinToString("")
                     Text(
-                        text = initials,
+                        text = review.passengerName
+                            .split(" ")
+                            .filter { it.isNotBlank() }
+                            .take(2)
+                            .joinToString("") { it.first().uppercase() },
                         color = WheelsSurface,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                     )
@@ -492,82 +374,64 @@ private fun ReviewCard(review: ReviewItem) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = review.reviewer,
+                            text = review.passengerName,
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                             color = PrimaryBlue
                         )
-                        if (review.verified) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.Outlined.CheckCircle,
-                                contentDescription = null,
-                                tint = ElectricGreen,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = ElectricGreen,
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${review.role} - ${review.date}",
+                        text = review.createdAtLabel(),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    repeat(review.rating) {
-                        Icon(
-                            imageVector = Icons.Outlined.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFFFA726),
-                            modifier = Modifier.size(14.dp)
-                        )
+                if (review.hasRating) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        repeat(review.stars) {
+                            Icon(
+                                imageVector = Icons.Outlined.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFFFA726),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = review.comment,
-                style = MaterialTheme.typography.bodyMedium,
-                color = PrimaryBlue
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                review.tags.forEach { tag ->
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = colorScheme.surfaceVariant
-                    ) {
-                        Text(
-                            text = tag,
-                            color = if (colorScheme.background.luminance() < 0.5f) colorScheme.onSurface else SecondaryBlue,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-            }
-
-            if (review.paymentOnTime) {
+            if (review.comment.isNotBlank()) {
                 Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = review.comment,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PrimaryBlue
+                )
+            }
+
+            if (review.hasRating) {
+                Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = Border)
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
-                        contentDescription = null,
-                        tint = ElectricGreen,
-                        modifier = Modifier.size(14.dp)
+                    Text(
+                        text = "${review.stars}.0",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = PrimaryBlue
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "On-time payment verified",
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                        color = ElectricGreen
+                        text = "Driver rating",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
                     )
                 }
             }

@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.ui.theme.Border
 import com.wheels.app.core.ui.theme.ElectricGreen
 import com.wheels.app.core.ui.theme.GradientHeaderPrimaryContent
@@ -65,7 +66,6 @@ import java.text.NumberFormat
 import java.util.Locale
 
 private val SelectionBlue = Color(0xFF5B89C8)
-private const val QUICK_PAY_COMPLETED_KEY = "quick_pay_completed"
 data class PaymentMethod(
     val id: String,
     val name: String,
@@ -118,6 +118,15 @@ fun QuickPaymentScreen(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
     ) {
+        val rideEntry = navController.previousBackStackEntry
+        val rideId = rideEntry?.savedStateHandle?.get<String>(Destinations.QUICK_PAY_RIDE_ID_KEY).orEmpty()
+        val driverId = rideEntry?.savedStateHandle?.get<String>(Destinations.QUICK_PAY_DRIVER_ID_KEY).orEmpty()
+        val driverName = rideEntry?.savedStateHandle?.get<String>(Destinations.QUICK_PAY_DRIVER_NAME_KEY).orEmpty()
+        val fare = rideEntry?.savedStateHandle?.get<String>(Destinations.QUICK_PAY_FARE_KEY).orEmpty()
+        val from = rideEntry?.savedStateHandle?.get<String>(Destinations.QUICK_PAY_FROM_KEY).orEmpty()
+        val to = rideEntry?.savedStateHandle?.get<String>(Destinations.QUICK_PAY_TO_KEY).orEmpty()
+        val safeDriverName = driverName.ifBlank { "Carlos Mendez" }
+        val safeFare = fare.ifBlank { rideDetails["fare"]!! }
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -131,14 +140,18 @@ fun QuickPaymentScreen(
 
             item {
                 AmountCard(
-                    fare = rideDetails["fare"]!!,
+                    fare = safeFare,
                     modifier = Modifier.offset(y = (-20).dp)
                 )
             }
 
             item {
                 RideSummarySection(
-                    rideDetails = rideDetails,
+                    rideDetails = rideDetails + mapOf(
+                        "driver" to safeDriverName,
+                        "from" to from.ifBlank { rideDetails["from"]!! },
+                        "to" to to.ifBlank { rideDetails["to"]!! }
+                    ),
                     modifier = Modifier.offset(y = (-20).dp)
                 )
             }
@@ -158,8 +171,20 @@ fun QuickPaymentScreen(
         }
 
         PaymentButton(
-            fare = rideDetails["fare"]!!,
-            navController = navController,
+            fare = safeFare,
+            onPayClick = {
+                if (rideId.isBlank() || driverId.isBlank()) {
+                    navController.popBackStack()
+                    return@PaymentButton
+                }
+                navController.navigate(
+                    Destinations.ReviewFeedback.createRoute(
+                        rideId = rideId,
+                        driverId = driverId,
+                        driverName = safeDriverName
+                    )
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
@@ -542,7 +567,7 @@ private fun SecurityNoticeSection(modifier: Modifier = Modifier) {
 @Composable
 private fun PaymentButton(
     fare: String,
-    navController: NavController,
+    onPayClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -591,12 +616,7 @@ private fun PaymentButton(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable {
-                        navController.previousBackStackEntry
-                            ?.savedStateHandle
-                            ?.set(QUICK_PAY_COMPLETED_KEY, true)
-                        navController.popBackStack()
-                    }
+                    .clickable(onClick = onPayClick)
                     .background(
                         Brush.linearGradient(
                             listOf(ElectricGreen, Color(0xFF00c794))

@@ -35,12 +35,15 @@ import com.wheels.app.features.profile.presentation.ui.ProfileScreen
 import com.wheels.app.features.profile.presentation.ui.TrustFairnessScreen
 import com.wheels.app.features.profile.presentation.ui.UiThemeScreen
 import com.wheels.app.features.profile.presentation.viewmodel.ProfileViewModel
+import com.wheels.app.features.reviews.presentation.ui.ReviewFeedbackScreen
+import com.wheels.app.features.reviews.presentation.viewmodel.ReviewFeedbackViewModel
 import com.wheels.app.features.rides.presentation.ui.ActiveRideManagementScreen
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
 import com.wheels.app.features.rides.presentation.ui.RideRequestScreen
 import com.wheels.app.features.rides.presentation.ui.ReviewsRatingsScreen
 import com.wheels.app.features.rides.presentation.ui.RidesScreen
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestViewModel
+import com.wheels.app.features.rides.presentation.viewmodel.DriverReviewsViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
 
 @Composable
@@ -67,6 +70,7 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
         Destinations.QuickPayment.route,
         Destinations.GroupChat.route,
         Destinations.RideRequest.route,
+        Destinations.ReviewFeedback.route,
         Destinations.ActiveRideManagement.route,
         Destinations.BookingConfirmation.route
     )
@@ -194,6 +198,21 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
                 )
             }
             composable(
+                route = Destinations.ReviewFeedback.route,
+                arguments = listOf(
+                    navArgument("rideId") { type = NavType.StringType },
+                    navArgument("driverId") { type = NavType.StringType },
+                    navArgument("driverName") { type = NavType.StringType }
+                )
+            ) {
+                val viewModel: ReviewFeedbackViewModel = hiltViewModel()
+                ReviewFeedbackScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
+            composable(
                 route = Destinations.ActiveRideManagement.route,
                 arguments = listOf(navArgument("rideId") { type = NavType.StringType })
             ) { backStackEntry ->
@@ -251,13 +270,15 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
                 route = Destinations.ReviewsRatings.route,
                 arguments = listOf(
                     navArgument("origin") { type = NavType.StringType },
+                    navArgument("driverId") { type = NavType.StringType },
                     navArgument("driverName") { type = NavType.StringType }
                 )
-            ) { backStackEntry ->
+            ) {
+                val viewModel: DriverReviewsViewModel = hiltViewModel()
                 ReviewsRatingsScreen(
                     innerPadding = innerPadding,
                     navController = navController,
-                    driverName = backStackEntry.arguments?.getString("driverName").orEmpty()
+                    viewModel = viewModel
                 )
             }
         }

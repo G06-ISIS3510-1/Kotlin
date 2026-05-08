@@ -171,8 +171,9 @@ fun RideRequestScreen(
                     onOpenReviews = {
                         navController.navigate(
                             Destinations.ReviewsRatings.createRoute(
-                                driverName = ride.driver.name,
-                                origin = Destinations.Rides.route
+                                origin = Destinations.Rides.route,
+                                driverId = ride.driverId,
+                                driverName = ride.driver.name
                             )
                         )
                     }

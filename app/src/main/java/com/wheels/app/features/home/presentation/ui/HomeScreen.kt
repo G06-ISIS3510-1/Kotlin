@@ -153,8 +153,9 @@ fun HomeScreen(
                         onOpenReviews = {
                             navController.navigate(
                                 Destinations.ReviewsRatings.createRoute(
-                                    driverName = currentRide.driver,
-                                    origin = Destinations.Home.route
+                                    origin = Destinations.Home.route,
+                                    driverId = currentRide.driverId,
+                                    driverName = currentRide.driver
                                 )
                             )
                         }
@@ -179,6 +180,7 @@ fun HomeScreen(
 
         if (state.showQuickPay) {
             QuickPayButton(
+                currentRide = state.currentRide,
                 navController = navController,
                 modifier = Modifier
                     .padding(end = 20.dp, bottom = 140.dp)
@@ -899,9 +901,20 @@ private fun UpdateCard(update: HomeUpdateUiModel, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun QuickPayButton(navController: NavController, modifier: Modifier = Modifier) {
+private fun QuickPayButton(
+    currentRide: HomeRideUiModel?,
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
     Button(
         onClick = {
+            val backStackEntry = navController.currentBackStackEntry
+            backStackEntry?.savedStateHandle?.set(Destinations.QUICK_PAY_RIDE_ID_KEY, currentRide?.rideId.orEmpty())
+            backStackEntry?.savedStateHandle?.set(Destinations.QUICK_PAY_DRIVER_ID_KEY, currentRide?.driverId.orEmpty())
+            backStackEntry?.savedStateHandle?.set(Destinations.QUICK_PAY_DRIVER_NAME_KEY, currentRide?.driver.orEmpty())
+            backStackEntry?.savedStateHandle?.set(Destinations.QUICK_PAY_FARE_KEY, currentRide?.fare.orEmpty())
+            backStackEntry?.savedStateHandle?.set(Destinations.QUICK_PAY_FROM_KEY, currentRide?.pickupLocation.orEmpty())
+            backStackEntry?.savedStateHandle?.set(Destinations.QUICK_PAY_TO_KEY, currentRide?.destination.orEmpty())
             navController.navigate(Destinations.QuickPayment.route)
         },
         modifier = modifier,
