@@ -318,6 +318,8 @@ private fun ReviewsStatusBanner(
         else -> "Refreshing reviews."
     }
 
+@Composable
+private fun LoadingStateCard() {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
