@@ -21,6 +21,7 @@ class RideFirestoreContractTest {
                 "seats" to 4,
                 "price" to 3500,
                 "availableSeats" to 3,
+                "passengerIds" to listOf("passenger-1", "passenger-2"),
                 "status" to "published",
                 "paymentOption" to "bank_transfer"
             )
@@ -32,6 +33,7 @@ class RideFirestoreContractTest {
         assertEquals(3, ride.availableSeats)
         assertEquals(3500.0, ride.pricePerSeat, 0.0)
         assertEquals("bank_transfer", ride.paymentOption)
+        assertEquals(listOf("passenger-1", "passenger-2"), ride.passengerIds)
     }
 
     @Test
@@ -116,5 +118,15 @@ class RideFirestoreContractTest {
         assertTrue(
             validateRideStatusTransition("completed", "open") is RideStatusTransitionDecision.Rejected
         )
+    }
+
+    @Test
+    fun `passenger home ride stays visible through completed but not cancelled`() {
+        assertTrue(isPassengerHomeRideVisible("published"))
+        assertTrue(isPassengerHomeRideVisible("open"))
+        assertTrue(isPassengerHomeRideVisible("in_progress"))
+        assertTrue(isPassengerHomeRideVisible("completed"))
+        assertTrue(!isPassengerHomeRideVisible("cancelled"))
+        assertTrue(!isPassengerHomeRideVisible("canceled"))
     }
 }

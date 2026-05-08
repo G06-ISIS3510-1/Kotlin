@@ -44,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.wheels.app.core.navigation.Destinations
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.core.ui.theme.Border
@@ -75,9 +77,12 @@ import com.wheels.app.features.home.presentation.viewmodel.ActiveRideUiModel
 import com.wheels.app.features.home.presentation.viewmodel.FrequentDestinationUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeQuickStat
 import com.wheels.app.features.home.presentation.viewmodel.HomeUpdateUiModel
+import com.wheels.app.features.home.presentation.viewmodel.HomeRideUiModel
+import com.wheels.app.features.home.presentation.viewmodel.HomeEvent
 import com.wheels.app.features.home.presentation.viewmodel.HomeUiState
 import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
 import com.wheels.app.features.home.presentation.viewmodel.LocationAwareCardUiModel
+import com.wheels.app.features.home.presentation.viewmodel.RideDisplayStatus
 import com.wheels.app.features.home.presentation.viewmodel.UpdateTone
 
 @Composable
@@ -88,6 +93,17 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val activeRole by viewModel.activeRole.collectAsState()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+
+    LaunchedEffect(backStackEntry) {
+        val completed = backStackEntry
+            ?.savedStateHandle
+            ?.get<Boolean>(QUICK_PAY_COMPLETED_KEY) == true
+        if (!completed) return@LaunchedEffect
+
+        viewModel.onEvent(HomeEvent.QuickPayCompleted)
+        backStackEntry?.savedStateHandle?.remove<Boolean>(QUICK_PAY_COMPLETED_KEY)
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -128,20 +144,22 @@ fun HomeScreen(
                     trackedBookings = state.trackedDestinationBookings
                 )
             }
-            item { MapSection(state.activeRide) }
-            item {
-                CurrentRideSection(
-                    activeRide = state.activeRide,
-                    onOpenChat = { navController.navigate(Destinations.GroupChat.route) },
-                    onOpenReviews = {
-                        navController.navigate(
-                            Destinations.ReviewsRatings.createRoute(
-                                driverName = state.activeRide.driver,
-                                origin = Destinations.Home.route
+            state.currentRide?.let { currentRide ->
+                item { MapSection(currentRide) }
+                item {
+                    CurrentRideSection(
+                        activeRide = currentRide,
+                        onOpenChat = { navController.navigate(Destinations.GroupChat.route) },
+                        onOpenReviews = {
+                            navController.navigate(
+                                Destinations.ReviewsRatings.createRoute(
+                                    driverName = currentRide.driver,
+                                    origin = Destinations.Home.route
+                                )
                             )
-                        )
-                    }
-                )
+                        }
+                    )
+                }
             }
             item {
                 Text(
@@ -159,12 +177,14 @@ fun HomeScreen(
             }
         }
 
-        QuickPayButton(
-            navController = navController,
-            modifier = Modifier
-                .padding(end = 20.dp, bottom = 140.dp)
-                .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
-        )
+        if (state.showQuickPay) {
+            QuickPayButton(
+                navController = navController,
+                modifier = Modifier
+                    .padding(end = 20.dp, bottom = 140.dp)
+                    .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
+            )
+        }
     }
 }
 
@@ -431,7 +451,7 @@ private fun StatChip(stat: HomeQuickStat, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MapSection(activeRide: ActiveRideUiModel) {
+private fun MapSection(activeRide: HomeRideUiModel) {
     val colorScheme = MaterialTheme.colorScheme
 
     Card(
@@ -592,7 +612,7 @@ private fun DriverMarker(modifier: Modifier = Modifier) {
 
 @Composable
 private fun CurrentRideSection(
-    activeRide: ActiveRideUiModel,
+    activeRide: HomeRideUiModel,
     onOpenChat: () -> Unit,
     onOpenReviews: () -> Unit
 ) {
@@ -617,11 +637,23 @@ private fun CurrentRideSection(
                 )
                 Surface(
                     shape = RoundedCornerShape(999.dp),
-                    color = ElectricGreen.copy(alpha = 0.12f)
+                    color = when (activeRide.status) {
+                        RideDisplayStatus.COMPLETED -> Color(0xFFDCFCE7)
+                        RideDisplayStatus.IN_PROGRESS -> ElectricGreen.copy(alpha = 0.12f)
+                        RideDisplayStatus.OPEN -> Color(0xFFE8F0F9)
+                    }
                 ) {
                     Text(
-                        text = "Active",
-                        color = ElectricGreen,
+                        text = when (activeRide.status) {
+                            RideDisplayStatus.COMPLETED -> "Ready to pay"
+                            RideDisplayStatus.IN_PROGRESS -> "Active"
+                            RideDisplayStatus.OPEN -> "Applied"
+                        },
+                        color = when (activeRide.status) {
+                            RideDisplayStatus.COMPLETED -> ElectricGreen
+                            RideDisplayStatus.IN_PROGRESS -> ElectricGreen
+                            RideDisplayStatus.OPEN -> SecondaryBlue
+                        },
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
@@ -885,3 +917,5 @@ private fun QuickPayButton(navController: NavController, modifier: Modifier = Mo
         Text(text = "Quick Pay", style = MaterialTheme.typography.labelLarge)
     }
 }
+
+private const val QUICK_PAY_COMPLETED_KEY = "quick_pay_completed"

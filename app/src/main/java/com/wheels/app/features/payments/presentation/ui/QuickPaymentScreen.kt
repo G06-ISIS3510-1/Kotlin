@@ -65,6 +65,7 @@ import java.text.NumberFormat
 import java.util.Locale
 
 private val SelectionBlue = Color(0xFF5B89C8)
+private const val QUICK_PAY_COMPLETED_KEY = "quick_pay_completed"
 data class PaymentMethod(
     val id: String,
     val name: String,
@@ -590,7 +591,12 @@ private fun PaymentButton(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable { navController.popBackStack() }
+                    .clickable {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set(QUICK_PAY_COMPLETED_KEY, true)
+                        navController.popBackStack()
+                    }
                     .background(
                         Brush.linearGradient(
                             listOf(ElectricGreen, Color(0xFF00c794))

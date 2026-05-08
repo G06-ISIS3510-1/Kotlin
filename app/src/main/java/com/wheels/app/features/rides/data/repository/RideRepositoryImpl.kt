@@ -237,7 +237,7 @@ class RideRepositoryImpl @Inject constructor(
                         .mapNotNull { document -> document.toAvailableRide() }
                         .firstOrNull { ride ->
                             ride.passengerIds.contains(passengerId) &&
-                                (ride.status == RIDE_STATUS_OPEN || ride.status == RIDE_STATUS_IN_PROGRESS)
+                                isPassengerHomeRideVisible(ride.status)
                         }
 
                     trySend(currentRide)

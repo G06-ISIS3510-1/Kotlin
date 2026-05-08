@@ -61,6 +61,15 @@ internal fun normalizeRideReadStatus(rawStatus: String?): String {
     }
 }
 
+internal fun isPassengerHomeRideVisible(rawStatus: String?): Boolean {
+    return when (normalizeRideReadStatus(rawStatus)) {
+        RIDE_STATUS_OPEN,
+        RIDE_STATUS_IN_PROGRESS,
+        RIDE_STATUS_COMPLETED -> true
+        else -> false
+    }
+}
+
 internal fun normalizeRideWriteStatus(rawStatus: String): String {
     return when (rawStatus.trim().lowercase()) {
         RIDE_STATUS_PUBLISHED -> RIDE_STATUS_OPEN
@@ -311,7 +320,8 @@ internal fun mapRideDocument(
         licensePlate = readString(data, "licensePlate").orEmpty(),
         notes = readString(data, "notes") ?: readString(data, "description").orEmpty(),
         verifiedByUniversity = readBoolean(data, "verifiedByUniversity") ?: false,
-        paymentOption = readString(data, "paymentOption").orEmpty().ifBlank { "card" }
+        paymentOption = readString(data, "paymentOption").orEmpty().ifBlank { "card" },
+        passengerIds = readStringList(data, "passengerIds")
     )
 }
 
@@ -471,6 +481,13 @@ internal fun readDouble(data: Map<String, Any?>, field: String): Double? {
 
 internal fun readBoolean(data: Map<String, Any?>, field: String): Boolean? {
     return data[field] as? Boolean
+}
+
+internal fun readStringList(data: Map<String, Any?>, field: String): List<String> {
+    return when (val value = data[field]) {
+        is List<*> -> value.mapNotNull { it as? String }.filter { it.isNotBlank() }
+        else -> emptyList()
+    }
 }
 
 internal fun readInstant(data: Map<String, Any?>, field: String): Instant? {
