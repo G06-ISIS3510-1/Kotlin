@@ -312,8 +312,9 @@ fun RidesScreen(
                         onOpenReviews = {
                             navController.navigate(
                                 Destinations.ReviewsRatings.createRoute(
-                                    driverName = ride.driver,
-                                    origin = Destinations.Rides.route
+                                    origin = Destinations.Rides.route,
+                                    driverId = ride.driverId,
+                                    driverName = ride.driver
                                 )
                             )
                         },
@@ -2059,7 +2060,7 @@ private fun RideCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${ride.rating}",
+                            text = String.format(java.util.Locale.US, "%.1f", ride.rating),
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                             color = PrimaryBlue
                         )

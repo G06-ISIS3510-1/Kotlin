@@ -37,6 +37,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /reviews/{reviewId} {
+      allow read, write: if true;
+    }
+
     // Keep `users/{uid}` open for the demo to avoid breaking existing auth,
     // profile, and session flows that already rely on this collection.
     match /users/{userId} {

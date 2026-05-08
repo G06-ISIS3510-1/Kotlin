@@ -8,12 +8,18 @@ import com.wheels.app.core.location.domain.model.CurrentLocationLabel
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
+import com.wheels.app.features.profile.domain.model.User
 import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
+import com.wheels.app.features.reviews.domain.model.DriverReviewSummary
+import com.wheels.app.features.rides.domain.model.Ride
+import com.wheels.app.features.reviews.domain.repository.RideReviewRepository
+import com.wheels.app.features.rides.domain.repository.RideRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,6 +27,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val userDestinationInsightsRepository: UserDestinationInsightsRepository,
+    private val rideRepository: RideRepository,
+    private val reviewRepository: RideReviewRepository,
     private val currentLocationProvider: CurrentLocationProvider,
     roleManager: RoleManager
 ) : ViewModel() {
@@ -28,16 +36,25 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     val activeRole: StateFlow<UserRole> = roleManager.activeRole
+    private var currentUser: User? = null
     private var observedInsightsUserId: String? = null
+    private var observedRideUserId: String? = null
+    private val dismissedCompletedRideIds = mutableSetOf<String>()
+    private var latestPassengerRide: Ride? = null
+    private var latestReviewSummaries: Map<String, DriverReviewSummary> = emptyMap()
 
     init {
         loadCurrentLocation()
         observeCurrentUser()
+        observeActiveRole()
+        observeReviewSummaries()
     }
 
     fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.Refresh -> Unit
+            HomeEvent.ClearCurrentRide -> clearCurrentRideForDemo()
+            HomeEvent.QuickPayCompleted -> completeQuickPayForDemo()
         }
     }
 
@@ -46,6 +63,7 @@ class HomeViewModel @Inject constructor(
             getUserProfileUseCase()
                 .catch { /* Keep fallback name if profile loading fails */ }
                 .collect { user ->
+                    currentUser = user
                     _uiState.value = _uiState.value.copy(
                         userName = user
                             ?.fullName
@@ -64,6 +82,59 @@ class HomeViewModel @Inject constructor(
                         observedInsightsUserId = user.id
                         observeDestinationInsights(user.id)
                     }
+                    syncPassengerRideObserver()
+                }
+        }
+    }
+
+    private fun observeActiveRole() {
+        viewModelScope.launch {
+            activeRole.collect {
+                syncPassengerRideObserver()
+            }
+        }
+    }
+
+    private fun syncPassengerRideObserver() {
+        val user = currentUser
+        if (activeRole.value != UserRole.PASSENGER || user == null) {
+            observedRideUserId = null
+            _uiState.value = _uiState.value.copy(
+                currentRide = null,
+                showQuickPay = false
+            )
+            return
+        }
+
+        if (observedRideUserId == user.id) return
+        observedRideUserId = user.id
+        observePassengerRide(user.id)
+    }
+
+    private fun observePassengerRide(userId: String) {
+        viewModelScope.launch {
+            rideRepository.watchCurrentPassengerRide(userId)
+                .catch {
+                    latestPassengerRide = null
+                    renderPassengerRide()
+                }
+                .collect { ride ->
+                    latestPassengerRide = ride
+                    renderPassengerRide()
+                }
+        }
+    }
+
+    private fun observeReviewSummaries() {
+        viewModelScope.launch {
+            reviewRepository.observeDriverReviewSummaries()
+                .catch {
+                    latestReviewSummaries = emptyMap()
+                    renderPassengerRide()
+                }
+                .collect { summaries ->
+                    latestReviewSummaries = summaries
+                    renderPassengerRide()
                 }
         }
     }
@@ -102,6 +173,34 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun clearCurrentRideForDemo() {
+        _uiState.value.currentRide?.rideId?.let { dismissedCompletedRideIds += it }
+        _uiState.value = _uiState.value.copy(
+            currentRide = null,
+            showQuickPay = false
+        )
+    }
+
+    private fun completeQuickPayForDemo() {
+        _uiState.value.currentRide?.rideId?.let { dismissedCompletedRideIds += it }
+        _uiState.value = _uiState.value.copy(
+            currentRide = null,
+            showQuickPay = false
+        )
+    }
+
+    private fun renderPassengerRide() {
+        val ride = latestPassengerRide
+        val mappedRide = ride?.toHomeRideUiModel(latestReviewSummaries[ride.driverId])
+        val shouldHideForDemo = mappedRide?.rideId != null &&
+            mappedRide.rideId in dismissedCompletedRideIds
+
+        _uiState.value = _uiState.value.copy(
+            currentRide = if (shouldHideForDemo) null else mappedRide,
+            showQuickPay = mappedRide?.status == RideDisplayStatus.COMPLETED && !shouldHideForDemo
+        )
+    }
+
     private fun buildLocationAwareCard(currentLocation: CurrentLocationLabel?): LocationAwareCardUiModel {
         val locationName = currentLocation?.title?.takeIf { it.isNotBlank() }
         val locationSubtitle = currentLocation?.subtitle?.takeIf { it.isNotBlank() }
@@ -128,6 +227,8 @@ class HomeViewModel @Inject constructor(
 
 sealed interface HomeEvent {
     data object Refresh : HomeEvent
+    data object ClearCurrentRide : HomeEvent
+    data object QuickPayCompleted : HomeEvent
 }
 
 data class HomeUiState(
@@ -141,7 +242,8 @@ data class HomeUiState(
         HomeQuickStat(label = "Reliability", value = "98%", accentColor = Color(0xFF10B981)),
         HomeQuickStat(label = "Rating", value = "5.0")
     ),
-    val activeRide: ActiveRideUiModel = ActiveRideUiModel(),
+    val currentRide: HomeRideUiModel? = null,
+    val showQuickPay: Boolean = false,
     val destinationInsights: List<FrequentDestinationUiModel> = emptyList(),
     val trackedDestinationBookings: Int = 0,
     val updates: List<HomeUpdateUiModel> = listOf(
@@ -192,6 +294,28 @@ data class ActiveRideUiModel(
     val routeProgress: Int = 45
 )
 
+data class HomeRideUiModel(
+    val rideId: String,
+    val driverId: String,
+    val driver: String,
+    val rating: String,
+    val carModel: String,
+    val licensePlate: String,
+    val pickupLocation: String,
+    val destination: String,
+    val etaMinutes: Int,
+    val fare: String,
+    val distance: String,
+    val routeProgress: Int,
+    val status: RideDisplayStatus
+)
+
+enum class RideDisplayStatus {
+    OPEN,
+    IN_PROGRESS,
+    COMPLETED
+}
+
 data class HomeUpdateUiModel(
     val title: String,
     val description: String,
@@ -202,4 +326,43 @@ data class HomeUpdateUiModel(
 enum class UpdateTone {
     Success,
     Info
+}
+
+private fun Ride.toHomeRideUiModel(reviewSummary: DriverReviewSummary? = null): HomeRideUiModel {
+    val rideStatus = when (status) {
+        "in_progress" -> RideDisplayStatus.IN_PROGRESS
+        "completed" -> RideDisplayStatus.COMPLETED
+        else -> RideDisplayStatus.OPEN
+    }
+    val routeProgress = when (rideStatus) {
+        RideDisplayStatus.OPEN -> 25
+        RideDisplayStatus.IN_PROGRESS -> 60
+        RideDisplayStatus.COMPLETED -> 100
+    }
+    val etaMinutes = when (rideStatus) {
+        RideDisplayStatus.COMPLETED -> 0
+        RideDisplayStatus.IN_PROGRESS -> 3
+        RideDisplayStatus.OPEN -> estimatedDurationMinutes
+    }
+    val displayRating = reviewSummary?.displayRating ?: 0.0
+
+    return HomeRideUiModel(
+        rideId = id,
+        driverId = driverId,
+        driver = driverName.ifBlank { "Uniandes driver" },
+        rating = String.format("%.1f", displayRating),
+        carModel = carModel.ifBlank { "Vehicle info pending" },
+        licensePlate = licensePlate.ifBlank { "Available later" },
+        pickupLocation = origin,
+        destination = destination,
+        etaMinutes = etaMinutes,
+        fare = "$" + String.format("%,d", pricePerSeat.toInt()),
+        distance = when (rideStatus) {
+            RideDisplayStatus.COMPLETED -> "Completed"
+            RideDisplayStatus.IN_PROGRESS -> "On the way"
+            RideDisplayStatus.OPEN -> "Ready"
+        },
+        routeProgress = routeProgress,
+        status = rideStatus
+    )
 }

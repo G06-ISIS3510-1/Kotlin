@@ -14,6 +14,11 @@ sealed class Destinations(val route: String) {
     data object RideRequest : Destinations("ride_request/{rideId}") {
         fun createRoute(rideId: String): String = "ride_request/$rideId"
     }
+    data object ReviewFeedback : Destinations("review_feedback/{rideId}/{driverId}/{driverName}") {
+        fun createRoute(rideId: String, driverId: String, driverName: String): String {
+            return "review_feedback/${Uri.encode(rideId)}/${Uri.encode(driverId)}/${Uri.encode(driverName)}"
+        }
+    }
     data object ActiveRideManagement : Destinations("active_ride_management/{rideId}") {
         fun createRoute(rideId: String): String = "active_ride_management/$rideId"
     }
@@ -21,9 +26,9 @@ sealed class Destinations(val route: String) {
         fun createRoute(rideId: String, seats: Int): String = "booking_confirmation/$rideId/$seats"
     }
     data object GroupChat : Destinations("group_chat")
-    data object ReviewsRatings : Destinations("reviews_ratings/{origin}/{driverName}") {
-        fun createRoute(driverName: String, origin: String): String {
-            return "reviews_ratings/${Uri.encode(origin)}/${Uri.encode(driverName)}"
+    data object ReviewsRatings : Destinations("reviews_ratings/{origin}/{driverId}/{driverName}") {
+        fun createRoute(origin: String, driverId: String, driverName: String): String {
+            return "reviews_ratings/${Uri.encode(origin)}/${Uri.encode(driverId)}/${Uri.encode(driverName)}"
         }
     }
     data object Profile : Destinations("profile")
@@ -33,5 +38,12 @@ sealed class Destinations(val route: String) {
     companion object {
         const val RIDES_NEARBY_REQUESTED_KEY = "rides_nearby_requested"
         const val RIDES_NEARBY_LOCATION_NAME_KEY = "rides_nearby_location_name"
+        const val QUICK_PAY_RIDE_ID_KEY = "quick_pay_ride_id"
+        const val QUICK_PAY_DRIVER_ID_KEY = "quick_pay_driver_id"
+        const val QUICK_PAY_DRIVER_NAME_KEY = "quick_pay_driver_name"
+        const val QUICK_PAY_FARE_KEY = "quick_pay_fare"
+        const val QUICK_PAY_FROM_KEY = "quick_pay_from"
+        const val QUICK_PAY_TO_KEY = "quick_pay_to"
+        const val QUICK_PAY_DATE_KEY = "quick_pay_date"
     }
 }

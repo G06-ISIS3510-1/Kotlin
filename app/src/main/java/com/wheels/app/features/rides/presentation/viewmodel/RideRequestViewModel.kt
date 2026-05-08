@@ -65,19 +65,62 @@ class RideRequestViewModel @Inject constructor(
     }
 
     private fun confirmRideRequest() {
-        val currentRide = _uiState.value.ride
-        _uiState.update { it.copy(showConfirmation = false, requestConfirmed = true) }
-
-        if (currentRide == null) return
+        val currentRide = _uiState.value.ride ?: return
 
         viewModelScope.launch {
-            val currentUser = getUserProfileUseCase().firstOrNull() ?: return@launch
-            runCatching {
-                userDestinationInsightsRepository.logRideBookedDestination(
-                    userId = currentUser.id,
-                    rideId = currentRide.id,
-                    destinationName = currentRide.destination
+            _uiState.update {
+                it.copy(
+                    showConfirmation = false,
+                    isApplyingRequest = true,
+                    requestErrorMessage = null
                 )
+            }
+
+            val currentUser = getUserProfileUseCase().firstOrNull()
+            if (currentUser == null) {
+                _uiState.update {
+                    it.copy(
+                        isApplyingRequest = false,
+                        requestErrorMessage = "We could not load your profile right now."
+                    )
+                }
+                return@launch
+            }
+
+            runCatching {
+                rideRepository.applyToRide(
+                    rideId = currentRide.id,
+                    passengerId = currentUser.id,
+                    passengerName = currentUser.fullName.ifBlank {
+                        currentUser.email.substringBefore("@")
+                    },
+                    passengerEmail = currentUser.email
+                )
+            }.onSuccess {
+                _uiState.update {
+                    it.copy(
+                        isApplyingRequest = false,
+                        requestConfirmed = true,
+                        requestErrorMessage = null
+                    )
+                }
+
+                runCatching {
+                    userDestinationInsightsRepository.logRideBookedDestination(
+                        userId = currentUser.id,
+                        rideId = currentRide.id,
+                        destinationName = currentRide.destination
+                    )
+                }
+            }.onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        isApplyingRequest = false,
+                        requestConfirmed = false,
+                        requestErrorMessage = throwable.message
+                            ?: "We could not apply to this ride right now."
+                    )
+                }
             }
         }
     }
@@ -112,6 +155,8 @@ data class RideRequestUiState(
     val selectedSeats: Int = 1,
     val showConfirmation: Boolean = false,
     val requestConfirmed: Boolean = false,
+    val isApplyingRequest: Boolean = false,
+    val requestErrorMessage: String? = null,
     val isLoading: Boolean = false
 ) {
     val totalPrice: Int
@@ -120,6 +165,7 @@ data class RideRequestUiState(
 
 data class RideRequestUiModel(
     val id: String,
+    val driverId: String,
     val origin: String,
     val destination: String,
     val departureTime: String,
@@ -163,6 +209,7 @@ private fun Ride.toRideRequestUiModel(): RideRequestUiModel {
 
     return RideRequestUiModel(
         id = id,
+        driverId = driverId,
         origin = origin,
         destination = destination,
         departureTime = departureDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")),

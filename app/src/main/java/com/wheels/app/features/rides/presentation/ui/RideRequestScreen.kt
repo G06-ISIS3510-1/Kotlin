@@ -19,9 +19,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -45,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -87,6 +91,18 @@ fun RideRequestScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val ride = state.ride
+
+    LaunchedEffect(state.requestConfirmed) {
+        if (!state.requestConfirmed || ride == null) return@LaunchedEffect
+        navController.navigate(
+            Destinations.BookingConfirmation.createRoute(
+                rideId = ride.id,
+                seats = state.selectedSeats
+            )
+        ) {
+            launchSingleTop = true
+        }
+    }
 
     if (state.isLoading) {
         Box(
@@ -155,8 +171,9 @@ fun RideRequestScreen(
                     onOpenReviews = {
                         navController.navigate(
                             Destinations.ReviewsRatings.createRoute(
-                                driverName = ride.driver.name,
-                                origin = Destinations.Rides.route
+                                origin = Destinations.Rides.route,
+                                driverId = ride.driverId,
+                                driverName = ride.driver.name
                             )
                         )
                     }
@@ -179,6 +196,16 @@ fun RideRequestScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
             onClick = { viewModel.onEvent(RideRequestEvent.RequestTapped) }
         )
+        state.requestErrorMessage?.let { message ->
+            Text(
+                text = message,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 88.dp, start = 16.dp, end = 16.dp),
+                color = Color(0xFFDC2626),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
     }
 
     if (state.showConfirmation) {
@@ -187,17 +214,7 @@ fun RideRequestScreen(
             selectedSeats = state.selectedSeats,
             totalPrice = state.totalPrice,
             onDismiss = { viewModel.onEvent(RideRequestEvent.ConfirmationDismissed) },
-            onConfirm = {
-                viewModel.onEvent(RideRequestEvent.ConfirmRequest)
-                navController.navigate(
-                    Destinations.BookingConfirmation.createRoute(
-                        rideId = ride.id,
-                        seats = state.selectedSeats
-                    )
-                ) {
-                    launchSingleTop = true
-                }
-            }
+            onConfirm = { viewModel.onEvent(RideRequestEvent.ConfirmRequest) }
         )
     }
 }
@@ -658,7 +675,7 @@ private fun RequestRideButton(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
         ) {
             Text(
-                text = "Request Ride • $$totalPrice",
+                text = "Apply to Ride • $$totalPrice",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -687,16 +704,22 @@ private fun ConfirmationDialog(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.5f))
                 .clickable(onClick = onDismiss),
-            contentAlignment = Alignment.BottomCenter
+            contentAlignment = Alignment.Center
         ) {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .navigationBarsPadding()
+                    .clip(RoundedCornerShape(32.dp))
                     .clickable(enabled = false) {},
                 color = WheelsSurface
             ) {
-                Column(modifier = Modifier.padding(24.dp)) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp)
+                ) {
                     Box(
                         modifier = Modifier
                             .size(width = 48.dp, height = 4.dp)
@@ -730,7 +753,7 @@ private fun ConfirmationDialog(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "You're requesting $selectedSeats seat${if (selectedSeats > 1) "s" else ""} with ${ride.driver.name}",
+                        text = "You're applying for $selectedSeats seat${if (selectedSeats > 1) "s" else ""} with ${ride.driver.name}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary,
                         textAlign = TextAlign.Center,
@@ -775,7 +798,7 @@ private fun ConfirmationDialog(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "The driver will review your request. You'll be notified when accepted.",
+                                text = "The driver will review your application. You'll be notified when accepted.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = PrimaryBlue
                             )

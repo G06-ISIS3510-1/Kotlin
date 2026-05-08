@@ -3,6 +3,7 @@ package com.wheels.app.features.rides.presentation.viewmodel
 val mockRideRequestData = mapOf(
     "1" to RideRequestUiModel(
         id = "1",
+        driverId = "driver-1",
         origin = "Campus Uniandes - Main Gate",
         destination = "Centro Comercial Andino",
         departureTime = "14:30",
@@ -31,6 +32,7 @@ val mockRideRequestData = mapOf(
     ),
     "2" to RideRequestUiModel(
         id = "2",
+        driverId = "driver-2",
         origin = "Campus Uniandes - Main Gate",
         destination = "Usaquen",
         departureTime = "15:00",
@@ -59,6 +61,7 @@ val mockRideRequestData = mapOf(
     ),
     "3" to RideRequestUiModel(
         id = "3",
+        driverId = "driver-3",
         origin = "Campus Uniandes - Main Gate",
         destination = "Suba",
         departureTime = "15:30",
