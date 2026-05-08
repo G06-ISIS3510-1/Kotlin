@@ -47,6 +47,12 @@ data class SubmitRideReviewRequest(
     val comment: String
 )
 
+sealed interface DriverReviewsFeed {
+    data class Cached(val reviews: List<RideReview>) : DriverReviewsFeed
+    data class Fresh(val reviews: List<RideReview>) : DriverReviewsFeed
+    data class RefreshError(val message: String) : DriverReviewsFeed
+}
+
 fun calculateDriverReviewSummary(reviews: List<RideReview>): Map<String, DriverReviewSummary> {
     return reviews
         .groupBy { it.driverId }
@@ -70,6 +76,11 @@ fun calculateDriverReviewSummary(reviews: List<RideReview>): Map<String, DriverR
                 starBreakdown = breakdown
             )
         }
+}
+
+fun upsertDriverReview(existingReviews: List<RideReview>, review: RideReview): List<RideReview> {
+    return (existingReviews.filterNot { it.reviewId == review.reviewId } + review)
+        .sortedByDescending { it.createdAt ?: Instant.EPOCH }
 }
 
 fun RideReview.createdAtLabel(): String {
