@@ -89,6 +89,16 @@ fun ReviewsRatingsScreen(
             )
         }
 
+        if (state.isShowingCachedContent || state.isRefreshing || state.errorMessage != null) {
+            item {
+                ReviewsStatusBanner(
+                    isShowingCachedContent = state.isShowingCachedContent,
+                    isRefreshing = state.isRefreshing,
+                    errorMessage = state.errorMessage
+                )
+            }
+        }
+
         item {
             ReviewsSectionHeader(
                 title = "Recent feedback",
@@ -291,6 +301,43 @@ private fun ReviewsSectionHeader(
             style = MaterialTheme.typography.bodySmall,
             color = TextSecondary
         )
+    }
+}
+
+@Composable
+private fun ReviewsStatusBanner(
+    isShowingCachedContent: Boolean,
+    isRefreshing: Boolean,
+    errorMessage: String?
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val bannerText = when {
+        errorMessage != null -> errorMessage
+        isShowingCachedContent && isRefreshing -> "Showing cached reviews while we refresh them."
+        isShowingCachedContent -> "Showing cached reviews."
+        else -> "Refreshing reviews."
+    }
+
+@Composable
+private fun LoadingStateCard() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Border)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = bannerText,
+                color = if (errorMessage != null) PrimaryBlue else TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 }
 

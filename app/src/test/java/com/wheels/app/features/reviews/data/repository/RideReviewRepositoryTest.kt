@@ -4,6 +4,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.wheels.app.features.reviews.domain.model.RideReview
 import com.wheels.app.features.reviews.domain.model.calculateDriverReviewSummary
+import com.wheels.app.features.reviews.domain.model.upsertDriverReview
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -124,5 +125,50 @@ class RideReviewRepositoryTest {
             "driver-1_passenger-1",
             buildReviewId("driver-1", "passenger-1")
         )
+    }
+
+    @Test
+    fun `upsertDriverReview replaces existing review and keeps newest first`() {
+        val existing = listOf(
+            RideReview(
+                reviewId = "driver-1_passenger-1",
+                rideId = "",
+                driverId = "driver-1",
+                driverName = "Carlos",
+                passengerId = "passenger-1",
+                passengerName = "Ana",
+                stars = 4,
+                comment = "Old review",
+                createdAt = Instant.EPOCH
+            ),
+            RideReview(
+                reviewId = "driver-1_passenger-2",
+                rideId = "",
+                driverId = "driver-1",
+                driverName = "Carlos",
+                passengerId = "passenger-2",
+                passengerName = "Luis",
+                stars = 5,
+                comment = "Another review",
+                createdAt = Instant.EPOCH.plusSeconds(10)
+            )
+        )
+        val updated = RideReview(
+            reviewId = "driver-1_passenger-1",
+            rideId = "",
+            driverId = "driver-1",
+            driverName = "Carlos",
+            passengerId = "passenger-1",
+            passengerName = "Ana",
+            stars = 5,
+            comment = "Fresh review",
+            createdAt = Instant.EPOCH.plusSeconds(20)
+        )
+
+        val merged = upsertDriverReview(existing, updated)
+
+        assertEquals(2, merged.size)
+        assertEquals("Fresh review", merged.first().comment)
+        assertEquals("driver-1_passenger-2", merged[1].reviewId)
     }
 }

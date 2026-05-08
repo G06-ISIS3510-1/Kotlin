@@ -5,10 +5,13 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.wheels.app.features.reviews.domain.model.DriverReviewSummary
+import com.wheels.app.features.reviews.domain.model.DriverReviewsFeed
 import com.wheels.app.features.reviews.domain.model.RideReview
 import com.wheels.app.features.reviews.domain.model.SubmitRideReviewRequest
 import com.wheels.app.features.reviews.domain.model.calculateDriverReviewSummary
+import com.wheels.app.features.reviews.domain.model.upsertDriverReview
 import com.wheels.app.features.reviews.domain.repository.RideReviewRepository
+import com.wheels.app.features.reviews.data.local.DriverReviewsLocalCache
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,15 +29,34 @@ import kotlinx.coroutines.withContext
 @Singleton
 class FirestoreRideReviewRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val ioDispatcher: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher,
+    private val reviewsLocalCache: DriverReviewsLocalCache
 ) : RideReviewRepository {
 
-    override fun observeDriverReviews(driverId: String): Flow<List<RideReview>> = callbackFlow {
+    override fun observeDriverReviews(driverId: String): Flow<DriverReviewsFeed> = callbackFlow {
+        val cached = withContext(ioDispatcher) {
+            reviewsLocalCache.get(driverId)
+        }
+        if (cached != null) {
+            trySend(DriverReviewsFeed.Cached(cached.reviews))
+        }
+
         val registration = firestore
             .collection(REVIEWS_COLLECTION)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    launch {
+                        if (cached == null) {
+                            close(error)
+                        } else {
+                            trySend(
+                                DriverReviewsFeed.RefreshError(
+                                    error.message ?: "Reviews are temporarily unavailable."
+                                )
+                            )
+                            close()
+                        }
+                    }
                     return@addSnapshotListener
                 }
 
@@ -46,7 +68,10 @@ class FirestoreRideReviewRepository @Inject constructor(
                         .filter { it.driverId == driverId }
                         .sortedByDescending { it.createdAt ?: Instant.EPOCH }
 
-                    trySend(reviews)
+                    withContext(ioDispatcher) {
+                        reviewsLocalCache.put(driverId, reviews)
+                    }
+                    trySend(DriverReviewsFeed.Fresh(reviews))
                 }
             }
 
@@ -94,6 +119,8 @@ class FirestoreRideReviewRepository @Inject constructor(
                 .document(reviewId)
                 .set(buildReviewDocumentData(review))
                 .awaitResult()
+            val cachedReviews = reviewsLocalCache.get(review.driverId)?.reviews.orEmpty()
+            reviewsLocalCache.put(review.driverId, upsertDriverReview(cachedReviews, review))
             review
         }
     }
