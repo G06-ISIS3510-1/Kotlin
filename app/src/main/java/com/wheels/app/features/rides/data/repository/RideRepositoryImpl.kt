@@ -406,7 +406,7 @@ class RideRepositoryImpl @Inject constructor(
 
             for (pendingPublish in pendingPublishes) {
                 try {
-                    createRide(pendingPublish.toPublishRideRequest())
+                    publishRide(pendingPublish.toPublishRideRequest())
                     rideOfflineDao.deletePendingRidePublish(pendingPublish.id)
                     syncedCount += 1
                 } catch (throwable: Throwable) {
