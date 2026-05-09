@@ -10,6 +10,18 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface RideOfflineDao {
 
+    @Query("SELECT * FROM near_rides_cache WHERE cacheKey = :cacheKey LIMIT 1")
+    suspend fun getNearRidesCache(cacheKey: String): NearRidesCacheEntity?
+
+    @Query("SELECT * FROM near_rides_cache ORDER BY cachedAtMillis DESC LIMIT 1")
+    suspend fun getLatestNearRidesCache(): NearRidesCacheEntity?
+
+    @Upsert
+    suspend fun upsertNearRidesCache(entity: NearRidesCacheEntity)
+
+    @Query("DELETE FROM near_rides_cache WHERE cacheKey = :cacheKey")
+    suspend fun deleteNearRidesCache(cacheKey: String)
+
     @Query("SELECT * FROM create_ride_drafts WHERE driverId = :driverId LIMIT 1")
     fun observeCreateRideDraft(driverId: String): Flow<CreateRideDraftEntity?>
 

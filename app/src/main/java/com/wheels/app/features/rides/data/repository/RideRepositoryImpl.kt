@@ -136,6 +136,18 @@ class RideRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getLatestCachedNearRides(): Flow<Resource<List<Ride>>> = flow {
+        val cached = withContext(ioDispatcher) {
+            nearRidesLocalCache.getLatest()
+        }
+
+        if (cached != null) {
+            emit(Resource.Success(cached.rides))
+        } else {
+            emit(Resource.Error("No saved nearby rides are available yet."))
+        }
+    }
+
     override fun observeRide(rideId: String): Flow<Ride?> = callbackFlow {
         val registration = firestore
             .collection(RIDES_COLLECTION)

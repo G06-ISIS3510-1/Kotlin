@@ -7,6 +7,7 @@ import com.wheels.app.core.analytics.bqt3.data.local.BQT3UsageEventEntity
 import com.wheels.app.core.analytics.bqt3.data.local.BQT3WeeklyUsageEntity
 import com.wheels.app.core.analytics.data.local.UserDestinationInsightsDao
 import com.wheels.app.core.analytics.data.local.UserDestinationInsightsEntity
+import com.wheels.app.features.rides.data.local.NearRidesCacheEntity
 import com.wheels.app.features.rides.data.local.CreateRideDraftEntity
 import com.wheels.app.features.rides.data.local.PendingRideActionEntity
 import com.wheels.app.features.rides.data.local.PendingRidePublishEntity
@@ -16,12 +17,13 @@ import com.wheels.app.features.rides.data.local.RideOfflineDao
     entities = [
         BQT3UsageEventEntity::class,
         BQT3WeeklyUsageEntity::class,
+        NearRidesCacheEntity::class,
         CreateRideDraftEntity::class,
         PendingRideActionEntity::class,
         PendingRidePublishEntity::class,
         UserDestinationInsightsEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class WheelsDatabase : RoomDatabase() {

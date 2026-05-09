@@ -8,6 +8,7 @@ import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
 import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.NearRidesQuery
 import com.wheels.app.features.rides.domain.model.Ride
+import com.wheels.app.features.rides.domain.repository.RideRepository
 import com.wheels.app.features.rides.domain.usecase.GetNearRidesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.format.DateTimeFormatter
@@ -26,6 +27,7 @@ import kotlinx.coroutines.withContext
 @HiltViewModel
 class NearRidesViewModel @Inject constructor(
     private val getNearRidesUseCase: GetNearRidesUseCase,
+    private val rideRepository: RideRepository,
     private val currentLocationProvider: CurrentLocationProvider
 ) : ViewModel() {
 
@@ -52,19 +54,30 @@ class NearRidesViewModel @Inject constructor(
                 }
             }
 
-            val coordinates = coordinatesResult
-                .onSuccess { coordinates -> lastKnownCoordinates = coordinates }
-                .getOrElse { throwable ->
-                    lastKnownCoordinates ?: run {
-                        updateUi {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = throwable.message ?: "We could not read your location."
-                            )
-                        }
-                        return@launch
-                    }
+            val coordinates = coordinatesResult.getOrNull()
+
+            if (coordinates != null) {
+                lastKnownCoordinates = coordinates
+            } else {
+                val fallbackCoordinates = lastKnownCoordinates
+
+                if (fallbackCoordinates == null) {
+                    loadSavedNearbyRides()
+                    return@launch
                 }
+
+                updateUi {
+                    it.copy(
+                        errorMessage = "Using your last known location while we refresh nearby rides."
+                    )
+                }
+
+                loadNearRidesWithCoordinates(
+                    coordinates = fallbackCoordinates,
+                    destinationQuery = destinationQuery
+                )
+                return@launch
+            }
 
             if (coordinatesResult.isFailure) {
                 updateUi {
@@ -74,42 +87,82 @@ class NearRidesViewModel @Inject constructor(
                 }
             }
 
-            val query = NearRidesQuery(
-                coordinates = Coordinates(
-                    lat = coordinates.latitude,
-                    lng = coordinates.longitude
-                ),
+            loadNearRidesWithCoordinates(
+                coordinates = coordinates,
                 destinationQuery = destinationQuery
             )
+        }
+    }
 
-            getNearRidesUseCase(query)
-                .catch { throwable ->
-                    updateUi {
+    private suspend fun loadNearRidesWithCoordinates(
+        coordinates: CurrentCoordinates,
+        destinationQuery: String
+    ) {
+        val query = NearRidesQuery(
+            coordinates = Coordinates(
+                lat = coordinates.latitude,
+                lng = coordinates.longitude
+            ),
+            destinationQuery = destinationQuery
+        )
+
+        getNearRidesUseCase(query)
+            .catch { throwable ->
+                updateUi {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = throwable.message ?: "Near rides are unavailable right now."
+                    )
+                }
+            }
+            .collect { resource ->
+                when (resource) {
+                    Resource.Loading -> updateUi { it.copy(isLoading = true) }
+                    is Resource.Success -> updateUi {
                         it.copy(
                             isLoading = false,
-                            errorMessage = throwable.message ?: "Near rides are unavailable right now."
+                            rides = resource.data.toNearRideCards(),
+                            errorMessage = null
+                        )
+                    }
+                    is Resource.Error -> updateUi {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
                         )
                     }
                 }
-                .collect { resource ->
-                    when (resource) {
-                        Resource.Loading -> updateUi { it.copy(isLoading = true) }
-                        is Resource.Success -> updateUi {
-                            it.copy(
-                                isLoading = false,
-                                rides = resource.data.toNearRideCards(),
-                                errorMessage = null
-                            )
-                        }
-                        is Resource.Error -> updateUi {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = resource.message
-                            )
-                        }
+            }
+    }
+
+    private suspend fun loadSavedNearbyRides() {
+        rideRepository.getLatestCachedNearRides()
+            .catch { cachedThrowable ->
+                updateUi {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = cachedThrowable.message ?: "No saved nearby rides are available yet."
+                    )
+                }
+            }
+            .collect { resource ->
+                when (resource) {
+                    Resource.Loading -> updateUi { it.copy(isLoading = true) }
+                    is Resource.Success -> updateUi {
+                        it.copy(
+                            isLoading = false,
+                            rides = resource.data.toNearRideCards(),
+                            errorMessage = "Showing saved nearby rides while offline."
+                        )
+                    }
+                    is Resource.Error -> updateUi {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
+                        )
                     }
                 }
-        }
+            }
     }
 
     private suspend fun updateUi(transform: (NearRidesUiState) -> NearRidesUiState) {

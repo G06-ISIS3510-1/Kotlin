@@ -17,6 +17,7 @@ interface RideRepository {
     fun getAvailableRides(): Flow<List<Ride>>
     fun watchAvailableRides(): Flow<List<Ride>>
     fun getNearRides(query: NearRidesQuery): Flow<Resource<List<Ride>>>
+    fun getLatestCachedNearRides(): Flow<Resource<List<Ride>>>
     fun observeRide(rideId: String): Flow<Ride?>
     fun observeDriverRides(driverId: String): Flow<List<DriverRideRecord>>
     fun watchCurrentDriverRide(driverId: String): Flow<Ride?>
