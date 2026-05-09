@@ -892,18 +892,27 @@ class RidesViewModel @Inject constructor(
             time = currentState.time
         ) ?: return showTrustError("We could not parse the selected ride schedule.")
         val estimatedDurationMinutes = 30
+        val isOnline = networkMonitor.isOnline()
 
         viewModelScope.launch {
             _uiState.update { state -> state.copy(isPublishingRide = true) }
             runCatching {
-                val originCoordinates = resolveCoordinatesForPublish(
-                    typedValue = currentState.origin,
-                    selectedSuggestion = currentState.selectedOrigin
-                )
-                val destinationCoordinates = resolveCoordinatesForPublish(
-                    typedValue = currentState.destination,
-                    selectedSuggestion = currentState.selectedDestination
-                )
+                val originCoordinates = if (isOnline) {
+                    resolveCoordinatesForPublish(
+                        typedValue = currentState.origin,
+                        selectedSuggestion = currentState.selectedOrigin
+                    )
+                } else {
+                    currentState.selectedOrigin?.coordinates
+                }
+                val destinationCoordinates = if (isOnline) {
+                    resolveCoordinatesForPublish(
+                        typedValue = currentState.destination,
+                        selectedSuggestion = currentState.selectedDestination
+                    )
+                } else {
+                    currentState.selectedDestination?.coordinates
+                }
 
                 val request = PublishRideRequest(
                     driverId = driverId,
@@ -931,12 +940,21 @@ class RidesViewModel @Inject constructor(
                     usedCurrentLocationDestination = currentState.usedCurrentLocationDestination
                 )
 
-                rideRepository.createRide(request)
+                if (isOnline) {
+                    rideRepository.publishRide(request)
+                } else {
+                    rideRepository.enqueueRidePublish(request)
+                    null
+                }
             }.onSuccess {
                 rideRepository.clearCreateRideDraft(driverId)
                 _uiState.update { state ->
                     state.resetCreateRideForm(
-                        publishRideInfoMessage = "Ride published successfully."
+                        publishRideInfoMessage = if (isOnline) {
+                            "Ride published successfully."
+                        } else {
+                            "No internet connection. We saved your ride and will publish it automatically when your connection returns."
+                        }
                     )
                 }
             }.onFailure { throwable ->
@@ -1062,6 +1080,20 @@ class RidesViewModel @Inject constructor(
         if (ride.status != DriverRideStatus.ACTIVE) {
             return showTrustError("Only active rides can be completed.")
         }
+        if (ride.pendingSyncAction != null) {
+            return showTrustError("This ride already has a pending offline action. Wait for the connection to return before sending another one.")
+        }
+        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+        val isOnline = networkMonitor.isOnline()
+        if (!isOnline) {
+            enqueueOfflineRideAction(
+                ride = ride,
+                driverId = driverId,
+                actionType = PendingRideActionType.COMPLETE,
+                infoMessage = "No internet connection. We saved your end ride action and will complete this ride automatically when your connection returns."
+            )
+            return
+        }
         viewModelScope.launch {
             _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
             runCatching {
@@ -1103,6 +1135,20 @@ class RidesViewModel @Inject constructor(
         if (ride.status != DriverRideStatus.PUBLISHED) {
             return showTrustError("Only published rides can be started.")
         }
+        if (ride.pendingSyncAction != null) {
+            return showTrustError("This ride already has a pending offline action. Wait for the connection to return before sending another one.")
+        }
+        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+        val isOnline = networkMonitor.isOnline()
+        if (!isOnline) {
+            enqueueOfflineRideAction(
+                ride = ride,
+                driverId = driverId,
+                actionType = PendingRideActionType.START,
+                infoMessage = "No internet connection. We saved your start ride action and will start this ride automatically when your connection returns."
+            )
+            return
+        }
         viewModelScope.launch {
             _uiState.update { state -> state.copy(actionInProgressRideId = rideId) }
             runCatching {
@@ -1133,6 +1179,20 @@ class RidesViewModel @Inject constructor(
         val ride = _uiState.value.driverRides.firstOrNull { it.id == rideId } ?: return
         if (ride.status != DriverRideStatus.PUBLISHED && ride.status != DriverRideStatus.ACTIVE) {
             return showTrustError("Only open or active rides can be canceled from this screen.")
+        }
+        if (ride.pendingSyncAction != null) {
+            return showTrustError("This ride already has a pending offline action. Wait for the connection to return before sending another one.")
+        }
+        val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+        val isOnline = networkMonitor.isOnline()
+        if (!isOnline) {
+            enqueueOfflineRideAction(
+                ride = ride,
+                driverId = driverId,
+                actionType = PendingRideActionType.CANCEL,
+                infoMessage = "No internet connection. We saved your cancel ride action and will cancel this ride automatically when your connection returns."
+            )
+            return
         }
 
         viewModelScope.launch {
