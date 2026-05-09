@@ -8,6 +8,7 @@ import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
 import com.wheels.app.core.network.NetworkMonitor
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
+import com.wheels.app.core.analytics.bqt3.domain.repository.BQT3Repository
 import com.wheels.app.core.trust.domain.model.TrustScoreNotice
 import com.wheels.app.core.trust.domain.model.TrustScoreNoticeType
 import com.wheels.app.core.trust.domain.repository.DriverRideTrustActionParams
@@ -64,6 +65,7 @@ private const val NEARBY_DISTANCE_KM_THRESHOLD = 5.0
 class RidesViewModel @Inject constructor(
     private val getAvailableRidesUseCase: GetAvailableRidesUseCase,
     private val rideRepository: RideRepository,
+    private val bqt3Repository: BQT3Repository,
     private val authRepository: AuthRepository,
     private val driverTrustRepository: DriverTrustRepository,
     private val cancellationBehaviorRepository: CancellationBehaviorRepository,
@@ -175,7 +177,10 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.FiltersExpandedChanged -> {
                 _uiState.update { it.copy(showFilters = event.expanded) }
             }
-            is RidesEvent.ApplyNearbyRides -> applyNearbyRides(event.locationNameHint)
+            is RidesEvent.ApplyNearbyRides -> {
+                trackNearbyRidesUsage()
+                applyNearbyRides(event.locationNameHint)
+            }
             RidesEvent.ClearNearbyRides -> clearNearbyRides()
             is RidesEvent.AreaSelected -> updateFilters(selectedArea = event.area)
             is RidesEvent.MaxPriceChanged -> updateFilters(maxPrice = event.value)
@@ -215,6 +220,15 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.CancelDriverRide -> cancelDriverRide(event.rideId)
             is RidesEvent.StartDriverRide -> startDriverRide(event.rideId)
             is RidesEvent.DeleteDriverRide -> deleteDriverRide(event.rideId)
+        }
+    }
+
+    private fun trackNearbyRidesUsage() {
+        val userId = currentDriverId?.takeIf { it.isNotBlank() } ?: return
+        viewModelScope.launch {
+            runCatching {
+                bqt3Repository.trackRidesNearMeUsage(userId)
+            }
         }
     }
 
