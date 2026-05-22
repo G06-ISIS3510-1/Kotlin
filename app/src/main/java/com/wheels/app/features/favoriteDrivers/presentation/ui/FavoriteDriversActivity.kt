@@ -28,6 +28,7 @@ class FavoriteDriversActivity : ComponentActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var emptyText: TextView
     private lateinit var errorText: TextView
+    private lateinit var analyticsText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +39,7 @@ class FavoriteDriversActivity : ComponentActivity() {
 
         setContentView(buildContentView())
         viewModel.observeFavorites()
+        viewModel.loadMostFavoritedDrivers()
         observeState()
     }
 
@@ -67,6 +69,16 @@ class FavoriteDriversActivity : ComponentActivity() {
         errorText = TextView(this).apply {
             visibility = View.GONE
         }
+        val analyticsTitle = TextView(this).apply {
+            text = "Most Favorited Drivers"
+            textSize = 18f
+            setPadding(0, 24, 0, 8)
+        }
+        analyticsText = TextView(this).apply {
+            text = "Loading favorite driver analytics..."
+            textSize = 14f
+            setPadding(0, 0, 0, 16)
+        }
         val recyclerView = RecyclerView(this).apply {
             layoutManager = LinearLayoutManager(this@FavoriteDriversActivity)
             adapter = this@FavoriteDriversActivity.adapter
@@ -81,6 +93,8 @@ class FavoriteDriversActivity : ComponentActivity() {
         root.addView(addDemoButton)
         root.addView(progressBar)
         root.addView(errorText)
+        root.addView(analyticsTitle)
+        root.addView(analyticsText)
         root.addView(emptyText)
         root.addView(recyclerView)
         return root
@@ -94,6 +108,13 @@ class FavoriteDriversActivity : ComponentActivity() {
                     emptyText.visibility = if (!state.isLoading && state.drivers.isEmpty()) View.VISIBLE else View.GONE
                     errorText.visibility = if (state.errorMessage != null) View.VISIBLE else View.GONE
                     errorText.text = state.errorMessage.orEmpty()
+                    analyticsText.text = if (state.mostFavoritedDrivers.isEmpty()) {
+                        "No favorite analytics events yet. Events are stored in favorite_driver_events for Looker Studio."
+                    } else {
+                        state.mostFavoritedDrivers.joinToString(separator = "\n") { summary ->
+                            "${summary.driverName}: ${summary.favoriteCount} saves"
+                        }
+                    }
                     adapter.submitList(state.drivers)
                 }
             }

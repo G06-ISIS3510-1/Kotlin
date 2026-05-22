@@ -1,8 +1,10 @@
 package com.wheels.app.features.favoriteDrivers.data.repository
 
 import com.wheels.app.core.network.NetworkMonitor
+import com.wheels.app.features.favoriteDrivers.analytics.domain.service.FavoriteDriverAnalyticsService
 import com.wheels.app.features.favoriteDrivers.data.local.FavoriteDriverCache
 import com.wheels.app.features.favoriteDrivers.data.local.FavoriteDriverLocalDataSource
+import com.wheels.app.features.favoriteDrivers.data.local.toDomain
 import com.wheels.app.features.favoriteDrivers.data.remote.FavoriteDriverRemoteDataSource
 import com.wheels.app.features.favoriteDrivers.domain.model.FavoriteDriver
 import com.wheels.app.features.favoriteDrivers.domain.repository.FavoriteDriverRepository
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.map
 class FavoriteDriverRepositoryImpl @Inject constructor(
     private val localDataSource: FavoriteDriverLocalDataSource,
     private val remoteDataSource: FavoriteDriverRemoteDataSource,
+    private val analyticsService: FavoriteDriverAnalyticsService,
     private val cache: FavoriteDriverCache,
     private val networkMonitor: NetworkMonitor
 ) : FavoriteDriverRepository {
@@ -44,6 +47,7 @@ class FavoriteDriverRepositoryImpl @Inject constructor(
         )
         localDataSource.saveFavoriteDriver(pendingDriver)
         cache.put(pendingDriver)
+        analyticsService.trackFavoriteAdded(pendingDriver)
     }
 
     override suspend fun unfavoriteDriver(driverId: String) {
@@ -56,6 +60,7 @@ class FavoriteDriverRepositoryImpl @Inject constructor(
 
         localDataSource.markPendingDelete(driverId)
         cache.remove(driverId)
+        analyticsService.trackFavoriteRemoved(existingDriver.toDomain())
     }
 
     override suspend fun syncPendingFavorites() {
