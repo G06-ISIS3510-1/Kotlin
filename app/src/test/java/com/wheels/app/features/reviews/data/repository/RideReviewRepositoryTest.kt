@@ -120,6 +120,63 @@ class RideReviewRepositoryTest {
     }
 
     @Test
+    fun `summary computes each driver's totals independently`() {
+        val summaries = calculateDriverReviewSummary(
+            listOf(
+                RideReview(
+                    reviewId = "r1",
+                    rideId = "ride-1",
+                    driverId = "driver-1",
+                    driverName = "Carlos",
+                    passengerId = "passenger-1",
+                    passengerName = "Ana",
+                    stars = 5,
+                    comment = "Awesome"
+                ),
+                RideReview(
+                    reviewId = "r2",
+                    rideId = "ride-2",
+                    driverId = "driver-2",
+                    driverName = "Maria",
+                    passengerId = "passenger-2",
+                    passengerName = "Luis",
+                    stars = 3,
+                    comment = "Okay"
+                ),
+                RideReview(
+                    reviewId = "r3",
+                    rideId = "ride-3",
+                    driverId = "driver-2",
+                    driverName = "Maria",
+                    passengerId = "passenger-3",
+                    passengerName = "Sofia",
+                    stars = 0,
+                    comment = "Comment only"
+                )
+            )
+        )
+
+        val driverOne = summaries["driver-1"]
+        val driverTwo = summaries["driver-2"]
+
+        assertNotNull(driverOne)
+        assertNotNull(driverTwo)
+        requireNotNull(driverOne)
+        requireNotNull(driverTwo)
+
+        assertEquals(1, driverOne.reviewCount)
+        assertEquals(1, driverOne.ratedReviewCount)
+        assertEquals(5.0, driverOne.averageRating, 0.0001)
+        assertEquals(1, driverOne.starBreakdown[5])
+
+        assertEquals(2, driverTwo.reviewCount)
+        assertEquals(1, driverTwo.ratedReviewCount)
+        assertEquals(3.0, driverTwo.averageRating, 0.0001)
+        assertEquals(1, driverTwo.starBreakdown[3])
+        assertEquals(0, driverTwo.starBreakdown[5])
+    }
+
+    @Test
     fun `review id is derived from driver and passenger only`() {
         assertEquals(
             "driver-1_passenger-1",
