@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.wheels.app.core.analytics.bqt3.data.local.BQT3UsageDao
 import com.wheels.app.core.database.WheelsDatabase
+import com.wheels.app.features.favoriteDrivers.data.local.FavoriteDriverDao
 import com.wheels.app.features.rides.data.local.RideOfflineDao
 import dagger.Module
 import dagger.Provides
@@ -41,5 +42,10 @@ object DatabaseModule {
     @Provides
     fun provideUserDestinationInsightsDao(database: WheelsDatabase): com.wheels.app.core.analytics.data.local.UserDestinationInsightsDao {
         return database.userDestinationInsightsDao()
+    }
+
+    @Provides
+    fun provideFavoriteDriverDao(database: WheelsDatabase): FavoriteDriverDao {
+        return database.favoriteDriverDao()
     }
 }
