@@ -54,28 +54,45 @@ sealed interface DriverReviewsFeed {
 }
 
 fun calculateDriverReviewSummary(reviews: List<RideReview>): Map<String, DriverReviewSummary> {
-    return reviews
-        .groupBy { it.driverId }
-        .mapValues { entry ->
-            val driverReviews = entry.value
-            val ratedReviews = driverReviews.filter { it.hasRating }
-            val breakdown = (5 downTo 1).associateWith { star ->
-                ratedReviews.count { it.stars == star }
-            }
-            val averageRating = if (ratedReviews.isEmpty()) {
+    data class DriverReviewAccumulator(
+        var reviewCount: Int = 0,
+        var ratedReviewCount: Int = 0,
+        var ratingTotal: Int = 0,
+        val starCounts: IntArray = IntArray(6)
+    )
+
+    val accumulators = linkedMapOf<String, DriverReviewAccumulator>()
+
+    for (review in reviews) {
+        val accumulator = accumulators.getOrPut(review.driverId) { DriverReviewAccumulator() }
+        accumulator.reviewCount += 1
+
+        if (review.hasRating) {
+            accumulator.ratedReviewCount += 1
+            accumulator.ratingTotal += review.stars
+            accumulator.starCounts[review.stars] += 1
+        }
+    }
+
+    return accumulators.mapValues { (driverId, accumulator) ->
+        DriverReviewSummary(
+            driverId = driverId,
+            reviewCount = accumulator.reviewCount,
+            ratedReviewCount = accumulator.ratedReviewCount,
+            averageRating = if (accumulator.ratedReviewCount == 0) {
                 0.0
             } else {
-                ratedReviews.sumOf { it.stars }.toDouble() / ratedReviews.size.toDouble()
-            }
-
-            DriverReviewSummary(
-                driverId = entry.key,
-                reviewCount = driverReviews.size,
-                ratedReviewCount = ratedReviews.size,
-                averageRating = averageRating,
-                starBreakdown = breakdown
+                accumulator.ratingTotal.toDouble() / accumulator.ratedReviewCount.toDouble()
+            },
+            starBreakdown = linkedMapOf(
+                5 to accumulator.starCounts[5],
+                4 to accumulator.starCounts[4],
+                3 to accumulator.starCounts[3],
+                2 to accumulator.starCounts[2],
+                1 to accumulator.starCounts[1]
             )
-        }
+        )
+    }
 }
 
 fun upsertDriverReview(existingReviews: List<RideReview>, review: RideReview): List<RideReview> {
