@@ -8,6 +8,8 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.wheels.app.features.favoriteDrivers.analytics.domain.model.FavoriteDriverAnalyticsSummary
+import com.wheels.app.features.favoriteDrivers.analytics.domain.repository.FavoriteDriverAnalyticsRepository
 import com.wheels.app.features.favoriteDrivers.domain.model.FavoriteDriver
 import com.wheels.app.features.favoriteDrivers.domain.repository.FavoriteDriverRepository
 import com.wheels.app.features.favoriteDrivers.sync.FavoriteDriverSyncWorker
@@ -26,6 +28,7 @@ import kotlinx.coroutines.withContext
 @HiltViewModel
 class FavoriteDriversViewModel @Inject constructor(
     private val repository: FavoriteDriverRepository,
+    private val analyticsRepository: FavoriteDriverAnalyticsRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -54,6 +57,17 @@ class FavoriteDriversViewModel @Inject constructor(
                         }
                     }
                 }
+        }
+    }
+
+    fun loadMostFavoritedDrivers() {
+        viewModelScope.launch {
+            val ranking = withContext(Dispatchers.IO) {
+                analyticsRepository.getMostFavoritedDrivers()
+            }
+            withContext(Dispatchers.Main) {
+                _uiState.update { it.copy(mostFavoritedDrivers = ranking) }
+            }
         }
     }
 
@@ -149,5 +163,6 @@ data class FavoriteDriversUiState(
     val isLoading: Boolean = true,
     val drivers: List<FavoriteDriver> = emptyList(),
     val selectedDriver: FavoriteDriver? = null,
+    val mostFavoritedDrivers: List<FavoriteDriverAnalyticsSummary> = emptyList(),
     val errorMessage: String? = null
 )

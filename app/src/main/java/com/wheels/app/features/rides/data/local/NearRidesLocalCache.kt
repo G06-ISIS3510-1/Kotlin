@@ -32,7 +32,7 @@ class NearRidesLocalCache @Inject constructor(
             }
         }
 
-        return persisted
+        return persisted 
     }
 
     suspend fun getLatest(): CachedNearRides? {

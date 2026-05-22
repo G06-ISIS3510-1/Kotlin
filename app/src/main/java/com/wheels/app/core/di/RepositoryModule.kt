@@ -21,6 +21,8 @@ import com.wheels.app.core.session.domain.repository.UserSessionMetadataReposito
 import com.wheels.app.core.trust.data.repository.FirebaseDriverTrustRepository
 import com.wheels.app.core.trust.domain.repository.DriverTrustRepository
 import com.wheels.app.features.auth.data.repository.AuthRepositoryImpl
+import com.wheels.app.features.favoriteDrivers.analytics.data.repository.FavoriteDriverAnalyticsRepositoryImpl
+import com.wheels.app.features.favoriteDrivers.analytics.domain.repository.FavoriteDriverAnalyticsRepository
 import com.wheels.app.features.favoriteDrivers.data.repository.FavoriteDriverRepositoryImpl
 import com.wheels.app.features.favoriteDrivers.domain.repository.FavoriteDriverRepository
 import com.wheels.app.features.payments.data.repository.PaymentRepositoryImpl
@@ -109,6 +111,12 @@ abstract class RepositoryModule {
     abstract fun bindFavoriteDriverRepository(
         impl: FavoriteDriverRepositoryImpl
     ): FavoriteDriverRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFavoriteDriverAnalyticsRepository(
+        impl: FavoriteDriverAnalyticsRepositoryImpl
+    ): FavoriteDriverAnalyticsRepository
 
     @Binds
     @Singleton
