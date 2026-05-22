@@ -84,8 +84,6 @@ import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
 import com.wheels.app.features.home.presentation.viewmodel.LocationAwareCardUiModel
 import com.wheels.app.features.home.presentation.viewmodel.RideDisplayStatus
 import com.wheels.app.features.home.presentation.viewmodel.UpdateTone
-import java.text.DateFormat
-import java.util.Date
 
 @Composable
 fun HomeScreen(
@@ -144,7 +142,7 @@ fun HomeScreen(
                 FrequentDestinationsSection(
                     destinations = state.destinationInsights,
                     trackedBookings = state.trackedDestinationBookings,
-                    lastUpdatedMillis = state.destinationInsightsLastUpdatedMillis
+                    lastUpdatedLabel = state.destinationInsightsLastUpdatedLabel
                 )
             }
             state.currentRide?.let { currentRide ->
@@ -279,7 +277,7 @@ private fun LocationAwareSection(
 private fun FrequentDestinationsSection(
     destinations: List<FrequentDestinationUiModel>,
     trackedBookings: Int,
-    lastUpdatedMillis: Long?
+    lastUpdatedLabel: String?
 ) {
     Card(
         modifier = Modifier
@@ -301,10 +299,10 @@ private fun FrequentDestinationsSection(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
-            lastUpdatedMillis?.let {
+            lastUpdatedLabel?.let {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Last updated: ${DateFormat.getDateTimeInstance().format(Date(it))}",
+                    text = it,
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )

@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
@@ -146,10 +148,11 @@ class HomeViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         destinationInsights = emptyList(),
                         trackedDestinationBookings = 0,
-                        destinationInsightsLastUpdatedMillis = null
+                        destinationInsightsLastUpdatedLabel = null
                     )
                 }
                 .collect { insights ->
+                    val lastUpdatedLabel = insights?.lastUpdatedMillis?.let(::formatLastUpdatedLabel)
                     _uiState.value = _uiState.value.copy(
                         destinationInsights = insights?.topDestinations.orEmpty().map {
                             FrequentDestinationUiModel(
@@ -159,7 +162,7 @@ class HomeViewModel @Inject constructor(
                             )
                         },
                         trackedDestinationBookings = insights?.totalBookingsTracked ?: 0,
-                        destinationInsightsLastUpdatedMillis = insights?.lastUpdatedMillis
+                        destinationInsightsLastUpdatedLabel = lastUpdatedLabel
                     )
                 }
         }
@@ -225,6 +228,10 @@ class HomeViewModel @Inject constructor(
             )
         }
     }
+
+    private fun formatLastUpdatedLabel(timestampMillis: Long): String {
+        return "Last updated: ${DateFormat.getDateTimeInstance().format(Date(timestampMillis))}"
+    }
 }
 
 sealed interface HomeEvent {
@@ -248,7 +255,7 @@ data class HomeUiState(
     val showQuickPay: Boolean = false,
     val destinationInsights: List<FrequentDestinationUiModel> = emptyList(),
     val trackedDestinationBookings: Int = 0,
-    val destinationInsightsLastUpdatedMillis: Long? = null,
+    val destinationInsightsLastUpdatedLabel: String? = null,
     val updates: List<HomeUpdateUiModel> = listOf(
         HomeUpdateUiModel(
             title = "Driver arriving soon",
