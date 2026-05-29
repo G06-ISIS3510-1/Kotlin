@@ -41,7 +41,6 @@ class HomeViewModel @Inject constructor(
     private var currentUser: User? = null
     private var observedInsightsUserId: String? = null
     private var observedRideUserId: String? = null
-    private val dismissedCompletedRideIds = mutableSetOf<String>()
     private var latestPassengerRide: Ride? = null
     private var latestReviewSummaries: Map<String, DriverReviewSummary> = emptyMap()
 
@@ -55,8 +54,8 @@ class HomeViewModel @Inject constructor(
     fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.Refresh -> Unit
-            HomeEvent.ClearCurrentRide -> clearCurrentRideForDemo()
-            HomeEvent.QuickPayCompleted -> completeQuickPayForDemo()
+            HomeEvent.ClearCurrentRide -> clearCurrentRide()
+            HomeEvent.QuickPayCompleted -> completeQuickPay()
         }
     }
 
@@ -178,31 +177,42 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun clearCurrentRideForDemo() {
-        _uiState.value.currentRide?.rideId?.let { dismissedCompletedRideIds += it }
+    private fun clearCurrentRide() {
         _uiState.value = _uiState.value.copy(
             currentRide = null,
             showQuickPay = false
         )
     }
 
-    private fun completeQuickPayForDemo() {
-        _uiState.value.currentRide?.rideId?.let { dismissedCompletedRideIds += it }
+    private fun completeQuickPay() {
+        val ride = _uiState.value.currentRide
+        val user = currentUser
         _uiState.value = _uiState.value.copy(
             currentRide = null,
             showQuickPay = false
         )
+
+        if (ride == null || user == null) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching {
+                rideRepository.dismissPassengerRide(
+                    rideId = ride.rideId,
+                    passengerId = user.id
+                )
+            }
+        }
     }
 
     private fun renderPassengerRide() {
         val ride = latestPassengerRide
         val mappedRide = ride?.toHomeRideUiModel(latestReviewSummaries[ride.driverId])
-        val shouldHideForDemo = mappedRide?.rideId != null &&
-            mappedRide.rideId in dismissedCompletedRideIds
 
         _uiState.value = _uiState.value.copy(
-            currentRide = if (shouldHideForDemo) null else mappedRide,
-            showQuickPay = mappedRide?.status == RideDisplayStatus.COMPLETED && !shouldHideForDemo
+            currentRide = mappedRide,
+            showQuickPay = mappedRide?.status == RideDisplayStatus.COMPLETED
         )
     }
 
