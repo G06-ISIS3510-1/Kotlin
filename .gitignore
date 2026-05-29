@@ -4,6 +4,8 @@
 # Gradle
 .gradle/
 .gradle-user-home/
+.gradle-user-temp/
+.gradle-user-temp2/
 build/
 */build/
 

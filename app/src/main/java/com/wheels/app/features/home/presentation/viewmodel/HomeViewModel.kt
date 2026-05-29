@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.wheels.app.core.analytics.domain.repository.UserDestinationInsightsRepository
 import com.wheels.app.core.location.domain.model.CurrentLocationLabel
 import com.wheels.app.core.location.domain.provider.CurrentLocationProvider
+import com.wheels.app.core.network.NetworkMonitor
 import com.wheels.app.core.session.RoleManager
 import com.wheels.app.core.session.UserRole
+import com.wheels.app.features.reviews.data.local.PendingRideReviewEntity
+import com.wheels.app.features.reviews.data.local.PendingRideReviewLocalStore
 import com.wheels.app.features.profile.domain.model.User
 import com.wheels.app.features.profile.domain.usecase.GetUserProfileUseCase
 import com.wheels.app.features.reviews.domain.model.DriverReviewSummary
@@ -20,18 +23,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
 
+/**
+ * Owns the Home screen state and also listens for review queue updates.
+ *
+ * When queued reviews disappear from local storage, Home shows a short success banner so the user
+ * gets a visible confirmation that the review eventually reached the server.
+ */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val userDestinationInsightsRepository: UserDestinationInsightsRepository,
     private val rideRepository: RideRepository,
     private val reviewRepository: RideReviewRepository,
+    private val pendingRideReviewStore: PendingRideReviewLocalStore,
     private val currentLocationProvider: CurrentLocationProvider,
+    private val networkMonitor: NetworkMonitor,
     roleManager: RoleManager
 ) : ViewModel() {
 
@@ -41,14 +54,19 @@ class HomeViewModel @Inject constructor(
     private var currentUser: User? = null
     private var observedInsightsUserId: String? = null
     private var observedRideUserId: String? = null
+    private var observedPendingReviewUserId: String? = null
     private var latestPassengerRide: Ride? = null
     private var latestReviewSummaries: Map<String, DriverReviewSummary> = emptyMap()
+    // Keep a lightweight observer on the pending review queue so Home can announce when sync completes.
+    private var latestPendingReviews: List<PendingRideReviewEntity> = emptyList()
+    private var pendingReviewObserverJob: Job? = null
 
     init {
         loadCurrentLocation()
         observeCurrentUser()
         observeActiveRole()
         observeReviewSummaries()
+        observeConnectivity()
     }
 
     fun onEvent(event: HomeEvent) {
@@ -56,6 +74,10 @@ class HomeViewModel @Inject constructor(
             HomeEvent.Refresh -> Unit
             HomeEvent.ClearCurrentRide -> clearCurrentRide()
             HomeEvent.QuickPayCompleted -> completeQuickPay()
+            is HomeEvent.ReviewNoticeReceived -> setReviewNotice(event.notice)
+            HomeEvent.ClearReviewNotice -> _uiState.value = _uiState.value.copy(
+                reviewNotice = null
+            )
         }
     }
 
@@ -77,11 +99,16 @@ class HomeViewModel @Inject constructor(
                         observedInsightsUserId = null
                         _uiState.value = _uiState.value.copy(
                             destinationInsights = emptyList(),
-                            trackedDestinationBookings = 0
+                            trackedDestinationBookings = 0,
+                            reviewNotice = null
                         )
+                        syncPendingReviewObserver()
                     } else if (observedInsightsUserId != user.id) {
                         observedInsightsUserId = user.id
                         observeDestinationInsights(user.id)
+                        syncPendingReviewObserver()
+                    } else {
+                        syncPendingReviewObserver()
                     }
                     syncPassengerRideObserver()
                 }
@@ -206,6 +233,73 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun observeConnectivity() {
+        viewModelScope.launch {
+            networkMonitor.observeIsOnline()
+                .distinctUntilChanged()
+                .collect { isOnline ->
+                    if (isOnline && _uiState.value.reviewNotice?.dismissOnReconnect == true) {
+                        _uiState.value = _uiState.value.copy(reviewNotice = null)
+                    }
+                }
+        }
+    }
+
+    private fun syncPendingReviewObserver() {
+        val userId = currentUser?.id
+        if (userId.isNullOrBlank()) {
+            observedPendingReviewUserId = null
+            latestPendingReviews = emptyList()
+            pendingReviewObserverJob?.cancel()
+            pendingReviewObserverJob = null
+            _uiState.value = _uiState.value.copy(reviewNotice = null)
+            return
+        }
+
+        if (observedPendingReviewUserId == userId && pendingReviewObserverJob?.isActive == true) return
+
+        observedPendingReviewUserId = userId
+        latestPendingReviews = emptyList()
+        pendingReviewObserverJob?.cancel()
+        _uiState.value = _uiState.value.copy(reviewNotice = null)
+        pendingReviewObserverJob = viewModelScope.launch {
+            // The queue flow is the source of truth for whether a review is still waiting locally.
+            // We keep this collection scoped to the current user so one rider never sees another's queue state.
+            reviewQueueMessages(userId)
+        }
+    }
+
+    private suspend fun reviewQueueMessages(userId: String) {
+        pendingRideReviewStore.observePendingRideReviews()
+            .catch {
+                // Queue notices should not block the rest of the home screen.
+            }
+            .collect { pendingReviews ->
+                // Filter by the current user so one passenger's offline queue does not affect another's UI.
+                val currentPendingReviews = pendingReviews.filter { it.passengerId == userId }
+                val previousPendingReviews = latestPendingReviews
+                latestPendingReviews = currentPendingReviews
+
+                if (previousPendingReviews.isNotEmpty() && currentPendingReviews.isEmpty()) {
+                    // Once the queue drains, show a short success banner and then clear it on the UI.
+                    _uiState.value = _uiState.value.copy(
+                        reviewNotice = HomeNoticeUiModel(
+                            message = buildReviewSyncedMessage(previousPendingReviews),
+                            isSuccess = true
+                        )
+                    )
+                }
+            }
+    }
+
+    private fun buildReviewSyncedMessage(previousPendingReviews: List<PendingRideReviewEntity>): String {
+        // Keep this copy short because the banner is temporary.
+        return when {
+            previousPendingReviews.size > 1 -> "Your reviews were successfully sent."
+            else -> "Your review was successfully sent."
+        }
+    }
+
     private fun renderPassengerRide() {
         val ride = latestPassengerRide
         val mappedRide = ride?.toHomeRideUiModel(latestReviewSummaries[ride.driverId])
@@ -239,6 +333,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun setReviewNotice(notice: HomeNoticeUiModel) {
+        // Offline handoff messages should not linger once the device is already back online.
+        if (notice.dismissOnReconnect && networkMonitor.isOnline()) {
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(reviewNotice = notice)
+    }
+
     private fun formatLastUpdatedLabel(timestampMillis: Long): String {
         return "Last updated: ${DateFormat.getDateTimeInstance().format(Date(timestampMillis))}"
     }
@@ -248,6 +351,8 @@ sealed interface HomeEvent {
     data object Refresh : HomeEvent
     data object ClearCurrentRide : HomeEvent
     data object QuickPayCompleted : HomeEvent
+    data class ReviewNoticeReceived(val notice: HomeNoticeUiModel) : HomeEvent
+    data object ClearReviewNotice : HomeEvent
 }
 
 data class HomeUiState(
@@ -266,6 +371,7 @@ data class HomeUiState(
     val destinationInsights: List<FrequentDestinationUiModel> = emptyList(),
     val trackedDestinationBookings: Int = 0,
     val destinationInsightsLastUpdatedLabel: String? = null,
+    val reviewNotice: HomeNoticeUiModel? = null,
     val updates: List<HomeUpdateUiModel> = listOf(
         HomeUpdateUiModel(
             title = "Driver arriving soon",
@@ -341,6 +447,12 @@ data class HomeUpdateUiModel(
     val description: String,
     val timestamp: String,
     val tone: UpdateTone
+)
+
+data class HomeNoticeUiModel(
+    val message: String,
+    val isSuccess: Boolean,
+    val dismissOnReconnect: Boolean = false
 )
 
 enum class UpdateTone {

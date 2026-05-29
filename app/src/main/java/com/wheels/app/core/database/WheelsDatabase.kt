@@ -26,7 +26,7 @@ import com.wheels.app.features.rides.data.local.RideOfflineDao
         UserDestinationInsightsEntity::class,
         FavoriteDriverEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class WheelsDatabase : RoomDatabase() {
