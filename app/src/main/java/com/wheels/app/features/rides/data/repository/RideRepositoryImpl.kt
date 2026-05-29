@@ -41,11 +41,13 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -234,29 +236,34 @@ class RideRepositoryImpl @Inject constructor(
         awaitClose { registration.remove() }
     }
 
-    override fun watchCurrentPassengerRide(passengerId: String): Flow<Ride?> = callbackFlow {
-        val registration = firestore
-            .collection(RIDES_COLLECTION)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
+    override fun watchCurrentPassengerRide(passengerId: String): Flow<Ride?> {
+        return combine(
+            observePassengerRideCandidates(passengerId),
+            observeDismissedRideIds(passengerId)
+        ) { rides, dismissedRideIds ->
+            rides.firstOrNull { ride -> ride.id !in dismissedRideIds }
+        }.flowOn(ioDispatcher)
+    }
 
-                launch {
-                    val currentRide = snapshot?.documents
-                        .orEmpty()
-                        .mapNotNull { document -> document.toAvailableRide() }
-                        .firstOrNull { ride ->
-                            ride.passengerIds.contains(passengerId) &&
-                                isPassengerHomeRideVisible(ride.status)
-                        }
+    override suspend fun dismissPassengerRide(rideId: String, passengerId: String) {
+        if (rideId.isBlank() || passengerId.isBlank()) {
+            return
+        }
 
-                    trySend(currentRide)
-                }
-            }
-
-        awaitClose { registration.remove() }
+        withContext(ioDispatcher) {
+            firestore.collection(USERS_COLLECTION)
+                .document(passengerId)
+                .collection(DISMISSED_COMPLETED_RIDES_SUBCOLLECTION)
+                .document(rideId)
+                .set(
+                    mapOf(
+                        "rideId" to rideId,
+                        "passengerId" to passengerId,
+                        "dismissedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+                .awaitResult()
+        }
     }
 
     override fun watchRideApplications(rideId: String): Flow<List<RideApplication>> = callbackFlow {
@@ -363,6 +370,81 @@ class RideRepositoryImpl @Inject constructor(
             }
 
         awaitClose { registration.remove() }
+    }
+
+    private fun observePassengerRideCandidates(passengerId: String): Flow<List<Ride>> {
+        if (passengerId.isBlank()) {
+            return flowOf(emptyList())
+        }
+
+        return callbackFlow {
+            val registration = firestore
+                .collection(RIDES_COLLECTION)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        close(error)
+                        return@addSnapshotListener
+                    }
+
+                    launch {
+                        val rides = snapshot?.documents
+                            .orEmpty()
+                            .mapNotNull { document ->
+                                val rideData = document.data ?: emptyMap<String, Any?>()
+                                val ride = mapRideDocument(document.id, rideData) ?: return@mapNotNull null
+                                if (!ride.passengerIds.contains(passengerId) ||
+                                    !isPassengerHomeRideVisible(ride.status)
+                                ) {
+                                    return@mapNotNull null
+                                }
+
+                                PassengerRideCandidate(
+                                    ride = ride,
+                                    priority = passengerRidePriority(ride.status),
+                                    updatedAt = readInstant(rideData, "updatedAt") ?: ride.departureTime
+                                )
+                            }
+                            .sortedWith(
+                                compareByDescending<PassengerRideCandidate> { it.priority }
+                                    .thenByDescending { it.updatedAt }
+                                    .thenByDescending { it.ride.departureTime }
+                            )
+                            .map { it.ride }
+
+                        trySend(rides)
+                    }
+                }
+
+            awaitClose { registration.remove() }
+        }.flowOn(ioDispatcher)
+    }
+
+    private fun observeDismissedRideIds(passengerId: String): Flow<Set<String>> {
+        if (passengerId.isBlank()) {
+            return flowOf(emptySet())
+        }
+
+        return callbackFlow {
+            val registration = firestore
+                .collection(USERS_COLLECTION)
+                .document(passengerId)
+                .collection(DISMISSED_COMPLETED_RIDES_SUBCOLLECTION)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        close(error)
+                        return@addSnapshotListener
+                    }
+
+                    val dismissedRideIds = snapshot?.documents
+                        .orEmpty()
+                        .map { it.id }
+                        .toSet()
+
+                    trySend(dismissedRideIds)
+                }
+
+            awaitClose { registration.remove() }
+        }.flowOn(ioDispatcher)
     }
 
     override fun observeCreateRideDraft(driverId: String): Flow<CreateRideDraft?> {
@@ -805,16 +887,33 @@ class RideRepositoryImpl @Inject constructor(
         return snapshot.getLong("reliabilityScore")?.toInt()
     }
 
+    private fun passengerRidePriority(status: String): Int {
+        return when (normalizeRideReadStatus(status)) {
+            RIDE_STATUS_COMPLETED -> 3
+            RIDE_STATUS_IN_PROGRESS -> 2
+            RIDE_STATUS_OPEN -> 1
+            else -> 0
+        }
+    }
+
     private companion object {
         const val RIDES_COLLECTION = "rides"
+        const val USERS_COLLECTION = "users"
         const val TRUST_SCORES_COLLECTION = "trustScores"
         const val PAYMENTS_COLLECTION = "payments"
         const val APPLICATIONS_SUBCOLLECTION = "applications"
         const val PASSENGERS_SUBCOLLECTION = "passengers"
+        const val DISMISSED_COMPLETED_RIDES_SUBCOLLECTION = "dismissed_completed_rides"
         const val DEFAULT_RIDE_DURATION_MINUTES = 30
         const val DEFAULT_RELIABILITY_SCORE = 100
     }
 }
+
+private data class PassengerRideCandidate(
+    val ride: Ride,
+    val priority: Int,
+    val updatedAt: Instant
+)
 
 private fun PendingRideAction.toTrustActionParams(): DriverRideTrustActionParams {
     return DriverRideTrustActionParams(

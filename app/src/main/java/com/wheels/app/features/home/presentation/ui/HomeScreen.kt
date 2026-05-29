@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.MyLocation
@@ -76,6 +77,7 @@ import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.home.presentation.viewmodel.ActiveRideUiModel
 import com.wheels.app.features.home.presentation.viewmodel.FrequentDestinationUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeQuickStat
+import com.wheels.app.features.home.presentation.viewmodel.HomeNoticeUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeUpdateUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeRideUiModel
 import com.wheels.app.features.home.presentation.viewmodel.HomeEvent
@@ -84,7 +86,14 @@ import com.wheels.app.features.home.presentation.viewmodel.HomeViewModel
 import com.wheels.app.features.home.presentation.viewmodel.LocationAwareCardUiModel
 import com.wheels.app.features.home.presentation.viewmodel.RideDisplayStatus
 import com.wheels.app.features.home.presentation.viewmodel.UpdateTone
+import kotlinx.coroutines.delay
 
+/**
+ * Home screen entry point.
+ *
+ * Besides rendering the main dashboard, this composable also receives one-off results from the
+ * review flow and turns them into short banners for the user.
+ */
 @Composable
 fun HomeScreen(
     innerPadding: PaddingValues,
@@ -96,13 +105,50 @@ fun HomeScreen(
     val backStackEntry by navController.currentBackStackEntryAsState()
 
     LaunchedEffect(backStackEntry) {
-        val completed = backStackEntry
-            ?.savedStateHandle
-            ?.get<Boolean>(QUICK_PAY_COMPLETED_KEY) == true
-        if (!completed) return@LaunchedEffect
+        // Read one-off navigation results from the back stack, then clear them immediately.
+        val savedStateHandle = backStackEntry?.savedStateHandle ?: return@LaunchedEffect
+        val fallbackSavedStateHandle = navController.previousBackStackEntry?.savedStateHandle
 
-        viewModel.onEvent(HomeEvent.QuickPayCompleted)
-        backStackEntry?.savedStateHandle?.remove<Boolean>(QUICK_PAY_COMPLETED_KEY)
+        val quickPayHandle = when {
+            savedStateHandle.get<Boolean>(QUICK_PAY_COMPLETED_KEY) == true -> savedStateHandle
+            fallbackSavedStateHandle?.get<Boolean>(QUICK_PAY_COMPLETED_KEY) == true -> fallbackSavedStateHandle
+            else -> null
+        }
+        if (quickPayHandle != null) {
+            viewModel.onEvent(HomeEvent.QuickPayCompleted)
+            quickPayHandle.remove<Boolean>(QUICK_PAY_COMPLETED_KEY)
+        }
+
+        val reviewNoticeHandle = when {
+            !savedStateHandle.get<String>(Destinations.REVIEW_FEEDBACK_QUEUE_NOTICE_KEY).isNullOrBlank() ->
+                savedStateHandle
+            !fallbackSavedStateHandle?.get<String>(Destinations.REVIEW_FEEDBACK_QUEUE_NOTICE_KEY).isNullOrBlank() ->
+                fallbackSavedStateHandle
+            else -> null
+        }
+        val reviewQueuedNotice = reviewNoticeHandle?.get<String>(Destinations.REVIEW_FEEDBACK_QUEUE_NOTICE_KEY)
+        if (!reviewQueuedNotice.isNullOrBlank()) {
+            viewModel.onEvent(
+                HomeEvent.ReviewNoticeReceived(
+                    HomeNoticeUiModel(
+                        message = reviewQueuedNotice,
+                        isSuccess = false,
+                        dismissOnReconnect = true
+                    )
+                )
+            )
+            // Clear the handoff so the message is not shown again on a later recomposition.
+            reviewNoticeHandle?.remove<String>(Destinations.REVIEW_FEEDBACK_QUEUE_NOTICE_KEY)
+        }
+    }
+
+    LaunchedEffect(state.reviewNotice) {
+        // Only the synced confirmation should auto-dismiss. Offline handoff notices stay visible
+        // until connectivity comes back, so the user can keep seeing that the review is queued.
+        val notice = state.reviewNotice ?: return@LaunchedEffect
+        if (!notice.isSuccess) return@LaunchedEffect
+        delay(3000)
+        viewModel.onEvent(HomeEvent.ClearReviewNotice)
     }
 
     Box(
@@ -117,6 +163,14 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 104.dp)
         ) {
             item { HeaderSection(state) }
+            state.reviewNotice?.let { notice ->
+                item {
+                    ReviewNoticeBanner(
+                        notice = notice,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
+            }
             if (activeRole == UserRole.PASSENGER) {
                 item {
                     LocationAwareSection(
@@ -186,6 +240,49 @@ fun HomeScreen(
                 modifier = Modifier
                     .padding(end = 20.dp, bottom = 140.dp)
                     .shadow(20.dp, RoundedCornerShape(999.dp), spotColor = ElectricGreen.copy(alpha = 0.6f))
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewNoticeBanner(
+    notice: HomeNoticeUiModel,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (notice.isSuccess) {
+        ElectricGreen.copy(alpha = 0.10f)
+    } else {
+        SecondaryBlue.copy(alpha = 0.10f)
+    }
+    val borderColor = if (notice.isSuccess) {
+        ElectricGreen.copy(alpha = 0.20f)
+    } else {
+        SecondaryBlue.copy(alpha = 0.20f)
+    }
+    val contentColor = if (notice.isSuccess) ElectricGreen else SecondaryBlue
+    val icon = if (notice.isSuccess) Icons.Outlined.Check else Icons.Outlined.Schedule
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor
+            )
+            Text(
+                text = notice.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue
             )
         }
     }

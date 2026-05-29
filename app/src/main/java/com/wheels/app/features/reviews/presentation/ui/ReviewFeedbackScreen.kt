@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
@@ -58,6 +59,12 @@ import com.wheels.app.features.reviews.presentation.viewmodel.ReviewFeedbackView
 
 private const val QUICK_PAY_COMPLETED_KEY = "quick_pay_completed"
 
+/**
+ * Review screen UI.
+ *
+ * It stays simple: collect state from the ViewModel, show the current connection/sync message,
+ * and navigate Home once the ViewModel says the flow is complete.
+ */
 @Composable
 fun ReviewFeedbackScreen(
     innerPadding: PaddingValues,
@@ -69,10 +76,26 @@ fun ReviewFeedbackScreen(
     LaunchedEffect(state.isComplete) {
         if (!state.isComplete) return@LaunchedEffect
 
-        navController.getBackStackEntry(Destinations.Home.route)
-            .savedStateHandle
-            .set(QUICK_PAY_COMPLETED_KEY, true)
-        navController.popBackStack(Destinations.Home.route, false)
+        // Save a one-off message in the Home back stack entry, then leave this screen.
+        // SavedStateHandle is a lightweight handoff for transient navigation results.
+        val notice = state.queuedNotice?.takeIf { it.isNotBlank() }
+        val savedStateHandle = runCatching {
+            navController.getBackStackEntry(Destinations.Home.route).savedStateHandle
+        }.getOrNull() ?: navController.currentBackStackEntry?.savedStateHandle
+
+        savedStateHandle?.set(QUICK_PAY_COMPLETED_KEY, true)
+        notice?.let {
+            savedStateHandle?.set(
+                Destinations.REVIEW_FEEDBACK_QUEUE_NOTICE_KEY,
+                it
+            )
+        }
+        // Navigate explicitly so the user never gets stuck on the review screen after submit.
+        // This is more reliable than a plain pop when the back stack has shifted in the meantime.
+        navController.navigate(Destinations.Home.route) {
+            popUpTo(Destinations.Home.route) { inclusive = false }
+            launchSingleTop = true
+        }
     }
 
     Box(
@@ -92,6 +115,16 @@ fun ReviewFeedbackScreen(
                 onBack = { viewModel.onEvent(ReviewFeedbackEvent.Skip) }
             )
 
+            // Prefer the most specific message first:
+            // synced confirmation, then offline queued confirmation, then the generic connection banner.
+            val bannerMessage = state.syncNotice ?: state.queuedNotice ?: state.connectionNotice
+            if (bannerMessage != null) {
+                StatusBanner(
+                    message = bannerMessage,
+                    isSuccess = state.syncNotice != null
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             DriverCard(driverName = state.driverName)
@@ -108,6 +141,51 @@ fun ReviewFeedbackScreen(
                 onCommentChanged = { viewModel.onEvent(ReviewFeedbackEvent.CommentChanged(it)) },
                 onSubmit = { viewModel.onEvent(ReviewFeedbackEvent.Submit) },
                 onSkip = { viewModel.onEvent(ReviewFeedbackEvent.Skip) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusBanner(
+    message: String,
+    isSuccess: Boolean
+) {
+    val containerColor = if (isSuccess) {
+        ElectricGreen.copy(alpha = 0.10f)
+    } else {
+        SecondaryBlue.copy(alpha = 0.10f)
+    }
+    val borderColor = if (isSuccess) {
+        ElectricGreen.copy(alpha = 0.20f)
+    } else {
+        SecondaryBlue.copy(alpha = 0.20f)
+    }
+    val contentColor = if (isSuccess) ElectricGreen else SecondaryBlue
+    val icon = if (isSuccess) Icons.Outlined.Check else Icons.Outlined.Schedule
+
+    Surface(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .fillMaxWidth(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+        color = containerColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue
             )
         }
     }
