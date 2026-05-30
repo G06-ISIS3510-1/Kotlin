@@ -50,5 +50,6 @@ sealed class Destinations(val route: String) {
         const val QUICK_PAY_FROM_KEY = "quick_pay_from"
         const val QUICK_PAY_TO_KEY = "quick_pay_to"
         const val QUICK_PAY_DATE_KEY = "quick_pay_date"
+        const val REVIEW_FEEDBACK_QUEUE_NOTICE_KEY = "review_feedback_queue_notice"
     }
 }

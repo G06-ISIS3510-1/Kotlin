@@ -53,6 +53,7 @@ interface RideRepository {
         status: String,
         statusDetail: String? = null
     )
+    suspend fun dismissPassengerRide(rideId: String, passengerId: String)
     suspend fun finishRide(rideId: String)
     suspend fun deleteDriverRide(rideId: String)
     suspend fun bookRide(rideId: String, seats: Int): Booking
