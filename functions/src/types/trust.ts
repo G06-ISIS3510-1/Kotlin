@@ -39,6 +39,8 @@ export interface RideDocument {
   destination?: string;
   usedCurrentLocationOrigin?: boolean;
   usedCurrentLocationDestination?: boolean;
+  publishedFromDraft?: boolean;
+  sourceDraftId?: string;
   scheduledStartAt?: Timestamp;
   completedAt?: Timestamp;
   canceledAt?: Timestamp;
@@ -51,6 +53,14 @@ export interface CreateRideLocationUsageAnalyticsDocument {
   driverId: string;
   usedCurrentLocationOrigin: boolean;
   usedCurrentLocationDestination: boolean;
+  publishedAt: FieldValue;
+}
+
+export interface PublishFromDraftAnalyticsDocument {
+  rideId: string;
+  driverId: string;
+  publishedFromDraft: boolean;
+  sourceDraftId?: string | null;
   publishedAt: FieldValue;
 }
 

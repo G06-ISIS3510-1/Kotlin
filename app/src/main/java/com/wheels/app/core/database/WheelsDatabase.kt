@@ -29,7 +29,7 @@ import com.wheels.app.features.rides.data.local.RideOfflineDao
         FavoriteDriverEntity::class,
         MessageConversationEntity::class
     ],
-    version = 11,
+    version = 13,
     exportSchema = false
 )
 abstract class WheelsDatabase : RoomDatabase() {

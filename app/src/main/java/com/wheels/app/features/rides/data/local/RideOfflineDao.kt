@@ -22,11 +22,20 @@ interface RideOfflineDao {
     @Query("DELETE FROM near_rides_cache WHERE cacheKey = :cacheKey")
     suspend fun deleteNearRidesCache(cacheKey: String)
 
-    @Query("SELECT * FROM create_ride_drafts WHERE driverId = :driverId LIMIT 1")
+    @Query("SELECT * FROM create_ride_drafts WHERE driverId = :driverId ORDER BY updatedAtMillis DESC LIMIT 1")
     fun observeCreateRideDraft(driverId: String): Flow<CreateRideDraftEntity?>
+
+    @Query("SELECT * FROM create_ride_drafts WHERE driverId = :driverId ORDER BY updatedAtMillis DESC")
+    fun observeCreateRideDrafts(driverId: String): Flow<List<CreateRideDraftEntity>>
+
+    @Query("SELECT * FROM create_ride_drafts WHERE draftId = :draftId LIMIT 1")
+    suspend fun getCreateRideDraft(draftId: String): CreateRideDraftEntity?
 
     @Upsert
     suspend fun upsertCreateRideDraft(draft: CreateRideDraftEntity)
+
+    @Query("DELETE FROM create_ride_drafts WHERE draftId = :draftId")
+    suspend fun deleteCreateRideDraft(draftId: String)
 
     @Query("DELETE FROM create_ride_drafts WHERE driverId = :driverId")
     suspend fun clearCreateRideDraft(driverId: String)
@@ -39,6 +48,9 @@ interface RideOfflineDao {
 
     @Query("SELECT * FROM pending_ride_publishes WHERE driverId = :driverId ORDER BY createdAtMillis ASC")
     suspend fun getPendingRidePublishes(driverId: String): List<PendingRidePublishEntity>
+
+    @Query("SELECT * FROM pending_ride_publishes WHERE id = :id LIMIT 1")
+    suspend fun getPendingRidePublish(id: String): PendingRidePublishEntity?
 
     @Query("DELETE FROM pending_ride_publishes WHERE id = :id")
     suspend fun deletePendingRidePublish(id: String)

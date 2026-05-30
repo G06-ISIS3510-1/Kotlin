@@ -26,5 +26,7 @@ data class PublishRideRequest(
     val paymentOption: String = "card",
     val usedCurrentLocationOrigin: Boolean = false,
     val usedCurrentLocationDestination: Boolean = false,
+    val publishedFromDraft: Boolean = false,
+    val sourceDraftId: String? = null,
     val passengerIds: List<String> = emptyList()
 )

@@ -266,6 +266,8 @@ internal fun buildRideCreationData(request: PublishRideRequest): Map<String, Any
         "carModel" to request.carModel,
         "licensePlate" to request.licensePlate,
         "notes" to request.notes,
+        "publishedFromDraft" to request.publishedFromDraft,
+        "sourceDraftId" to request.sourceDraftId,
         "status" to RIDE_STATUS_OPEN,
         "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
         "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
