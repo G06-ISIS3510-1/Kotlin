@@ -401,7 +401,9 @@ fun ActiveRideManagementScreen(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { navController.navigate(Destinations.GroupChat.route) },
+                            .clickable {
+                                navController.navigate(Destinations.MessageChat.createRoute(rideId))
+                            },
                         shape = RoundedCornerShape(16.dp),
                         color = WheelsSurface,
                         border = androidx.compose.foundation.BorderStroke(2.dp, SecondaryBlue)

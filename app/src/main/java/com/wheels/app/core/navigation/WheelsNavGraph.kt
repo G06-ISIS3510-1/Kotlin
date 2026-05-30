@@ -24,6 +24,10 @@ import com.wheels.app.features.auth.presentation.ui.SignInScreen
 import com.wheels.app.features.auth.presentation.viewmodel.CreateAccountViewModel
 import com.wheels.app.features.auth.presentation.viewmodel.ForgotPasswordViewModel
 import com.wheels.app.features.auth.presentation.viewmodel.SignInViewModel
+import com.wheels.app.features.messages.presentation.ui.MessageChatScreen
+import com.wheels.app.features.messages.presentation.ui.MessagesInboxScreen
+import com.wheels.app.features.messages.presentation.viewmodel.MessageChatViewModel
+import com.wheels.app.features.messages.presentation.viewmodel.MessagesInboxViewModel
 import com.wheels.app.features.chat.presentation.ui.GroupChatScreen
 import com.wheels.app.features.chat.presentation.viewmodel.GroupChatViewModel
 import com.wheels.app.features.home.presentation.ui.HomeScreen
@@ -68,6 +72,8 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
         Destinations.CreateAccount.route,
         Destinations.ForgotPassword.route,
         Destinations.QuickPayment.route,
+        Destinations.MessagesInbox.route,
+        Destinations.MessageChat.route,
         Destinations.GroupChat.route,
         Destinations.RideRequest.route,
         Destinations.ReviewFeedback.route,
@@ -177,6 +183,28 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
             composable(Destinations.QuickPayment.route) {
                 val viewModel: PaymentsViewModel = hiltViewModel()
                 QuickPaymentScreen(innerPadding = innerPadding, navController = navController, viewModel = viewModel)
+            }
+            composable(Destinations.MessagesInbox.route) {
+                val viewModel: MessagesInboxViewModel = hiltViewModel()
+                MessagesInboxScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
+            composable(
+                route = Destinations.MessageChat.route,
+                arguments = listOf(
+                    navArgument(Destinations.MESSAGE_CHAT_RIDE_ID_KEY) {
+                        type = NavType.StringType
+                    }
+                )
+            ) {
+                val viewModel: MessageChatViewModel = hiltViewModel()
+                MessageChatScreen(
+                    navController = navController,
+                    viewModel = viewModel
+                )
             }
             composable(Destinations.GroupChat.route) {
                 val viewModel: GroupChatViewModel = hiltViewModel()

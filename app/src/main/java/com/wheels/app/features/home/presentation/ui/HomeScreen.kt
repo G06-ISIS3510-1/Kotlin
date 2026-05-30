@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
@@ -162,7 +161,14 @@ fun HomeScreen(
                 .padding(innerPadding),
             contentPadding = PaddingValues(bottom = 104.dp)
         ) {
-            item { HeaderSection(state) }
+            item {
+                HeaderSection(
+                    state = state,
+                    onMessagesClick = {
+                        navController.navigate(Destinations.MessagesInbox.route)
+                    }
+                )
+            }
             state.reviewNotice?.let { notice ->
                 item {
                     ReviewNoticeBanner(
@@ -204,7 +210,9 @@ fun HomeScreen(
                 item {
                     CurrentRideSection(
                         activeRide = currentRide,
-                        onOpenChat = { navController.navigate(Destinations.GroupChat.route) },
+                        onOpenChat = {
+                            navController.navigate(Destinations.MessageChat.createRoute(currentRide.rideId))
+                        },
                         onOpenReviews = {
                             navController.navigate(
                                 Destinations.ReviewsRatings.createRoute(
@@ -469,7 +477,10 @@ private fun FrequentDestinationRow(destination: FrequentDestinationUiModel) {
 }
 
 @Composable
-private fun HeaderSection(state: HomeUiState) {
+private fun HeaderSection(
+    state: HomeUiState,
+    onMessagesClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -510,10 +521,10 @@ private fun HeaderSection(state: HomeUiState) {
 
             Box(contentAlignment = Alignment.TopEnd) {
                 Surface(shape = CircleShape, color = GradientHeaderIconContainer) {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = onMessagesClick) {
                         Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications",
+                            imageVector = Icons.Outlined.ChatBubbleOutline,
+                            contentDescription = "Messages",
                             tint = GradientHeaderPrimaryContent
                         )
                     }

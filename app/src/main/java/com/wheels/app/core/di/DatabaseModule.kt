@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.wheels.app.core.analytics.bqt3.data.local.BQT3UsageDao
 import com.wheels.app.core.database.WheelsDatabase
 import com.wheels.app.features.favoriteDrivers.data.local.FavoriteDriverDao
+import com.wheels.app.features.messages.data.local.MessageDao
 import com.wheels.app.features.rides.data.local.RideOfflineDao
 import dagger.Module
 import dagger.Provides
@@ -47,5 +48,10 @@ object DatabaseModule {
     @Provides
     fun provideFavoriteDriverDao(database: WheelsDatabase): FavoriteDriverDao {
         return database.favoriteDriverDao()
+    }
+
+    @Provides
+    fun provideMessageDao(database: WheelsDatabase): MessageDao {
+        return database.messageDao()
     }
 }
