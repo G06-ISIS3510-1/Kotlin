@@ -68,7 +68,18 @@ fun MessagesInboxScreen(
             onBack = { navController.popBackStack() }
         )
 
-        if (state.conversations.isEmpty()) {
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Loading messages...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            }
+        } else if (state.conversations.isEmpty()) {
             EmptyInboxState(modifier = Modifier.weight(1f))
         } else {
             LazyColumn(

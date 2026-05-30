@@ -156,7 +156,9 @@ fun HomeScreen(
                 item {
                     CurrentRideSection(
                         activeRide = currentRide,
-                        onOpenChat = { navController.navigate(Destinations.GroupChat.route) },
+                        onOpenChat = {
+                            navController.navigate(Destinations.MessageChat.createRoute(currentRide.rideId))
+                        },
                         onOpenReviews = {
                             navController.navigate(
                                 Destinations.ReviewsRatings.createRoute(

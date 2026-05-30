@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.wheels.app.core.common.Resource
+import com.wheels.app.core.network.NetworkMonitor
 import com.wheels.app.core.session.UserRole
 import com.wheels.app.features.auth.data.local.AuthSessionLocalStore
 import com.wheels.app.features.auth.data.remote.mapper.toProfileUser
@@ -19,6 +20,7 @@ import com.wheels.app.features.auth.domain.model.ForgotPasswordRequest
 import com.wheels.app.features.auth.domain.model.SignInRequest
 import com.wheels.app.features.auth.domain.repository.AuthRepository
 import com.wheels.app.features.auth.domain.util.buildInstitutionalEmail
+import com.wheels.app.features.messages.data.cache.MessageHistoryCache
 import com.wheels.app.features.profile.data.local.UserProfileLocalDataSource
 import com.wheels.app.features.profile.domain.model.User
 import java.util.Collections
@@ -42,8 +44,9 @@ class AuthRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val authSessionLocalStore: AuthSessionLocalStore,
     private val userProfileLocalDataSource: UserProfileLocalDataSource,
+    private val messageHistoryCache: MessageHistoryCache,
     private val ioDispatcher: CoroutineDispatcher,
-    private val networkMonitor: com.wheels.app.core.network.NetworkMonitor
+    private val networkMonitor: NetworkMonitor
 ) : AuthRepository {
 
     private val loginHistoryTimestamps = Collections.synchronizedList(mutableListOf<Long>())
@@ -56,6 +59,7 @@ class AuthRepositoryImpl @Inject constructor(
                     launch(ioDispatcher) {
                         authSessionLocalStore.clear()
                         userProfileLocalDataSource.clearProfile()
+                        messageHistoryCache.clear()
                     }
                     trySend(null)
                     return@AuthStateListener
@@ -182,7 +186,6 @@ class AuthRepositoryImpl @Inject constructor(
                 resolveAuthUser(firebaseUser).also {
                     loginHistoryTimestamps.add(System.currentTimeMillis())
                     authSessionLocalStore.save(it)
-                    authSessionLocalStore.save(it)
                     cacheProfile(it)
                 }
             }.fold(
@@ -307,8 +310,8 @@ class AuthRepositoryImpl @Inject constructor(
         withContext(ioDispatcher) {
             firebaseAuth.signOut()
             authSessionLocalStore.clear()
-            authSessionLocalStore.clear()
             userProfileLocalDataSource.clearProfile()
+            messageHistoryCache.clear()
         }
     }
 

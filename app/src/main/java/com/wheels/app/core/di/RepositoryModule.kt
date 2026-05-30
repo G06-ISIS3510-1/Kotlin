@@ -25,12 +25,14 @@ import com.wheels.app.features.favoriteDrivers.analytics.data.repository.Favorit
 import com.wheels.app.features.favoriteDrivers.analytics.domain.repository.FavoriteDriverAnalyticsRepository
 import com.wheels.app.features.favoriteDrivers.data.repository.FavoriteDriverRepositoryImpl
 import com.wheels.app.features.favoriteDrivers.domain.repository.FavoriteDriverRepository
+import com.wheels.app.features.messages.data.repository.FirestoreRideMessageRepository
 import com.wheels.app.features.payments.data.repository.PaymentRepositoryImpl
 import com.wheels.app.features.reviews.data.repository.FirestoreRideReviewRepository
 import com.wheels.app.features.rides.data.repository.FirebaseCancellationBehaviorRepository
 import com.wheels.app.features.rides.data.repository.RideRepositoryImpl
 import com.wheels.app.features.auth.domain.repository.AuthRepository
 import com.wheels.app.features.payments.domain.repository.PaymentRepository
+import com.wheels.app.features.messages.domain.repository.MessageRepository
 import com.wheels.app.features.reviews.domain.repository.RideReviewRepository
 import com.wheels.app.features.rides.domain.repository.CancellationBehaviorRepository
 import com.wheels.app.features.rides.domain.repository.RideRepository
@@ -121,6 +123,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindDriverTrustRepository(impl: FirebaseDriverTrustRepository): DriverTrustRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMessageRepository(
+        impl: FirestoreRideMessageRepository
+    ): MessageRepository
 
     @Binds
     @Singleton

@@ -23,7 +23,8 @@ data class MessageThreadUiModel(
     val participantStatus: String,
     val rideContext: String,
     val isUnread: Boolean,
-    val messages: List<MessageBubbleUiModel>
+    val messages: List<MessageBubbleUiModel>,
+    val canSendMessages: Boolean = true
 )
 
 fun MessageThreadUiModel.toPreview(): MessageConversationPreviewUiModel {

@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -61,6 +62,7 @@ import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.messages.presentation.model.MessageBubbleUiModel
 import com.wheels.app.features.messages.presentation.model.MessageThreadUiModel
 import com.wheels.app.features.messages.presentation.viewmodel.MessageChatViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun MessageChatScreen(
@@ -69,11 +71,11 @@ fun MessageChatScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val thread = state.thread
+    val scope = rememberCoroutineScope()
     var isComposerFocused by remember { mutableStateOf(false) }
     var draftMessage by remember { mutableStateOf("") }
-    var visibleMessages by remember(thread?.id) {
-        mutableStateOf(thread?.messages.orEmpty())
-    }
+    val composerEnabled = thread?.canSendMessages == true
+    val sendEnabled = composerEnabled && state.isOnline
 
     val baseModifier = Modifier
         .fillMaxSize()
@@ -84,7 +86,20 @@ fun MessageChatScreen(
     Column(
         modifier = baseModifier
     ) {
-        if (thread != null) {
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Loading messages...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            }
+        } else if (thread != null) {
             MessageChatHeader(
                 thread = thread,
                 onBack = { navController.popBackStack() }
@@ -95,7 +110,7 @@ fun MessageChatScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(visibleMessages, key = { it.id }) { message ->
+                items(thread.messages, key = { it.id }) { message ->
                     MessageBubble(message = message)
                 }
             }
@@ -104,17 +119,15 @@ fun MessageChatScreen(
                 value = draftMessage,
                 onValueChanged = { draftMessage = it },
                 onFocusChanged = { isComposerFocused = it },
+                textEnabled = composerEnabled,
+                sendEnabled = sendEnabled,
                 onSend = {
-                    val trimmed = draftMessage.trim()
-                    if (trimmed.isNotEmpty()) {
-                        visibleMessages = visibleMessages + MessageBubbleUiModel(
-                            id = "local-${visibleMessages.size + 1}",
-                            content = trimmed,
-                            timestamp = "Now",
-                            isCurrentUser = true
-                        )
+                    val messageToSend = draftMessage
+                    scope.launch {
+                        if (viewModel.sendMessage(messageToSend) && draftMessage == messageToSend) {
+                            draftMessage = ""
+                        }
                     }
-                    draftMessage = ""
                 }
             )
         } else {
@@ -263,6 +276,8 @@ private fun MessageComposer(
     value: String,
     onValueChanged: (String) -> Unit,
     onFocusChanged: (Boolean) -> Unit,
+    textEnabled: Boolean,
+    sendEnabled: Boolean,
     onSend: () -> Unit
 ) {
     Surface(
@@ -284,6 +299,7 @@ private fun MessageComposer(
                 modifier = Modifier
                     .weight(1f)
                     .onFocusChanged { onFocusChanged(it.isFocused) },
+                enabled = textEnabled,
                 shape = RoundedCornerShape(18.dp),
                 placeholder = {
                     Text(
@@ -295,7 +311,11 @@ private fun MessageComposer(
                     capitalization = KeyboardCapitalization.Sentences,
                     imeAction = ImeAction.Send
                 ),
-                keyboardActions = KeyboardActions(onSend = { onSend() }),
+                keyboardActions = KeyboardActions(onSend = {
+                    if (sendEnabled) {
+                        onSend()
+                    }
+                }),
                 maxLines = 4,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = WheelsSurface,
@@ -311,7 +331,7 @@ private fun MessageComposer(
                 )
             )
 
-            if (value.isNotBlank()) {
+            if (sendEnabled && value.isNotBlank()) {
                 Spacer(modifier = Modifier.width(10.dp))
                 Surface(
                     modifier = Modifier.size(48.dp),

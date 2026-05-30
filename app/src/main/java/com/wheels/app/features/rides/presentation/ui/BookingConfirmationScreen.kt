@@ -112,7 +112,7 @@ fun BookingConfirmationScreen(
 
         ConfirmationBottomActions(
             modifier = Modifier.align(Alignment.BottomCenter),
-            onMessage = {},
+            onMessage = { navController.navigate(Destinations.MessageChat.createRoute(ride.id)) },
             onCall = {},
             onBackHome = {
                 navController.navigate(Destinations.Home.route) {

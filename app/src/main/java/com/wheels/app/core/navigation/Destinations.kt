@@ -12,8 +12,8 @@ sealed class Destinations(val route: String) {
     data object Payments : Destinations("payments")
     data object QuickPayment : Destinations("quick_payment")
     data object MessagesInbox : Destinations("messages_inbox")
-    data object MessageChat : Destinations("message_chat/{conversationId}") {
-        fun createRoute(conversationId: String): String = "message_chat/${Uri.encode(conversationId)}"
+    data object MessageChat : Destinations("message_chat/{rideId}") {
+        fun createRoute(rideId: String): String = "message_chat/${Uri.encode(rideId)}"
     }
     data object RideRequest : Destinations("ride_request/{rideId}") {
         fun createRoute(rideId: String): String = "ride_request/$rideId"
@@ -42,7 +42,7 @@ sealed class Destinations(val route: String) {
     companion object {
         const val RIDES_NEARBY_REQUESTED_KEY = "rides_nearby_requested"
         const val RIDES_NEARBY_LOCATION_NAME_KEY = "rides_nearby_location_name"
-        const val MESSAGE_CHAT_CONVERSATION_ID_KEY = "conversationId"
+        const val MESSAGE_CHAT_RIDE_ID_KEY = "rideId"
         const val QUICK_PAY_RIDE_ID_KEY = "quick_pay_ride_id"
         const val QUICK_PAY_DRIVER_ID_KEY = "quick_pay_driver_id"
         const val QUICK_PAY_DRIVER_NAME_KEY = "quick_pay_driver_name"

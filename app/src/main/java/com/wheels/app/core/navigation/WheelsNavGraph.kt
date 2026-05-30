@@ -195,7 +195,7 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
             composable(
                 route = Destinations.MessageChat.route,
                 arguments = listOf(
-                    navArgument(Destinations.MESSAGE_CHAT_CONVERSATION_ID_KEY) {
+                    navArgument(Destinations.MESSAGE_CHAT_RIDE_ID_KEY) {
                         type = NavType.StringType
                     }
                 )
