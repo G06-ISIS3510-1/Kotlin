@@ -11,6 +11,7 @@ import {
   recordRideCancellationAnalytics,
 } from "../services/cancellationAnalytics.js";
 import { recordCreateRideLocationUsageAnalytics } from "../services/createRideLocationUsageAnalytics.js";
+import { recordPublishFromDraftAnalytics } from "../services/publishFromDraftAnalytics.js";
 import { updateUserCancellationMetrics } from "../services/cancellationMetrics.js";
 import { RideDocument } from "../types/trust.js";
 
@@ -30,7 +31,12 @@ export const onRidePublished = onDocumentCreated(
       return;
     }
 
-    if (ride.status !== "published" || !ride.driverId) {
+    if (!ride.driverId) {
+      return;
+    }
+
+    const normalizedStatus = ride.status?.trim().toLowerCase();
+    if (normalizedStatus !== "open" && normalizedStatus !== "published") {
       return;
     }
 
@@ -45,6 +51,22 @@ export const onRidePublished = onDocumentCreated(
       });
     } catch (error) {
       logger.error("Failed to record create ride current location analytics", {
+        rideId: event.params.rideId,
+        driverId: ride.driverId,
+        error,
+      });
+    }
+
+    try {
+      await recordPublishFromDraftAnalytics({
+        db,
+        rideId: event.params.rideId,
+        driverId: ride.driverId,
+        publishedFromDraft: ride.publishedFromDraft ?? false,
+        sourceDraftId: ride.sourceDraftId ?? null,
+      });
+    } catch (error) {
+      logger.error("Failed to record publish from draft analytics", {
         rideId: event.params.rideId,
         driverId: ride.driverId,
         error,

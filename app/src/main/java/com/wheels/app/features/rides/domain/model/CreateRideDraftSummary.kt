@@ -1,6 +1,6 @@
 package com.wheels.app.features.rides.domain.model
 
-data class CreateRideDraft(
+data class CreateRideDraftSummary(
     val draftId: String,
     val driverId: String,
     val origin: String,
@@ -14,7 +14,8 @@ data class CreateRideDraft(
     val carModel: String,
     val licensePlate: String,
     val description: String,
-    val createdAtMillis: Long
+    val createdAtMillis: Long,
+    val updatedAtMillis: Long
 ) {
     val isEmpty: Boolean
         get() = origin.isBlank() &&

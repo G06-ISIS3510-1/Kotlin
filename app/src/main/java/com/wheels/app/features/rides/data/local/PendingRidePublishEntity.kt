@@ -35,6 +35,8 @@ data class PendingRidePublishEntity(
     val verifiedByUniversity: Boolean,
     val usedCurrentLocationOrigin: Boolean,
     val usedCurrentLocationDestination: Boolean,
+    val publishedFromDraft: Boolean,
+    val sourceDraftId: String?,
     val retryCount: Int,
     val lastError: String?,
     val createdAtMillis: Long
@@ -72,6 +74,8 @@ fun PublishRideRequest.toPendingRidePublishEntity(
         verifiedByUniversity = verifiedByUniversity,
         usedCurrentLocationOrigin = usedCurrentLocationOrigin,
         usedCurrentLocationDestination = usedCurrentLocationDestination,
+        publishedFromDraft = publishedFromDraft,
+        sourceDraftId = sourceDraftId,
         retryCount = retryCount,
         lastError = lastError,
         createdAtMillis = createdAtMillis
@@ -105,7 +109,9 @@ fun PendingRidePublishEntity.toPublishRideRequest(): PublishRideRequest {
         reviewCount = reviewCount,
         verifiedByUniversity = verifiedByUniversity,
         usedCurrentLocationOrigin = usedCurrentLocationOrigin,
-        usedCurrentLocationDestination = usedCurrentLocationDestination
+        usedCurrentLocationDestination = usedCurrentLocationDestination,
+        publishedFromDraft = publishedFromDraft,
+        sourceDraftId = sourceDraftId
     )
 }
 

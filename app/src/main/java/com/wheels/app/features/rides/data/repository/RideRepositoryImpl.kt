@@ -15,6 +15,7 @@ import com.wheels.app.features.rides.data.local.DriverRidesLocalCache
 import com.wheels.app.features.rides.data.local.RideOfflineDao
 import com.wheels.app.features.rides.data.local.toDomain
 import com.wheels.app.features.rides.data.local.toEntity
+import com.wheels.app.features.rides.data.local.toSummary
 import com.wheels.app.features.rides.data.local.toPendingRidePublishEntity
 import com.wheels.app.features.rides.data.local.toPublishRideRequest
 import com.wheels.app.features.rides.data.local.NearRidesLocalCache
@@ -22,6 +23,7 @@ import com.wheels.app.features.rides.data.remote.NearRidesRemoteDataSource
 import com.wheels.app.features.rides.domain.model.Booking
 import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.CreateRideDraft
+import com.wheels.app.features.rides.domain.model.CreateRideDraftSummary
 import com.wheels.app.features.rides.domain.model.NearRidesQuery
 import com.wheels.app.features.rides.domain.model.PendingRideAction
 import com.wheels.app.features.rides.domain.model.PendingRideActionSyncResult
@@ -451,6 +453,18 @@ class RideRepositoryImpl @Inject constructor(
         return rideOfflineDao.observeCreateRideDraft(driverId).flowOn(ioDispatcher).map { it?.toDomain() }
     }
 
+    override fun observeCreateRideDrafts(driverId: String): Flow<List<CreateRideDraftSummary>> {
+        return rideOfflineDao.observeCreateRideDrafts(driverId)
+            .flowOn(ioDispatcher)
+            .map { drafts -> drafts.map { it.toSummary() } }
+    }
+
+    override fun observeCreateRideDraftSummary(driverId: String): Flow<CreateRideDraftSummary?> {
+        return rideOfflineDao.observeCreateRideDraft(driverId)
+            .flowOn(ioDispatcher)
+            .map { it?.toSummary() }
+    }
+
     override fun observePendingRideActions(driverId: String): Flow<List<PendingRideAction>> {
         return rideOfflineDao.observePendingRideActions(driverId)
             .flowOn(ioDispatcher)
@@ -463,9 +477,21 @@ class RideRepositoryImpl @Inject constructor(
             .map { entities -> entities.map { it.toDomain() } }
     }
 
+    override suspend fun getCreateRideDraft(draftId: String): CreateRideDraft? {
+        return withContext(ioDispatcher) {
+            rideOfflineDao.getCreateRideDraft(draftId)?.toDomain()
+        }
+    }
+
     override suspend fun saveCreateRideDraft(draft: CreateRideDraft) {
         withContext(ioDispatcher) {
             rideOfflineDao.upsertCreateRideDraft(draft.toEntity())
+        }
+    }
+
+    override suspend fun deleteCreateRideDraft(draftId: String) {
+        withContext(ioDispatcher) {
+            rideOfflineDao.deleteCreateRideDraft(draftId)
         }
     }
 
@@ -490,6 +516,23 @@ class RideRepositoryImpl @Inject constructor(
     override suspend fun deletePendingRidePublish(id: String) {
         withContext(ioDispatcher) {
             rideOfflineDao.deletePendingRidePublish(id)
+        }
+    }
+
+    override suspend fun retryPendingRidePublish(id: String): Boolean {
+        return withContext(ioDispatcher) {
+            val pendingPublish = rideOfflineDao.getPendingRidePublish(id) ?: return@withContext false
+            try {
+                publishRide(pendingPublish.toPublishRideRequest())
+                rideOfflineDao.deletePendingRidePublish(id)
+                true
+            } catch (throwable: Throwable) {
+                rideOfflineDao.markPendingRidePublishFailed(
+                    id = id,
+                    lastError = throwable.message ?: "We could not sync this ride yet."
+                )
+                false
+            }
         }
     }
 

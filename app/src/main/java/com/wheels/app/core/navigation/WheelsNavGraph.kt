@@ -43,9 +43,13 @@ import com.wheels.app.features.reviews.presentation.ui.ReviewFeedbackScreen
 import com.wheels.app.features.reviews.presentation.viewmodel.ReviewFeedbackViewModel
 import com.wheels.app.features.rides.presentation.ui.ActiveRideManagementScreen
 import com.wheels.app.features.rides.presentation.ui.BookingConfirmationScreen
+import com.wheels.app.features.rides.presentation.ui.CreateRideDraftsScreen
+import com.wheels.app.features.rides.presentation.ui.PendingRideSyncScreen
 import com.wheels.app.features.rides.presentation.ui.RideRequestScreen
 import com.wheels.app.features.rides.presentation.ui.ReviewsRatingsScreen
 import com.wheels.app.features.rides.presentation.ui.RidesScreen
+import com.wheels.app.features.rides.presentation.viewmodel.CreateRideDraftsViewModel
+import com.wheels.app.features.rides.presentation.viewmodel.PendingRideSyncViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.RideRequestViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.DriverReviewsViewModel
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
@@ -75,6 +79,8 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
         Destinations.MessagesInbox.route,
         Destinations.MessageChat.route,
         Destinations.GroupChat.route,
+        Destinations.CreateRideDrafts.route,
+        Destinations.PendingRideSync.route,
         Destinations.RideRequest.route,
         Destinations.ReviewFeedback.route,
         Destinations.ActiveRideManagement.route,
@@ -175,6 +181,22 @@ fun WheelsNavGraph(themeViewModel: ThemeSettingsViewModel) {
             composable(Destinations.Rides.route) {
                 val viewModel: RidesViewModel = hiltViewModel()
                 RidesScreen(innerPadding = innerPadding, viewModel = viewModel, navController = navController)
+            }
+            composable(Destinations.CreateRideDrafts.route) {
+                val viewModel: CreateRideDraftsViewModel = hiltViewModel()
+                CreateRideDraftsScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
+            }
+            composable(Destinations.PendingRideSync.route) {
+                val viewModel: PendingRideSyncViewModel = hiltViewModel()
+                PendingRideSyncScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    viewModel = viewModel
+                )
             }
             composable(Destinations.Payments.route) {
                 val viewModel: PaymentsViewModel = hiltViewModel()

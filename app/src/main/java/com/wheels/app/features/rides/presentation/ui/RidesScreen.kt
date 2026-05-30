@@ -32,12 +32,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Drafts
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.EventSeat
@@ -89,6 +91,7 @@ import com.wheels.app.core.ui.theme.WheelsBackground
 import com.wheels.app.core.ui.theme.WheelsSurface
 import com.wheels.app.core.ui.theme.gradientHeaderBrush
 import com.wheels.app.features.rides.domain.model.BehavioralNudge
+import com.wheels.app.features.rides.domain.model.CreateRideDraftSummary
 import com.wheels.app.features.rides.domain.model.PendingRideActionType
 import com.wheels.app.features.rides.presentation.model.LocationSuggestion
 import com.wheels.app.features.rides.presentation.model.RideLocationField
@@ -102,6 +105,9 @@ import com.wheels.app.features.rides.presentation.viewmodel.RidesEvent
 import com.wheels.app.features.rides.presentation.viewmodel.RidesUiState
 import com.wheels.app.features.rides.presentation.viewmodel.RidesViewModel
 import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun RidesScreen(
@@ -181,8 +187,14 @@ fun RidesScreen(
                 onLicensePlateChanged = { viewModel.onEvent(RidesEvent.DriverLicensePlateChanged(it)) },
                 onDescriptionChanged = { viewModel.onEvent(RidesEvent.DriverDescriptionChanged(it)) },
                 onDriverTabSelected = { viewModel.onEvent(RidesEvent.DriverTabChanged(it)) },
+                onStartNewDraft = { viewModel.onEvent(RidesEvent.StartNewDriverDraft) },
+                onEditDraft = { draftId -> viewModel.onEvent(RidesEvent.EditDriverDraft(draftId)) },
+                onDeleteDraft = { draftId -> viewModel.onEvent(RidesEvent.DeleteDriverDraft(draftId)) },
                 onMyRideSelected = { rideId ->
                     navController.navigate(Destinations.ActiveRideManagement.createRoute(rideId))
+                },
+                onOpenPendingSync = {
+                    navController.navigate(Destinations.PendingRideSync.route)
                 },
                 onDismissPublishRideInfo = {
                     viewModel.onEvent(RidesEvent.DismissPublishRideInfo)
@@ -348,7 +360,11 @@ private fun DriverCreateRideScreen(
     onLicensePlateChanged: (String) -> Unit,
     onDescriptionChanged: (String) -> Unit,
     onDriverTabSelected: (DriverRidesTab) -> Unit,
+    onStartNewDraft: () -> Unit,
+    onEditDraft: (String) -> Unit,
+    onDeleteDraft: (String) -> Unit,
     onMyRideSelected: (String) -> Unit,
+    onOpenPendingSync: () -> Unit,
     onDismissPublishRideInfo: () -> Unit,
     onSeeRide: () -> Unit,
     onPublishRide: () -> Unit
@@ -423,6 +439,13 @@ private fun DriverCreateRideScreen(
             }
 
             if (state.driverSelectedTab == DriverRidesTab.CREATE_RIDE) {
+                item {
+                    DraftAutosaveStatusBanner(
+                        isOnline = state.isCreateRideOnline,
+                        isSaving = state.isSavingCreateRideDraft,
+                        hasActiveDraft = state.activeCreateRideDraftId != null
+                    )
+                }
                 item {
                     EarningsPreviewCard(
                         estimatedEarnings = state.estimatedEarnings,
@@ -746,6 +769,97 @@ private fun DriverCreateRideScreen(
                         }
                     }
                 }
+            } else if (state.driverSelectedTab == DriverRidesTab.DRAFTS) {
+                when {
+                    state.isLoadingCreateRideDrafts -> {
+                        item {
+                            DraftsSummaryCard(
+                                draftCount = state.createRideDrafts.size,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                        item {
+                            DraftsOfflineBanner()
+                        }
+                        item {
+                            Text(
+                                text = "Loading your saved drafts...",
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    state.createRideDrafts.isEmpty() -> {
+                        item {
+                            DraftsSummaryCard(
+                                draftCount = 0,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                        item {
+                            Button(
+                                onClick = onStartNewDraft,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Start New Draft")
+                            }
+                        }
+                        item {
+                            DraftsOfflineBanner()
+                        }
+                        item {
+                            EmptyDriverDraftsState(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                    }
+
+                    else -> {
+                        item {
+                            DraftsSummaryCard(
+                                draftCount = state.createRideDrafts.size,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            )
+                        }
+                        item {
+                            Button(
+                                onClick = onStartNewDraft,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Start New Draft")
+                            }
+                        }
+                        item {
+                            DraftsOfflineBanner()
+                        }
+                        items(state.createRideDrafts, key = { it.draftId }) { draft ->
+                            DriverDraftCard(
+                                draft = draft,
+                                isDeleting = state.deletingCreateRideDraftId == draft.draftId,
+                                isActive = state.activeCreateRideDraftId == draft.draftId,
+                                onEditDraft = { onEditDraft(draft.draftId) },
+                                onDeleteDraft = { onDeleteDraft(draft.draftId) },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
             } else {
                 item {
                     MyRidesSummary(
@@ -753,6 +867,22 @@ private fun DriverCreateRideScreen(
                         currentTrustScore = state.currentDriverTrustScore,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
+                }
+
+                item {
+                    OutlinedButton(
+                        onClick = onOpenPendingSync,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Pending Sync")
+                    }
                 }
 
                 if (state.isShowingCachedDriverRides && state.driverRides.isNotEmpty()) {
@@ -878,6 +1008,207 @@ private fun PublishRideInfoDialog(
             )
         }
     )
+}
+
+@Composable
+private fun DraftAutosaveStatusBanner(
+    isOnline: Boolean,
+    isSaving: Boolean,
+    hasActiveDraft: Boolean
+) {
+    if (isOnline && !hasActiveDraft && !isSaving) return
+
+    val message = when {
+        !isOnline && isSaving -> "You are offline. We are saving this draft locally on your device."
+        !isOnline -> "You are offline. Draft changes stay stored locally and will still be available in Drafts."
+        isSaving -> "Saving your draft locally..."
+        else -> "This ride is being autosaved locally while you edit it."
+    }
+
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isOnline) Color(0xFFE8F0F9) else Color(0xFFFEF3C7)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Drafts,
+                contentDescription = null,
+                tint = if (isOnline) SecondaryBlue else Color(0xFFF59E0B)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue
+            )
+        }
+    }
+}
+
+@Composable
+private fun DraftsSummaryCard(
+    draftCount: Int,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F0F9))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Saved Drafts",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryBlue
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "$draftCount local drafts available for editing or deletion.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun DraftsOfflineBanner() {
+    Card(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+        border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Color(0xFFF59E0B)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "Drafts are stored locally with Room, so you can keep editing without internet.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = PrimaryBlue
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyDriverDraftsState(modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "No local drafts yet",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = PrimaryBlue
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Start a ride in Create Ride and we will autosave it here while you work.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun DriverDraftCard(
+    draft: CreateRideDraftSummary,
+    isDeleting: Boolean,
+    isActive: Boolean,
+    onEditDraft: () -> Unit,
+    onDeleteDraft: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = WheelsSurface)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (draft.origin.isNotBlank()) draft.origin else "Unnamed draft",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = PrimaryBlue,
+                    modifier = Modifier.weight(1f)
+                )
+                if (isActive) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = Color(0xFFE8F0F9)
+                    ) {
+                        Text(
+                            text = "Open",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = SecondaryBlue
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = if (draft.destination.isNotBlank()) draft.destination else "Destination pending",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Last updated ${formatDraftTimestamp(draft.updatedAtMillis)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${draft.totalSeats} seats • ${draft.pricePerSeat.ifBlank { "--" }} per seat",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = onEditDraft,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Edit Draft")
+                }
+                OutlinedButton(
+                    onClick = onDeleteDraft,
+                    enabled = !isDeleting,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(if (isDeleting) "Deleting..." else "Delete")
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1078,6 +1409,12 @@ private fun DriverTabSwitcher(
             modifier = Modifier.weight(1f)
         )
         DriverTabButton(
+            text = "Drafts",
+            selected = selectedTab == DriverRidesTab.DRAFTS,
+            onClick = { onTabSelected(DriverRidesTab.DRAFTS) },
+            modifier = Modifier.weight(1f)
+        )
+        DriverTabButton(
             text = "My Rides",
             selected = selectedTab == DriverRidesTab.MY_RIDES,
             onClick = { onTabSelected(DriverRidesTab.MY_RIDES) },
@@ -1169,6 +1506,12 @@ private fun EmptyDriverRidesState(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+private fun formatDraftTimestamp(timestampMillis: Long): String {
+    return runCatching {
+        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(timestampMillis))
+    }.getOrDefault("recently")
 }
 
 @Composable

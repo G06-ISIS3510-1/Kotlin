@@ -9,6 +9,8 @@ sealed class Destinations(val route: String) {
     data object ForgotPassword : Destinations("forgot_password")
     data object Home : Destinations("home")
     data object Rides : Destinations("rides")
+    data object CreateRideDrafts : Destinations("create_ride_drafts")
+    data object PendingRideSync : Destinations("pending_ride_sync")
     data object Payments : Destinations("payments")
     data object QuickPayment : Destinations("quick_payment")
     data object MessagesInbox : Destinations("messages_inbox")

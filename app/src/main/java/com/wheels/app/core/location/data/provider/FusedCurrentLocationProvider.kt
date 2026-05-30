@@ -7,6 +7,7 @@ import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.os.Build
+import android.util.LruCache
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import com.google.android.gms.location.LocationServices
@@ -22,7 +23,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -33,6 +33,12 @@ class FusedCurrentLocationProvider @Inject constructor(
     @ApplicationContext private val context: Context,
     private val ioDispatcher: CoroutineDispatcher
 ) : CurrentLocationProvider {
+
+    // Session-scoped cache for recently geocoded free-text addresses.
+    // We keep more than one entry so LRU eviction has real value when
+    // drivers reuse several frequent locations across drafts and publishes.
+    private val geocodedAddressCache = LruCache<String, CurrentCoordinates>(GEOCODED_ADDRESS_CACHE_SIZE)
+    private val geocodedAddressCacheLock = Any()
 
     @SuppressLint("MissingPermission")
     override suspend fun getCurrentLocationLabel(): CurrentLocationLabel = withContext(ioDispatcher) {
@@ -55,7 +61,9 @@ class FusedCurrentLocationProvider @Inject constructor(
             return@withContext null
         }
 
-        geocodedAddressCache[normalizedAddress.lowercase(Locale.ROOT)]?.let { cachedCoordinates ->
+        val cacheKey = normalizedAddress.lowercase(Locale.ROOT)
+
+        getCachedCoordinates(cacheKey)?.let { cachedCoordinates ->
             return@withContext cachedCoordinates
         }
 
@@ -74,7 +82,7 @@ class FusedCurrentLocationProvider @Inject constructor(
             latitude = resolvedAddress.latitude,
             longitude = resolvedAddress.longitude
         )
-        geocodedAddressCache[normalizedAddress.lowercase(Locale.ROOT)] = coordinates
+        putCachedCoordinates(cacheKey, coordinates)
         coordinates
     }
 
@@ -200,7 +208,19 @@ class FusedCurrentLocationProvider @Inject constructor(
         }
     }
 
+    private fun getCachedCoordinates(cacheKey: String): CurrentCoordinates? {
+        return synchronized(geocodedAddressCacheLock) {
+            geocodedAddressCache.get(cacheKey)
+        }
+    }
+
+    private fun putCachedCoordinates(cacheKey: String, coordinates: CurrentCoordinates) {
+        synchronized(geocodedAddressCacheLock) {
+            geocodedAddressCache.put(cacheKey, coordinates)
+        }
+    }
+
     private companion object {
-        val geocodedAddressCache = ConcurrentHashMap<String, CurrentCoordinates>()
+        const val GEOCODED_ADDRESS_CACHE_SIZE = 24
     }
 }

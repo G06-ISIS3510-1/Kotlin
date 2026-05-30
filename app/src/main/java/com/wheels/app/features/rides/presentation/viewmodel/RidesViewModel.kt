@@ -19,6 +19,7 @@ import com.wheels.app.features.rides.domain.model.BehavioralNudge
 import com.wheels.app.features.rides.domain.model.CancellationBehaviorMetrics
 import com.wheels.app.features.rides.domain.model.Coordinates
 import com.wheels.app.features.rides.domain.model.CreateRideDraft
+import com.wheels.app.features.rides.domain.model.CreateRideDraftSummary
 import com.wheels.app.features.rides.domain.model.DriverRideRecord
 import com.wheels.app.features.rides.domain.model.PendingRideAction
 import com.wheels.app.features.rides.domain.model.PendingRideActionSyncResult
@@ -81,7 +82,7 @@ class RidesViewModel @Inject constructor(
     private var observedTrustUserId: String? = null
     private var observedCancellationMetricsUserId: String? = null
     private var observedDriverRidesUserId: String? = null
-    private var observedCreateRideDraftUserId: String? = null
+    private var observedCreateRideDraftsUserId: String? = null
     private var observedPendingRidePublishesUserId: String? = null
     private var observedPendingRideActionsUserId: String? = null
     private var latestKnownDriverTrustScore: Int? = null
@@ -207,6 +208,9 @@ class RidesViewModel @Inject constructor(
             is RidesEvent.DriverTabChanged -> {
                 _uiState.update { it.copy(driverSelectedTab = event.tab) }
             }
+            RidesEvent.StartNewDriverDraft -> startNewDriverDraft()
+            is RidesEvent.EditDriverDraft -> editDriverDraft(event.draftId)
+            is RidesEvent.DeleteDriverDraft -> deleteDriverDraft(event.draftId)
             RidesEvent.PublishRide -> publishRide()
             RidesEvent.DismissTrustNotice -> dismissTrustNotice()
             RidesEvent.DismissPublishRideInfo -> dismissPublishRideInfo()
@@ -230,7 +234,7 @@ class RidesViewModel @Inject constructor(
                         observedTrustUserId = null
                         observedCancellationMetricsUserId = null
                         observedDriverRidesUserId = null
-                        observedCreateRideDraftUserId = null
+                        observedCreateRideDraftsUserId = null
                         observedPendingRidePublishesUserId = null
                         observedPendingRideActionsUserId = null
                         latestRemoteDriverRides = emptyList()
@@ -238,15 +242,20 @@ class RidesViewModel @Inject constructor(
                         latestPendingRideActions = emptyMap()
                         latestKnownDriverTrustScore = null
                         _uiState.update { state ->
-                            state.copy(
+                            state.resetCreateRideForm().copy(
                                 currentDriverTrustScore = null,
                                 cancellationBehaviorMetrics = null,
                                 behavioralNudge = null,
                                 driverRides = emptyList(),
+                                createRideDrafts = emptyList(),
                                 isLoadingDriverRides = false,
+                                isLoadingCreateRideDrafts = false,
                                 publishRideInfoMessage = null,
                                 rideActionInfo = null,
-                                shouldPopAfterRideActionInfo = false
+                                shouldPopAfterRideActionInfo = false,
+                                activeCreateRideDraftId = null,
+                                isSavingCreateRideDraft = false,
+                                deletingCreateRideDraftId = null
                             )
                         }
                     } else {
@@ -272,9 +281,9 @@ class RidesViewModel @Inject constructor(
                             observedDriverRidesUserId = user.id
                             observeDriverRides(user.id)
                         }
-                        if (observedCreateRideDraftUserId != user.id) {
-                            observedCreateRideDraftUserId = user.id
-                            observeCreateRideDraft(user.id)
+                        if (observedCreateRideDraftsUserId != user.id) {
+                            observedCreateRideDraftsUserId = user.id
+                            observeCreateRideDrafts(user.id)
                         }
                         if (observedPendingRidePublishesUserId != user.id) {
                             observedPendingRidePublishesUserId = user.id
@@ -401,7 +410,7 @@ class RidesViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             isLoadingDriverRides = false,
-                            isShowingCachedDriverRides = !networkMonitor.isOnline() && latestPendingDriverRides.isEmpty(),
+                            isShowingCachedDriverRides = !networkMonitor.isOnline() && state.driverRides.isNotEmpty(),
                             driverRides = mergeDriverRides()
                         )
                     }
@@ -424,11 +433,9 @@ class RidesViewModel @Inject constructor(
             rideRepository.observePendingRidePublishes(userId)
                 .catch {
                     latestPendingDriverRides = emptyList()
-                    _uiState.update { state -> state.copy(driverRides = mergeDriverRides()) }
                 }
                 .collect { pendingPublishes ->
                     latestPendingDriverRides = pendingPublishes.map { it.toUiModel() }
-                    _uiState.update { state -> state.copy(driverRides = mergeDriverRides()) }
                 }
         }
     }
@@ -633,6 +640,57 @@ class RidesViewModel @Inject constructor(
                     )
                 }
                 applyPassengerFilters()
+            }
+        }
+    }
+
+    private fun persistCreateRideDraftRequest(request: CreateRideDraftPersistenceRequest) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isSavingCreateRideDraft = true,
+                    publishRideErrorMessage = null
+                )
+            }
+            val result = runCatching {
+                val persistedAtMillis = System.currentTimeMillis()
+                val draft = request.draft
+                if (draft == null || draft.isEmpty) {
+                    request.draftId?.let { rideRepository.deleteCreateRideDraft(it) }
+                    PersistedDraftMutation.Delete(request.draftId)
+                } else {
+                    rideRepository.saveCreateRideDraft(draft)
+                    PersistedDraftMutation.Upsert(draft.toSummary(updatedAtMillis = persistedAtMillis))
+                }
+            }
+            result.onSuccess { mutation ->
+                _uiState.update { state ->
+                    when (mutation) {
+                        is PersistedDraftMutation.Delete -> state.copy(
+                            createRideDrafts = state.createRideDrafts.filterNot { it.draftId == mutation.draftId }
+                        )
+                        is PersistedDraftMutation.Upsert -> {
+                            val withoutOld = state.createRideDrafts.filterNot {
+                                it.draftId == mutation.summary.draftId
+                            }
+                            state.copy(
+                                createRideDrafts = (listOf(mutation.summary) + withoutOld)
+                                    .sortedByDescending { it.updatedAtMillis }
+                            )
+                        }
+                    }
+                }
+            }
+            result.onFailure { throwable ->
+                _uiState.update { state ->
+                    state.copy(
+                        publishRideErrorMessage = throwable.message
+                            ?: "We could not save this draft locally."
+                    )
+                }
+            }
+            _uiState.update { state ->
+                state.copy(isSavingCreateRideDraft = false)
             }
         }
     }
@@ -883,10 +941,94 @@ class RidesViewModel @Inject constructor(
         }
     }
 
+    private fun startNewDriverDraft() {
+        _uiState.value.activeCreateRideDraftId?.let { draftId ->
+            persistCreateRideDraftRequest(
+                CreateRideDraftPersistenceRequest(
+                    draftId = draftId,
+                    draft = null
+                )
+            )
+        }
+        _uiState.update { state ->
+            state.resetCreateRideForm(
+                draftSelectedTab = DriverRidesTab.CREATE_RIDE
+            )
+        }
+    }
+
+    private fun editDriverDraft(draftId: String) {
+        viewModelScope.launch {
+            val draft = rideRepository.getCreateRideDraft(draftId) ?: return@launch
+            isApplyingPersistedDraft = true
+            _uiState.update { state ->
+                state.copy(
+                    driverSelectedTab = DriverRidesTab.CREATE_RIDE,
+                    activeCreateRideDraftId = draft.draftId,
+                    origin = draft.origin,
+                    destination = draft.destination,
+                    usedCurrentLocationOrigin = draft.usedCurrentLocationOrigin,
+                    usedCurrentLocationDestination = draft.usedCurrentLocationDestination,
+                    date = draft.date,
+                    time = draft.time,
+                    totalSeats = draft.totalSeats,
+                    pricePerSeat = draft.pricePerSeat,
+                    carModel = draft.carModel,
+                    licensePlate = draft.licensePlate,
+                    description = draft.description,
+                    selectedOrigin = null,
+                    selectedDestination = null,
+                    originSuggestions = emptyList(),
+                    destinationSuggestions = emptyList(),
+                    showOriginSuggestions = false,
+                    showDestinationSuggestions = false,
+                    originNoResults = false,
+                    destinationNoResults = false,
+                    originLocationError = null,
+                    destinationLocationError = null,
+                    publishRideErrorMessage = null,
+                    publishRideInfoMessage = null,
+                    scheduleValidationMessage = validateSchedule(draft.date, draft.time)
+                )
+            }
+            isApplyingPersistedDraft = false
+        }
+    }
+
+    private fun deleteDriverDraft(draftId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(deletingCreateRideDraftId = draftId) }
+            if (_uiState.value.activeCreateRideDraftId == draftId) {
+                persistCreateRideDraftRequest(
+                    CreateRideDraftPersistenceRequest(
+                        draftId = draftId,
+                        draft = null
+                    )
+                )
+            }
+            runCatching {
+                rideRepository.deleteCreateRideDraft(draftId)
+            }.onSuccess {
+                _uiState.update { state ->
+                    if (state.activeCreateRideDraftId == draftId) {
+                        state.resetCreateRideForm(
+                            draftSelectedTab = DriverRidesTab.DRAFTS
+                        ).copy(deletingCreateRideDraftId = null)
+                    } else {
+                        state.copy(deletingCreateRideDraftId = null)
+                    }
+                }
+            }.onFailure {
+                _uiState.update { state -> state.copy(deletingCreateRideDraftId = null) }
+            }
+        }
+    }
+
     private fun publishRide() {
         val currentState = _uiState.value
         if (!currentState.canPublishRide) return
         val driverId = currentDriverId ?: return showTrustError("No signed-in driver is available.")
+        val activeDraftId = currentState.activeCreateRideDraftId
         val departureAt = buildRideDateTime(
             date = currentState.date,
             time = currentState.time
@@ -937,7 +1079,9 @@ class RidesViewModel @Inject constructor(
                     verifiedByUniversity = true,
                     paymentOption = "card",
                     usedCurrentLocationOrigin = currentState.usedCurrentLocationOrigin,
-                    usedCurrentLocationDestination = currentState.usedCurrentLocationDestination
+                    usedCurrentLocationDestination = currentState.usedCurrentLocationDestination,
+                    publishedFromDraft = activeDraftId != null,
+                    sourceDraftId = activeDraftId
                 )
 
                 if (isOnline) {
@@ -947,7 +1091,15 @@ class RidesViewModel @Inject constructor(
                     null
                 }
             }.onSuccess {
-                rideRepository.clearCreateRideDraft(driverId)
+                activeDraftId?.let { draftId ->
+                    persistCreateRideDraftRequest(
+                        CreateRideDraftPersistenceRequest(
+                            draftId = draftId,
+                            draft = null
+                        )
+                    )
+                }
+                activeDraftId?.let { rideRepository.deleteCreateRideDraft(it) }
                 _uiState.update { state ->
                     state.resetCreateRideForm(
                         publishRideInfoMessage = if (isOnline) {
@@ -969,31 +1121,28 @@ class RidesViewModel @Inject constructor(
         }
     }
 
-    private fun observeCreateRideDraft(driverId: String) {
+    private fun observeCreateRideDrafts(driverId: String) {
         viewModelScope.launch {
-            rideRepository.observeCreateRideDraft(driverId)
-                .catch { }
-                .collect { draft ->
-                    if (draft == null) return@collect
-                    isApplyingPersistedDraft = true
+            _uiState.update { it.copy(isLoadingCreateRideDrafts = true) }
+            rideRepository.observeCreateRideDrafts(driverId)
+                .catch {
                     _uiState.update { state ->
                         state.copy(
-                            origin = draft.origin,
-                            destination = draft.destination,
-                            usedCurrentLocationOrigin = draft.usedCurrentLocationOrigin,
-                            usedCurrentLocationDestination = draft.usedCurrentLocationDestination,
-                            date = draft.date,
-                            time = draft.time,
-                            totalSeats = draft.totalSeats,
-                            pricePerSeat = draft.pricePerSeat,
-                            carModel = draft.carModel,
-                            licensePlate = draft.licensePlate,
-                            description = draft.description,
-                            publishRideErrorMessage = null
+                            createRideDrafts = emptyList(),
+                            isLoadingCreateRideDrafts = false,
+                            deletingCreateRideDraftId = null
                         )
                     }
-                    updateSchedule(date = draft.date, time = draft.time)
-                    isApplyingPersistedDraft = false
+                }
+                .collect { drafts ->
+                    _uiState.update { state ->
+                        state.copy(
+                            createRideDrafts = drafts,
+                            isLoadingCreateRideDrafts = false,
+                            deletingCreateRideDraftId = state.deletingCreateRideDraftId
+                                ?.takeIf { deletingId -> drafts.any { it.draftId == deletingId } }
+                        )
+                    }
                 }
         }
     }
@@ -1001,19 +1150,35 @@ class RidesViewModel @Inject constructor(
     private fun persistCurrentCreateRideDraft() {
         if (isApplyingPersistedDraft) return
         val driverId = currentDriverId ?: return
-        val draft = _uiState.value.toCreateRideDraft(driverId)
-        viewModelScope.launch {
-            runCatching {
-                if (draft.isEmpty) {
-                    rideRepository.clearCreateRideDraft(driverId)
-                } else {
-                    rideRepository.saveCreateRideDraft(draft)
-                }
-            }.onFailure {
-                // Draft persistence should never crash the form. If local storage
-                // is temporarily unavailable, we keep the in-memory form usable.
-            }
+        val currentState = _uiState.value
+        val existingDraftId = currentState.activeCreateRideDraftId
+        val draftId = if (currentState.hasCreateRideContent && existingDraftId == null) {
+            UUID.randomUUID().toString()
+        } else {
+            existingDraftId
         }
+
+        if (draftId != existingDraftId) {
+            _uiState.update { it.copy(activeCreateRideDraftId = draftId) }
+        }
+
+        val createdAtMillis = draftId
+            ?.let { id -> currentState.createRideDrafts.firstOrNull { it.draftId == id }?.createdAtMillis }
+            ?: System.currentTimeMillis()
+        val draft = draftId?.let {
+            _uiState.value.toCreateRideDraft(
+                driverId = driverId,
+                draftId = it,
+                createdAtMillis = createdAtMillis
+            )
+        }
+
+        persistCreateRideDraftRequest(
+            CreateRideDraftPersistenceRequest(
+                draftId = draftId,
+                draft = draft?.takeUnless { it.isEmpty }
+            )
+        )
     }
 
     private fun syncPendingRidePublishes(driverId: String) {
@@ -1071,8 +1236,7 @@ class RidesViewModel @Inject constructor(
             }
         }
 
-        return (latestPendingDriverRides + mergedRemoteRides)
-            .sortedBy { "${it.date} ${it.time}" }
+        return mergedRemoteRides.sortedBy { "${it.date} ${it.time}" }
     }
 
     private fun completeDriverRide(rideId: String) {
@@ -1461,6 +1625,9 @@ sealed interface RidesEvent {
     data class DriverLicensePlateChanged(val value: String) : RidesEvent
     data class DriverDescriptionChanged(val value: String) : RidesEvent
     data class DriverTabChanged(val tab: DriverRidesTab) : RidesEvent
+    data object StartNewDriverDraft : RidesEvent
+    data class EditDriverDraft(val draftId: String) : RidesEvent
+    data class DeleteDriverDraft(val draftId: String) : RidesEvent
     data class CompleteDriverRide(val rideId: String) : RidesEvent
     data class CancelDriverRide(val rideId: String) : RidesEvent
     data class StartDriverRide(val rideId: String) : RidesEvent
@@ -1503,6 +1670,8 @@ data class RidesUiState(
     val licensePlate: String = "",
     val description: String = "",
     val driverSelectedTab: DriverRidesTab = DriverRidesTab.CREATE_RIDE,
+    val createRideDrafts: List<CreateRideDraftSummary> = emptyList(),
+    val activeCreateRideDraftId: String? = null,
     val driverRides: List<DriverRideUiModel> = emptyList(),
     val currentDriverTrustScore: Int? = null,
     val actionInProgressRideId: String? = null,
@@ -1515,6 +1684,9 @@ data class RidesUiState(
     val scheduleValidationMessage: String? = null,
     val isCreateRideOnline: Boolean = true,
     val isPublishingRide: Boolean = false,
+    val isSavingCreateRideDraft: Boolean = false,
+    val isLoadingCreateRideDrafts: Boolean = false,
+    val deletingCreateRideDraftId: String? = null,
     val publishRideInfoMessage: String? = null,
     val publishRideErrorMessage: String? = null,
     val rideActionInfo: RideActionInfoNotice? = null,
@@ -1524,6 +1696,19 @@ data class RidesUiState(
 ) {
     val estimatedEarnings: Int
         get() = (pricePerSeat.toIntOrNull() ?: 0) * totalSeats
+
+    val hasCreateRideContent: Boolean
+        get() = origin.isNotBlank() ||
+            destination.isNotBlank() ||
+            date.isNotBlank() ||
+            time.isNotBlank() ||
+            pricePerSeat.isNotBlank() ||
+            carModel.isNotBlank() ||
+            licensePlate.isNotBlank() ||
+            description.isNotBlank() ||
+            usedCurrentLocationOrigin ||
+            usedCurrentLocationDestination ||
+            totalSeats != 3
 
     val canPublishRide: Boolean
         get() = origin.isNotBlank() &&
@@ -1536,10 +1721,15 @@ data class RidesUiState(
             scheduleValidationMessage == null &&
             !isPublishingRide
 
-    fun resetCreateRideForm(publishRideInfoMessage: String? = null): RidesUiState {
+    fun resetCreateRideForm(
+        publishRideInfoMessage: String? = null,
+        draftSelectedTab: DriverRidesTab = DriverRidesTab.CREATE_RIDE
+    ): RidesUiState {
         return copy(
             isPublishingRide = false,
-            driverSelectedTab = DriverRidesTab.CREATE_RIDE,
+            isSavingCreateRideDraft = false,
+            activeCreateRideDraftId = null,
+            driverSelectedTab = draftSelectedTab,
             origin = "",
             selectedOrigin = null,
             usedCurrentLocationOrigin = false,
@@ -1586,6 +1776,7 @@ data class NearbyRidesUiState(
 
 enum class DriverRidesTab {
     CREATE_RIDE,
+    DRAFTS,
     MY_RIDES
 }
 
@@ -1775,8 +1966,13 @@ private fun normalizeSearchValue(value: String): String {
     return value.trim().lowercase()
 }
 
-private fun RidesUiState.toCreateRideDraft(driverId: String): CreateRideDraft {
+private fun RidesUiState.toCreateRideDraft(
+    driverId: String,
+    draftId: String,
+    createdAtMillis: Long
+): CreateRideDraft {
     return CreateRideDraft(
+        draftId = draftId,
         driverId = driverId,
         origin = origin,
         destination = destination,
@@ -1788,7 +1984,38 @@ private fun RidesUiState.toCreateRideDraft(driverId: String): CreateRideDraft {
         pricePerSeat = pricePerSeat,
         carModel = carModel,
         licensePlate = licensePlate,
-        description = description
+        description = description,
+        createdAtMillis = createdAtMillis
+    )
+}
+
+private data class CreateRideDraftPersistenceRequest(
+    val draftId: String?,
+    val draft: CreateRideDraft?
+)
+
+private sealed interface PersistedDraftMutation {
+    data class Upsert(val summary: CreateRideDraftSummary) : PersistedDraftMutation
+    data class Delete(val draftId: String?) : PersistedDraftMutation
+}
+
+private fun CreateRideDraft.toSummary(updatedAtMillis: Long): CreateRideDraftSummary {
+    return CreateRideDraftSummary(
+        draftId = draftId,
+        driverId = driverId,
+        origin = origin,
+        destination = destination,
+        usedCurrentLocationOrigin = usedCurrentLocationOrigin,
+        usedCurrentLocationDestination = usedCurrentLocationDestination,
+        date = date,
+        time = time,
+        totalSeats = totalSeats,
+        pricePerSeat = pricePerSeat,
+        carModel = carModel,
+        licensePlate = licensePlate,
+        description = description,
+        createdAtMillis = createdAtMillis,
+        updatedAtMillis = updatedAtMillis
     )
 }
 
